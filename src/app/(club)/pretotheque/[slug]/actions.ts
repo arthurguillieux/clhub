@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession } from "@/core/auth/session";
-import { createBookingRequest, type BookingRequestResult } from "@/modules/pretotheque/data/bookings";
+import {
+  createBookingRequest,
+  updateBookingDates,
+  type BookingRequestResult,
+} from "@/modules/pretotheque/data/bookings";
 import { joinWaitlist } from "@/modules/pretotheque/data/waitlist";
 import { addComment } from "@/modules/pretotheque/data/comments";
 import { reportIssue, resolveMaintenance } from "@/modules/pretotheque/data/maintenance";
@@ -87,6 +91,40 @@ export async function requestBooking(
 
   revalidatePath(`/pretotheque/${itemSlug}`);
   return { status: "success", approved: result.status === "approved" };
+}
+
+export type UpdateBookingDatesActionResult =
+  | { ok: true; revertedToPending: boolean }
+  | { ok: false; message: string };
+
+export async function updateBookingDatesAction(
+  itemSlug: string,
+  bookingId: string,
+  startDate: string,
+  endDate: string,
+): Promise<UpdateBookingDatesActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Tu dois être connecté." };
+
+  if (!isoDate.safeParse(startDate).success || !isoDate.safeParse(endDate).success) {
+    return { ok: false, message: "Dates invalides." };
+  }
+
+  const result = await updateBookingDates(bookingId, session.member.id, startDate, endDate);
+  if (!result.ok) {
+    const message =
+      result.reason === "forbidden"
+        ? "Ce n'est pas ta réservation."
+        : result.reason === "wrong-status"
+          ? "Cette réservation ne peut plus être modifiée."
+          : result.reason === "not-found"
+            ? "Cette réservation n'existe plus."
+            : describeRejection(result);
+    return { ok: false, message };
+  }
+
+  revalidatePath(`/pretotheque/${itemSlug}`);
+  return { ok: true, revertedToPending: result.revertedToPending };
 }
 
 export async function joinWaitlistAction(

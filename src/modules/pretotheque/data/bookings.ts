@@ -473,3 +473,103 @@ export async function cancelBooking(bookingId: string, memberId: string): Promis
 
   return { ok: true, booking: updated };
 }
+
+export type UpdateBookingDatesResult =
+  | { ok: true; booking: Booking; revertedToPending: boolean }
+  | { ok: false; reason: "not-found" }
+  | { ok: false; reason: "forbidden" }
+  | { ok: false; reason: "wrong-status" }
+  | { ok: false; reason: "invalid-range" }
+  | { ok: false; reason: "too-long"; requestedDays: number; maxDays: number }
+  | { ok: false; reason: "overlap"; conflictingRange: Range; suggestions: Range[] }
+  | { ok: false; reason: "db-conflict" };
+
+/**
+ * Backs "déplacer ou étirer sa réservation directement sur la grille"
+ * (docs/01-produit.md §5.2). Re-runs the same `canBook` check as a fresh
+ * request — against every *other* booking on the item, since this one is
+ * itself being moved — so a drag can't sneak past validation a manual
+ * request would have hit. An already-approved booking whose dates actually
+ * change drops back to 'pending': the owner approved a specific window, not
+ * "whatever the borrower drags it to".
+ */
+export async function updateBookingDates(
+  bookingId: string,
+  memberId: string,
+  newStartDate: string,
+  newEndDate: string,
+): Promise<UpdateBookingDatesResult> {
+  const existing = await db.query.booking.findFirst({ where: (b, { eq }) => eq(b.id, bookingId) });
+  if (!existing) return { ok: false, reason: "not-found" };
+  if (existing.borrowerId !== memberId) return { ok: false, reason: "forbidden" };
+  if (existing.status !== "pending" && existing.status !== "approved") {
+    return { ok: false, reason: "wrong-status" };
+  }
+  if (existing.startDate === newStartDate && existing.endDate === newEndDate) {
+    return { ok: true, booking: existing, revertedToPending: false };
+  }
+
+  const targetItem = await db.query.item.findFirst({ where: (i, { eq }) => eq(i.id, existing.itemId) });
+  if (!targetItem) return { ok: false, reason: "not-found" };
+
+  const start = parse(newStartDate);
+  const end = parse(newEndDate);
+
+  const otherBookings = (await listBookingsForItem(existing.itemId)).filter((b) => b.id !== bookingId);
+  const busy = busyRanges(
+    otherBookings.map((b) => ({
+      range: { start: b.startDate as CalendarDate, end: b.endDate as CalendarDate },
+      status: b.status,
+    })),
+    targetItem.bufferDays,
+  );
+
+  const check = canBook({ start, end }, busy, {
+    maxLoanDays: targetItem.maxLoanDays,
+    bufferDays: targetItem.bufferDays,
+  });
+  if (!check.ok) {
+    if (check.reason === "overlap") {
+      const earliestSearch = compare(today(), addDays(start, -14)) > 0 ? today() : addDays(start, -14);
+      const suggestions = suggestAlternatives(
+        busy,
+        { start, end },
+        { start: earliestSearch, end: addDays(end, 120) },
+        3,
+      );
+      return { ok: false, reason: "overlap", conflictingRange: check.conflictingRange, suggestions };
+    }
+    return check;
+  }
+
+  const revertedToPending = existing.status === "approved";
+
+  try {
+    const [updated] = await db
+      .update(booking)
+      .set({
+        startDate: newStartDate,
+        endDate: newEndDate,
+        status: revertedToPending ? "pending" : existing.status,
+        updatedAt: new Date(),
+      })
+      .where(eq(booking.id, bookingId))
+      .returning();
+    if (!updated) return { ok: false, reason: "not-found" };
+
+    if (revertedToPending) {
+      await createNotification({
+        memberId: targetItem.ownerId,
+        kind: "booking.dates-changed",
+        entityRef: `booking:${bookingId}`,
+        payload: { itemName: targetItem.name, startDate: newStartDate, endDate: newEndDate },
+      });
+      await notifyWaitlistIfFreed(existing.itemId);
+    }
+
+    return { ok: true, booking: updated, revertedToPending };
+  } catch (error) {
+    if (isExclusionViolation(error)) return { ok: false, reason: "db-conflict" };
+    throw error;
+  }
+}

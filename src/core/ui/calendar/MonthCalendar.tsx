@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addDays,
   compare,
+  diffDays,
   endOfMonth,
   formatFrench,
   startOfMonth,
@@ -20,6 +21,7 @@ export interface CalendarBooking {
   endDate: string;
   status: string;
   borrowerName: string;
+  borrowerId?: string;
 }
 
 const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -79,14 +81,34 @@ function describeDay(day: CalendarDate, bookings: CalendarBooking[]): string {
   return `${base}, ${statusLabel} — ${covering.borrowerName}`;
 }
 
+export interface DragUpdate {
+  bookingId: string;
+  start: CalendarDate;
+  end: CalendarDate;
+}
+
+type DragMode = "move" | "resize-start" | "resize-end";
+
+interface DragState {
+  bookingId: string;
+  mode: DragMode;
+  originalStart: CalendarDate;
+  originalEnd: CalendarDate;
+}
+
 export function MonthCalendar({
   category,
   bookings,
   onSelectRange,
+  currentMemberId,
+  onUpdateRange,
 }: {
   category: string;
   bookings: CalendarBooking[];
   onSelectRange?: (range: { start: CalendarDate; end: CalendarDate }) => void;
+  /** When set, bookings belonging to this member (pending/approved) can be dragged to reschedule. */
+  currentMemberId?: string;
+  onUpdateRange?: (update: DragUpdate) => void;
 }) {
   const [monthAnchor, setMonthAnchor] = useState<CalendarDate>(() => today());
   const [selStart, setSelStart] = useState<CalendarDate | null>(null);
@@ -112,23 +134,71 @@ export function MonthCalendar({
     }
   }, [allVisibleDays]);
 
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<CalendarDate | null>(null);
+
   const weekSegments = useMemo(() => {
-    const perWeek: (PlaceableSegment & { status: string; label: string })[][] = weeks.map(
-      () => [],
-    );
+    type Seg = PlaceableSegment & { status: string; label: string; isMine: boolean };
+    const perWeek: Seg[][] = weeks.map(() => []);
     for (const b of bookings) {
+      const isMine =
+        !!currentMemberId &&
+        b.borrowerId === currentMemberId &&
+        (b.status === "pending" || b.status === "approved") &&
+        !!onUpdateRange;
       const segs = sliceByWeek(
         { start: b.startDate as CalendarDate, end: b.endDate as CalendarDate },
         weeks,
       );
       for (const seg of segs) {
-        perWeek[seg.weekIndex]?.push({ ...seg, id: b.id, status: b.status, label: b.borrowerName });
+        perWeek[seg.weekIndex]?.push({ ...seg, id: b.id, status: b.status, label: b.borrowerName, isMine });
       }
     }
     return perWeek.map((segs) => packLanes(segs));
-  }, [bookings, weeks]);
+  }, [bookings, weeks, currentMemberId, onUpdateRange]);
 
   const catBg = CATEGORY_BG[category] ?? "bg-cat-autre";
+
+  function handleSegmentDragStart(
+    event: React.DragEvent<HTMLDivElement>,
+    bookingId: string,
+    mode: DragMode,
+  ) {
+    const source = bookings.find((b) => b.id === bookingId);
+    if (!source) return;
+    event.stopPropagation();
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", bookingId);
+    setDragState({
+      bookingId,
+      mode,
+      originalStart: source.startDate as CalendarDate,
+      originalEnd: source.endDate as CalendarDate,
+    });
+  }
+
+  function handleDayDrop(day: CalendarDate) {
+    setDragOverDay(null);
+    if (!dragState || !onUpdateRange) return;
+    const { bookingId, mode, originalStart, originalEnd } = dragState;
+    setDragState(null);
+
+    let newStart = originalStart;
+    let newEnd = originalEnd;
+    if (mode === "move") {
+      const duration = diffDays(originalStart, originalEnd);
+      newStart = day;
+      newEnd = addDays(day, duration);
+    } else if (mode === "resize-start") {
+      if (compare(day, originalEnd) > 0) return;
+      newStart = day;
+    } else {
+      if (compare(day, originalStart) < 0) return;
+      newEnd = day;
+    }
+    if (newStart === originalStart && newEnd === originalEnd) return;
+    onUpdateRange({ bookingId, start: newStart, end: newEnd });
+  }
 
   function handleDayClick(day: CalendarDate) {
     setFocusedDay(day);
@@ -263,12 +333,22 @@ export function MonthCalendar({
                     onClick={() => handleDayClick(day)}
                     onFocus={() => setFocusedDay(day)}
                     onKeyDown={(e) => handleKeyDown(e, day)}
+                    onDragOver={(e) => {
+                      if (!dragState) return;
+                      e.preventDefault();
+                    }}
+                    onDragEnter={() => dragState && setDragOverDay(day)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handleDayDrop(day);
+                    }}
                     style={{ gridColumn: dayIndex + 1, gridRow: 1 }}
                     className={[
                       "flex h-7 w-7 items-center justify-center justify-self-center rounded-full text-xs",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                       inMonth ? "text-ink" : "text-muted/40",
                       isToday ? "font-bold ring-1 ring-primary" : "",
+                      day === dragOverDay ? "ring-2 ring-accent" : "",
                       selected ? "bg-accent text-accent-ink" : onSelectRange ? "hover:bg-surface" : "",
                     ].join(" ")}
                   >
@@ -281,17 +361,48 @@ export function MonthCalendar({
                 <div
                   key={`${seg.id}-${seg.weekIndex}`}
                   aria-hidden="true"
+                  draggable={seg.isMine}
+                  onDragStart={(e) => handleSegmentDragStart(e, seg.id, "move")}
+                  onDragEnd={() => {
+                    setDragState(null);
+                    setDragOverDay(null);
+                  }}
                   style={{ gridColumn: `${seg.startCol + 1} / span ${seg.span}`, gridRow: seg.lane + 2 }}
                   className={[
-                    "flex items-center overflow-hidden px-1.5 text-[10.5px] font-medium whitespace-nowrap",
+                    "relative flex items-center overflow-hidden px-1.5 text-[10.5px] font-medium whitespace-nowrap",
                     cornerRadius(seg),
                     seg.status === "pending"
                       ? "border border-dashed border-ink/30 bg-ink/10 text-ink"
                       : `${catBg} text-white`,
+                    seg.isMine ? "cursor-grab active:cursor-grabbing" : "",
                   ].join(" ")}
-                  title={seg.label}
+                  title={seg.isMine ? `${seg.label} — glisser pour déplacer` : seg.label}
                 >
+                  {seg.isMine && seg.isRangeStart && (
+                    <div
+                      draggable
+                      onDragStart={(e) => handleSegmentDragStart(e, seg.id, "resize-start")}
+                      onDragEnd={() => {
+                        setDragState(null);
+                        setDragOverDay(null);
+                      }}
+                      className="absolute inset-y-0 left-0 w-2 cursor-ew-resize"
+                      title="Étirer le début"
+                    />
+                  )}
                   {seg.label}
+                  {seg.isMine && seg.isRangeEnd && (
+                    <div
+                      draggable
+                      onDragStart={(e) => handleSegmentDragStart(e, seg.id, "resize-end")}
+                      onDragEnd={() => {
+                        setDragState(null);
+                        setDragOverDay(null);
+                      }}
+                      className="absolute inset-y-0 right-0 w-2 cursor-ew-resize"
+                      title="Étirer la fin"
+                    />
+                  )}
                 </div>
               ))}
             </div>

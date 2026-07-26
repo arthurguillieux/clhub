@@ -117,6 +117,14 @@ function describeNotification(n: Notification): string {
       const p = n.payload as { itemName?: string };
       return `Ta demande pour ${p.itemName ?? "un objet"} a expiré, faute de réponse à temps — retente si besoin.`;
     }
+    case "booking.dates-changed": {
+      const p = n.payload as { itemName?: string; startDate?: string; endDate?: string };
+      const dates =
+        p.startDate && p.endDate
+          ? ` (${formatFrench(p.startDate as CalendarDate)} → ${formatFrench(p.endDate as CalendarDate)})`
+          : "";
+      return `Les dates d'un emprunt de ${p.itemName ?? "un objet"} ont changé${dates} — la demande repasse en attente de ta validation.`;
+    }
     case "booking.pickup-reminder": {
       const p = n.payload as { itemName?: string; startDate?: string };
       const dateLabel = p.startDate ? ` (${formatFrench(p.startDate as CalendarDate)})` : "";

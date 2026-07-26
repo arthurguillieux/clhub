@@ -183,6 +183,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
               itemId={item.id}
               itemSlug={item.slug}
               category={item.category}
+              currentMemberId={session.member.id}
               bookings={bookings
                 .filter((b) => b.status === "pending" || b.status === "approved" || b.status === "active")
                 .map((b) => ({
@@ -191,6 +192,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                   endDate: b.endDate,
                   status: b.status,
                   borrowerName: b.borrowerName,
+                  borrowerId: b.borrowerId,
                 }))}
             />
           ) : (

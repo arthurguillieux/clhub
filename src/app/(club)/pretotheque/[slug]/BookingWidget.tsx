@@ -2,11 +2,16 @@
 
 import { useActionState, useState } from "react";
 import { formatFrench, type CalendarDate } from "@/core/date";
-import { MonthCalendar, type CalendarBooking } from "@/core/ui/calendar/MonthCalendar";
+import { MonthCalendar, type CalendarBooking, type DragUpdate } from "@/core/ui/calendar/MonthCalendar";
 import { AgendaView } from "@/core/ui/calendar/AgendaView";
 import { Button } from "@/core/ui/components/Button";
 import { FormField, Textarea } from "@/core/ui/components/Field";
-import { joinWaitlistAction, requestBooking, type RequestBookingState } from "./actions";
+import {
+  joinWaitlistAction,
+  requestBooking,
+  updateBookingDatesAction,
+  type RequestBookingState,
+} from "./actions";
 
 const initialState: RequestBookingState = { status: "idle" };
 
@@ -15,17 +20,30 @@ export function BookingWidget({
   itemSlug,
   category,
   bookings,
+  currentMemberId,
 }: {
   itemId: string;
   itemSlug: string;
   category: string;
   bookings: CalendarBooking[];
+  currentMemberId?: string;
 }) {
   const [range, setRange] = useState<{ start: CalendarDate; end: CalendarDate } | null>(null);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
   const [view, setView] = useState<"month" | "agenda">("month");
+  const [dragMessage, setDragMessage] = useState<string | null>(null);
   const action = requestBooking.bind(null, itemId, itemSlug);
   const [state, formAction, pending] = useActionState(action, initialState);
+
+  async function handleUpdateRange(update: DragUpdate) {
+    setDragMessage(null);
+    const result = await updateBookingDatesAction(itemSlug, update.bookingId, update.start, update.end);
+    if (!result.ok) {
+      setDragMessage(result.message);
+    } else if (result.revertedToPending) {
+      setDragMessage("Dates modifiées — la demande repasse en attente de validation.");
+    }
+  }
 
   function updateRange(next: { start: CalendarDate; end: CalendarDate }) {
     setRange(next);
@@ -58,10 +76,17 @@ export function BookingWidget({
       </div>
 
       {view === "month" ? (
-        <MonthCalendar category={category} bookings={bookings} onSelectRange={updateRange} />
+        <MonthCalendar
+          category={category}
+          bookings={bookings}
+          onSelectRange={updateRange}
+          currentMemberId={currentMemberId}
+          onUpdateRange={handleUpdateRange}
+        />
       ) : (
         <AgendaView bookings={bookings} />
       )}
+      {dragMessage && <p className="mt-2 text-xs text-muted">{dragMessage}</p>}
 
       {range && (
         <form

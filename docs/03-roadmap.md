@@ -98,7 +98,9 @@ disponibilité d'abord, l'interface ensuite.**
 - [x] Vue mensuelle avec plages multi-jours, coins arrondis aux seules vraies extrémités
 - [x] Deux états visuels : confirmé (plein) et en attente (hachuré)
 - [x] Sélection de plage — fait en tap-tap (deux clics) partout ; le glisser-déposer sur
-      ordinateur n'est pas implémenté, le tap-tap fonctionne aussi bien à la souris
+      ordinateur n'est pas implémenté pour la *sélection*, le tap-tap fonctionne aussi
+      bien à la souris (le glisser existe en revanche pour déplacer/étirer une
+      réservation existante, voir plus bas)
 - [ ] Vue agenda pour mobile
 - [ ] Navigation clavier et rôles ARIA
 
