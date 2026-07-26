@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession } from "@/core/auth/session";
 import { createBookingRequest, type BookingRequestResult } from "@/modules/pretotheque/data/bookings";
+import { joinWaitlist } from "@/modules/pretotheque/data/waitlist";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide");
 
@@ -76,4 +77,18 @@ export async function requestBooking(
 
   revalidatePath(`/pretotheque/${itemSlug}`);
   return { status: "success", approved: result.status === "approved" };
+}
+
+export async function joinWaitlistAction(
+  itemId: string,
+  itemSlug: string,
+  startDate: string,
+  endDate: string,
+): Promise<{ ok: boolean }> {
+  const session = await getSession();
+  if (!session) return { ok: false };
+
+  await joinWaitlist(itemId, session.member.id, startDate, endDate);
+  revalidatePath(`/pretotheque/${itemSlug}`);
+  return { ok: true };
 }

@@ -6,3 +6,4 @@ export * from "./notification";
 export * from "./item";
 export * from "./booking";
 export * from "./actionToken";
+export * from "./waitlist";

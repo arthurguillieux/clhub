@@ -5,7 +5,7 @@ import { formatFrench, type CalendarDate } from "@/core/date";
 import { MonthCalendar, type CalendarBooking } from "@/core/ui/calendar/MonthCalendar";
 import { Button } from "@/core/ui/components/Button";
 import { FormField, Textarea } from "@/core/ui/components/Field";
-import { requestBooking, type RequestBookingState } from "./actions";
+import { joinWaitlistAction, requestBooking, type RequestBookingState } from "./actions";
 
 const initialState: RequestBookingState = { status: "idle" };
 
@@ -21,12 +21,24 @@ export function BookingWidget({
   bookings: CalendarBooking[];
 }) {
   const [range, setRange] = useState<{ start: CalendarDate; end: CalendarDate } | null>(null);
+  const [waitlistJoined, setWaitlistJoined] = useState(false);
   const action = requestBooking.bind(null, itemId, itemSlug);
   const [state, formAction, pending] = useActionState(action, initialState);
 
+  function updateRange(next: { start: CalendarDate; end: CalendarDate }) {
+    setRange(next);
+    setWaitlistJoined(false);
+  }
+
+  async function handleJoinWaitlist() {
+    if (!range) return;
+    const result = await joinWaitlistAction(itemId, itemSlug, range.start, range.end);
+    if (result.ok) setWaitlistJoined(true);
+  }
+
   return (
     <div>
-      <MonthCalendar category={category} bookings={bookings} onSelectRange={setRange} />
+      <MonthCalendar category={category} bookings={bookings} onSelectRange={updateRange} />
 
       {range && (
         <form
@@ -63,7 +75,7 @@ export function BookingWidget({
                       key={`${s.start}-${s.end}`}
                       type="button"
                       onClick={() =>
-                        setRange({ start: s.start as CalendarDate, end: s.end as CalendarDate })
+                        updateRange({ start: s.start as CalendarDate, end: s.end as CalendarDate })
                       }
                       className="rounded-full border border-line px-2.5 py-1 text-xs font-medium text-ink hover:bg-surface"
                     >
@@ -71,6 +83,21 @@ export function BookingWidget({
                     </button>
                   ))}
                 </div>
+              )}
+              {state.suggestions !== undefined && (
+                <p className="mt-2">
+                  {waitlistJoined ? (
+                    "On te prévient dès que ces dates se libèrent !"
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleJoinWaitlist}
+                      className="text-xs font-semibold text-ink underline underline-offset-2 hover:text-primary"
+                    >
+                      Me prévenir si ça se libère
+                    </button>
+                  )}
+                </p>
               )}
             </div>
           )}

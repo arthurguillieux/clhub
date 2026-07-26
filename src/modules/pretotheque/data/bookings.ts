@@ -13,6 +13,7 @@ import {
   suggestAlternatives,
   type Range,
 } from "@/modules/pretotheque/domain/availability";
+import { notifyWaitlistIfFreed } from "@/modules/pretotheque/data/waitlist";
 
 export interface BookingRequestInput {
   itemId: string;
@@ -341,6 +342,7 @@ export async function markReturned(
   if (!updated) return { ok: false, reason: "not-found" };
 
   await notifyOwnerOfTransition(updated, "booking.returned");
+  await notifyWaitlistIfFreed(updated.itemId);
   return { ok: true, booking: updated };
 }
 
@@ -413,6 +415,11 @@ export async function cancelBooking(bookingId: string, memberId: string): Promis
       entityRef: `booking:${updated.id}`,
       payload: { itemName: relatedItem.name },
     });
+  }
+  if (existing.status === "approved") {
+    // Only a confirmed booking actually blocked anything — cancelling a
+    // still-pending request frees nothing new.
+    await notifyWaitlistIfFreed(updated.itemId);
   }
 
   return { ok: true, booking: updated };

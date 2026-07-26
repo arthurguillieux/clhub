@@ -6,6 +6,7 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { categoryLabel } from "@/core/ui/categories";
+import { formatFrench, type CalendarDate } from "@/core/date";
 
 function describeActivity(a: ActivityEntry): string {
   switch (a.kind) {
@@ -17,6 +18,26 @@ function describeActivity(a: ActivityEntry): string {
       const p = a.payload as { name?: string; category?: string };
       return `${p.name ?? "Un objet"} a rejoint la prêtothèque${p.category ? ` (${categoryLabel(p.category)})` : ""}`;
     }
+    case "booking.requested": {
+      const p = a.payload as { itemName?: string };
+      return `Une demande de prêt a été faite pour ${p.itemName ?? "un objet"}.`;
+    }
+    case "booking.approved": {
+      const p = a.payload as { itemName?: string };
+      return `${p.itemName ?? "Un objet"} a été réservé.`;
+    }
+    case "booking.rejected": {
+      const p = a.payload as { itemName?: string };
+      return `Une demande pour ${p.itemName ?? "un objet"} a été refusée.`;
+    }
+    case "booking.picked-up": {
+      const p = a.payload as { itemName?: string };
+      return `${p.itemName ?? "Un objet"} a été récupéré par l'emprunteur.`;
+    }
+    case "booking.returned": {
+      const p = a.payload as { itemName?: string };
+      return `${p.itemName ?? "Un objet"} a été rendu.`;
+    }
     default:
       return a.kind;
   }
@@ -27,6 +48,42 @@ function describeNotification(n: Notification): string {
     case "invitation.accepted": {
       const p = n.payload as { newMemberName?: string; newMemberNumber?: number };
       return `${p.newMemberName ?? "Quelqu'un"} a rejoint le club grâce à toi (membre #${p.newMemberNumber ?? "?"})`;
+    }
+    case "booking.requested": {
+      const p = n.payload as { itemName?: string };
+      return `Une demande de prêt pour ${p.itemName ?? "un objet"} attend ta validation.`;
+    }
+    case "booking.auto-approved": {
+      const p = n.payload as { itemName?: string };
+      return `${p.itemName ?? "Un objet"} vient d'être réservé automatiquement.`;
+    }
+    case "booking.approved": {
+      const p = n.payload as { itemName?: string };
+      return `Ta demande pour ${p.itemName ?? "un objet"} a été acceptée !`;
+    }
+    case "booking.rejected": {
+      const p = n.payload as { itemName?: string };
+      return `Ta demande pour ${p.itemName ?? "un objet"} a été refusée.`;
+    }
+    case "booking.cancelled": {
+      const p = n.payload as { itemName?: string };
+      return `Une demande pour ${p.itemName ?? "un objet"} a été annulée.`;
+    }
+    case "booking.picked-up": {
+      const p = n.payload as { itemName?: string };
+      return `${p.itemName ?? "Ton objet"} a été récupéré par l'emprunteur.`;
+    }
+    case "booking.returned": {
+      const p = n.payload as { itemName?: string };
+      return `${p.itemName ?? "Ton objet"} a été rendu.`;
+    }
+    case "waitlist.available": {
+      const p = n.payload as { itemName?: string; startDate?: string; endDate?: string };
+      const dates =
+        p.startDate && p.endDate
+          ? ` (${formatFrench(p.startDate as CalendarDate)} → ${formatFrench(p.endDate as CalendarDate)})`
+          : "";
+      return `${p.itemName ?? "L'objet"} attendu s'est libéré${dates} — retente ta demande !`;
     }
     default:
       return n.kind;

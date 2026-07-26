@@ -8,6 +8,7 @@ import {
   markReturned,
   respondToBooking,
 } from "@/modules/pretotheque/data/bookings";
+import { leaveWaitlist } from "@/modules/pretotheque/data/waitlist";
 
 async function requireMemberId(): Promise<string | null> {
   const session = await getSession();
@@ -46,5 +47,12 @@ export async function cancelMyBooking(bookingId: string): Promise<void> {
   const memberId = await requireMemberId();
   if (!memberId) return;
   await cancelBooking(bookingId, memberId);
+  revalidatePath("/pretotheque/mine");
+}
+
+export async function leaveWaitlistEntry(entryId: string): Promise<void> {
+  const memberId = await requireMemberId();
+  if (!memberId) return;
+  await leaveWaitlist(entryId, memberId);
   revalidatePath("/pretotheque/mine");
 }

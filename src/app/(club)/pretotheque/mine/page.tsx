@@ -5,6 +5,7 @@ import {
   listBookingsByBorrower,
   listPendingRequestsForOwner,
 } from "@/modules/pretotheque/data/bookings";
+import { listWaitlistForMember } from "@/modules/pretotheque/data/waitlist";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
@@ -15,6 +16,7 @@ import {
   cancelMyBooking,
   confirmPickup,
   confirmReturn,
+  leaveWaitlistEntry,
   rejectRequest,
 } from "./actions";
 
@@ -63,10 +65,11 @@ export default async function MyPretothequePage() {
   const session = await getSession();
   if (!session) return null; // guarded by (club)/layout.tsx
 
-  const [myItems, myBookings, pendingRequests] = await Promise.all([
+  const [myItems, myBookings, pendingRequests, myWaitlist] = await Promise.all([
     listItems({ ownerId: session.member.id }),
     listBookingsByBorrower(session.member.id),
     listPendingRequestsForOwner(session.member.id),
+    listWaitlistForMember(session.member.id),
   ]);
 
   return (
@@ -137,6 +140,29 @@ export default async function MyPretothequePage() {
           </Card>
         )}
       </section>
+
+      {myWaitlist.length > 0 && (
+        <section className="mt-10">
+          <SectionTitle>Mes listes d&apos;attente</SectionTitle>
+          <Card className="mt-3 divide-y divide-line-soft">
+            {myWaitlist.map((w) => (
+              <div key={w.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div>
+                  <Link href={`/pretotheque/${w.itemSlug}`} className="text-sm font-semibold text-ink hover:underline">
+                    {w.itemName}
+                  </Link>
+                  <p className="text-xs text-muted">
+                    Du {formatFrench(w.startDate as CalendarDate)} au{" "}
+                    {formatFrench(w.endDate as CalendarDate)} —{" "}
+                    {w.notifiedAt ? "C'est libre !" : "En attente d'une place"}
+                  </p>
+                </div>
+                <ActionButton action={leaveWaitlistEntry} bookingId={w.id} label="Se désinscrire" />
+              </div>
+            ))}
+          </Card>
+        </section>
+      )}
 
       <section className="mt-10">
         <SectionTitle>Mes objets</SectionTitle>
