@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getSession } from "@/core/auth/session";
 import { createBookingRequest, type BookingRequestResult } from "@/modules/pretotheque/data/bookings";
 import { joinWaitlist } from "@/modules/pretotheque/data/waitlist";
+import { addComment } from "@/modules/pretotheque/data/comments";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide");
 
@@ -91,4 +92,34 @@ export async function joinWaitlistAction(
   await joinWaitlist(itemId, session.member.id, startDate, endDate);
   revalidatePath(`/pretotheque/${itemSlug}`);
   return { ok: true };
+}
+
+const commentSchema = z.object({
+  body: z.string().trim().min(1, "Le commentaire ne peut pas être vide.").max(1000),
+});
+
+export type PostCommentState =
+  | { status: "idle" }
+  | { status: "success" }
+  | { status: "error"; message: string };
+
+export async function postComment(
+  itemId: string,
+  itemSlug: string,
+  _prevState: PostCommentState,
+  formData: FormData,
+): Promise<PostCommentState> {
+  const session = await getSession();
+  if (!session) {
+    return { status: "error", message: "Tu dois être connecté." };
+  }
+
+  const parsed = commentSchema.safeParse({ body: formData.get("body") });
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  await addComment(itemId, session.member.id, parsed.data.body);
+  revalidatePath(`/pretotheque/${itemSlug}`);
+  return { status: "success" };
 }

@@ -2,12 +2,14 @@ import { notFound } from "next/navigation";
 import { getSession } from "@/core/auth/session";
 import { getItemWithOwnerBySlug } from "@/modules/pretotheque/data/items";
 import { listBookingsWithBorrowerForItem } from "@/modules/pretotheque/data/bookings";
+import { listCommentsForItem } from "@/modules/pretotheque/data/comments";
 import { Container } from "@/core/ui/components/Container";
 import { Card } from "@/core/ui/components/Card";
 import { Badge } from "@/core/ui/components/Badge";
 import { SectionTitle } from "@/core/ui/components/Heading";
 import { CATEGORY_BG, categoryLabel } from "@/core/ui/categories";
 import { BookingWidget } from "./BookingWidget";
+import { CommentForm } from "./CommentForm";
 
 const CONDITION_LABELS: Record<string, string> = {
   neuf: "Neuf",
@@ -39,7 +41,10 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     notFound();
   }
 
-  const bookings = await listBookingsWithBorrowerForItem(item.id);
+  const [bookings, comments] = await Promise.all([
+    listBookingsWithBorrowerForItem(item.id),
+    listCommentsForItem(item.id),
+  ]);
 
   return (
     <Container>
@@ -144,6 +149,27 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                 borrowerName: b.borrowerName,
               }))}
           />
+        </Card>
+      </div>
+
+      <div className="mt-8">
+        <SectionTitle>Commentaires et astuces</SectionTitle>
+        <Card className="mt-3 p-5">
+          {comments.length === 0 ? (
+            <p className="text-sm text-muted">Rien pour l&apos;instant — sois le premier à écrire.</p>
+          ) : (
+            <ul className="flex flex-col gap-4">
+              {comments.map((c) => (
+                <li key={c.id} className="border-b border-line-soft pb-4 last:border-0 last:pb-0">
+                  <p className="text-sm text-ink whitespace-pre-wrap">{c.body}</p>
+                  <p className="mt-1 text-xs text-muted">
+                    {c.authorName} — {c.createdAt.toLocaleDateString("fr-FR")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+          <CommentForm itemId={item.id} itemSlug={item.slug} />
         </Card>
       </div>
     </Container>
