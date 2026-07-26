@@ -4,6 +4,9 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { MemberCard } from "@/core/ui/components/MemberCard";
 import { Card } from "@/core/ui/components/Card";
+import { computeGaugeDays } from "@/core/achievements/stats";
+import { gaugePosition } from "@/core/achievements/gauge";
+import { listCatalogForMember, listUnlockedBadges, syncMemberAchievements } from "@/core/achievements/engine";
 import { uploadAvatar } from "./actions";
 import { ProfileForm } from "./ProfileForm";
 import { CalendarFeedUrl } from "./CalendarFeedUrl";
@@ -16,6 +19,17 @@ export default async function SettingsPage() {
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
   const calendarUrl = `${appUrl}/api/ical/${calendarToken}`;
 
+  // Syncing on every page view (rather than only via the nightly cron) keeps
+  // a freshly-earned badge from feeling delayed — this page is low-traffic
+  // enough that recomputing on each visit costs nothing.
+  await syncMemberAchievements(session.member.id);
+  const [gaugeDays, badges, catalog] = await Promise.all([
+    computeGaugeDays(session.member.id),
+    listUnlockedBadges(session.member.id),
+    listCatalogForMember(session.member.id),
+  ]);
+  const hasActivity = gaugeDays.lentDays > 0 || gaugeDays.borrowedDays > 0;
+
   return (
     <Container>
       <PageTitle>Réglages</PageTitle>
@@ -27,6 +41,8 @@ export default async function SettingsPage() {
           image={session.user.image}
           bio={session.member.bio}
           joinedAt={session.member.joinedAt}
+          gauge={hasActivity ? gaugePosition(gaugeDays.lentDays, gaugeDays.borrowedDays) : undefined}
+          badges={badges}
         />
       </div>
 
@@ -68,6 +84,30 @@ export default async function SettingsPage() {
           <div className="mt-3">
             <CalendarFeedUrl url={calendarUrl} />
           </div>
+        </Card>
+      </section>
+
+      <section className="mt-10">
+        <SectionTitle>Écussons</SectionTitle>
+        <Card className="mt-3 p-5">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {catalog.map((a) => (
+              <li
+                key={a.key}
+                className={`flex items-start gap-3 rounded-md border p-3 ${
+                  a.unlocked ? "border-line bg-surface" : "border-line-soft opacity-50"
+                }`}
+              >
+                <span className="text-2xl">{a.unlocked ? a.icon : a.secret ? "❓" : a.icon}</span>
+                <div>
+                  <p className="text-sm font-semibold text-ink">{a.name}</p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {a.description ?? a.hint ?? "Écusson secret."}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </Card>
       </section>
     </Container>

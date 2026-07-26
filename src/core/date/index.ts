@@ -91,8 +91,8 @@ export function formatFrench(date: CalendarDate): string {
   return `${d}/${m}/${y}`;
 }
 
-/** Today's civil date in the given IANA time zone. The only place "now" enters this module. */
-export function today(timeZone: string = "Europe/Paris"): CalendarDate {
+/** The civil date a given instant falls on, in the given IANA time zone. */
+export function fromTimestamp(instant: Date, timeZone: string = "Europe/Paris"): CalendarDate {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
@@ -100,7 +100,12 @@ export function today(timeZone: string = "Europe/Paris"): CalendarDate {
     day: "2-digit",
   });
   // en-CA formats as YYYY-MM-DD.
-  return parse(formatter.format(new Date()));
+  return parse(formatter.format(instant));
+}
+
+/** Today's civil date in the given IANA time zone. The only place "now" enters this module. */
+export function today(timeZone: string = "Europe/Paris"): CalendarDate {
+  return fromTimestamp(new Date(), timeZone);
 }
 
 export function addDays(date: CalendarDate, days: number): CalendarDate {

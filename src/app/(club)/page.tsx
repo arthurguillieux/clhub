@@ -142,6 +142,10 @@ function describeNotification(n: Notification): string {
           : "";
       return `${p.itemName ?? "L'objet"} attendu s'est libéré${dates} — retente ta demande !`;
     }
+    case "achievement.unlocked": {
+      const p = n.payload as { name?: string; icon?: string };
+      return `${p.icon ?? "🏅"} Nouvel écusson débloqué : ${p.name ?? "?"} !`;
+    }
     default:
       return n.kind;
   }

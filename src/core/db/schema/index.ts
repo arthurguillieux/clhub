@@ -13,3 +13,4 @@ export * from "./maintenanceLog";
 export * from "./itemPhoto";
 export * from "./wantedPost";
 export * from "./project";
+export * from "./achievement";

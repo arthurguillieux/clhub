@@ -158,11 +158,17 @@ effectuée pour de vrai au moins une fois.
 
 ## Lot 4 — La vie du club
 
-- [ ] Moteur d'écussons : règles, catalogue, évaluation par événement et nocturne
-- [ ] Le catalogue d'écussons du lancement, dont deux ou trois secrets
-- [ ] Écussons affichés comme des patches sur la carte de membre
-- [ ] Jauge prêteur / emprunteur en jours-objets
-- [ ] Page statistiques : économies réalisées, valeur du club, objet le plus convoité
+- [x] Moteur d'écussons : règles en code (core/achievements/catalog.ts), catalogue en base
+      (table `achievement`), évaluation par recalcul complet (cron nocturne + à la
+      consultation de la fiche membre) plutôt que par événement fin — largement suffisant
+      à l'échelle du club, et bien plus simple à maintenir
+- [x] Le catalogue d'écussons du lancement (8 publics + 3 secrets : Oiseau de nuit,
+      Increvable, Vide-grenier)
+- [x] Écussons affichés comme des patches sur la carte de membre
+- [x] Jauge prêteur / emprunteur en jours-objets
+- [ ] Page statistiques : économies réalisées, valeur du club, objet le plus convoité — la
+      version "rétrospective annuelle" existe (`/wrapped`, voir plus bas) ; une page dédiée
+      aux statistiques courantes (indépendante de l'année) reste à faire
 - [ ] Arbre du club (parrainages)
 - [ ] Webhook vers la conversation de groupe
 - [ ] Playwright sur les parcours critiques
@@ -174,7 +180,10 @@ effectuée pour de vrai au moins une fois.
 
 ## Après
 
-- **CLHUB Wrapped** — la rétrospective annuelle, à sortir en décembre
+- [x] **CLHUB Wrapped** — la rétrospective annuelle (`/wrapped`, sélecteur d'année) : objet
+      le plus convoité, mois le plus chargé, duo prêteur/emprunteur, jours-objets partagés
+      et économies réalisées. Construite maintenant plutôt qu'en décembre — reste
+      pertinente consultée en cours d'année, pas seulement en rétrospective de fin d'année
 - **Deuxième section** — candidates : caisse commune, dispos de groupe, ou **menus du
   club** (sondage type Tally pour un repas de groupe — qui vient, qui apporte quoi,
   allergies). Cette dernière est la plus légère à construire : elle ne dépend que du

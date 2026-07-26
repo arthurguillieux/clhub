@@ -4,6 +4,7 @@ import { booking, item } from "@/core/db/schema";
 import { createNotification } from "@/core/notifications";
 import { logActivity } from "@/core/activity";
 import { addDays, today, type CalendarDate } from "@/core/date";
+import { syncAllAchievements } from "@/core/achievements/engine";
 
 /**
  * A pending request whose whole window has already passed was never acted
@@ -78,12 +79,14 @@ export async function sendPickupReminders(): Promise<number> {
 export interface ScheduledTasksSummary {
   expired: number;
   remindersSent: number;
+  badgesUnlocked: number;
 }
 
 export async function runScheduledTasks(): Promise<ScheduledTasksSummary> {
-  const [expired, remindersSent] = await Promise.all([
+  const [expired, remindersSent, badgesUnlocked] = await Promise.all([
     expireStalePendingRequests(),
     sendPickupReminders(),
+    syncAllAchievements(),
   ]);
-  return { expired, remindersSent };
+  return { expired, remindersSent, badgesUnlocked };
 }
