@@ -19,6 +19,24 @@ const SECTIONS = [
   {
     name: "Les menus du club",
     description: "Organiser un repas de groupe — qui vient, qui apporte quoi.",
+    href: "/menus",
+    live: true,
+  },
+  {
+    name: "L'agenda en commun",
+    description: "Les événements et disponibilités du club, en un coup d'œil.",
+    href: null,
+    live: false,
+  },
+  {
+    name: "Caisse commune",
+    description: "Suivre les dépenses partagées du club.",
+    href: null,
+    live: false,
+  },
+  {
+    name: "Nos recettes",
+    description: "Le livre de recettes du club, à plusieurs mains.",
     href: null,
     live: false,
   },
@@ -69,6 +87,11 @@ function describeActivity(a: ActivityEntry): string {
     case "wanted.posted": {
       const p = a.payload as { title?: string };
       return `Une recherche a été publiée : « ${p.title ?? "?"} ».`;
+    }
+    case "menu.proposed": {
+      const p = a.payload as { title?: string; eventDate?: string };
+      const dateLabel = p.eventDate ? ` (${formatFrench(p.eventDate as CalendarDate)})` : "";
+      return `Un repas a été proposé : « ${p.title ?? "?"} »${dateLabel}.`;
     }
     default:
       return a.kind;
@@ -145,6 +168,10 @@ function describeNotification(n: Notification): string {
     case "achievement.unlocked": {
       const p = n.payload as { name?: string; icon?: string };
       return `${p.icon ?? "🏅"} Nouvel écusson débloqué : ${p.name ?? "?"} !`;
+    }
+    case "menu.response": {
+      const p = n.payload as { memberName?: string };
+      return `${p.memberName ?? "Quelqu'un"} vient à ton repas.`;
     }
     default:
       return n.kind;

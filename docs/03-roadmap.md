@@ -189,10 +189,15 @@ effectuée pour de vrai au moins une fois.
       le plus convoité, mois le plus chargé, duo prêteur/emprunteur, jours-objets partagés
       et économies réalisées. Construite maintenant plutôt qu'en décembre — reste
       pertinente consultée en cours d'année, pas seulement en rétrospective de fin d'année
-- **Deuxième section** — candidates : caisse commune, dispos de groupe, ou **menus du
-  club** (sondage type Tally pour un repas de groupe — qui vient, qui apporte quoi,
-  allergies). Cette dernière est la plus légère à construire : elle ne dépend que du
-  socle, pas du moteur de calendrier
+- [x] **Deuxième section : les menus du club** (`/menus`) — première version : proposer un
+      repas pour une date donnée, chaque membre répond présent/absent, ce qu'il apporte,
+      ses allergies. Notification au propriétaire du repas quand quelqu'un vient. Pas de
+      tirage au sort de qui cuisine pour l'instant (mentionné comme optionnel dans le
+      document produit). Exactement aussi léger que prévu : aucun moteur de calendrier,
+      juste le socle (membres, notifications, flux)
+- **Autres sections candidates**, ajoutées en « à venir » sur la page d'accueil (non
+  cliquables, aucun code derrière) : **l'agenda en commun**, **la caisse commune**, **nos
+  recettes**
 - **Prêt de livres et de jeux** — le même moteur, une catégorie de plus
 
 ---

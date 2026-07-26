@@ -14,3 +14,4 @@ export * from "./itemPhoto";
 export * from "./wantedPost";
 export * from "./project";
 export * from "./achievement";
+export * from "./menuEvent";
