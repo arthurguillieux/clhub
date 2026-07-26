@@ -85,6 +85,12 @@ export function format(date: CalendarDate): string {
   return date;
 }
 
+/** "DD/MM/YYYY" for user-facing display — ISO stays canonical everywhere else (storage, URLs, forms). */
+export function formatFrench(date: CalendarDate): string {
+  const [y, m, d] = date.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 /** Today's civil date in the given IANA time zone. The only place "now" enters this module. */
 export function today(timeZone: string = "Europe/Paris"): CalendarDate {
   const formatter = new Intl.DateTimeFormat("en-CA", {

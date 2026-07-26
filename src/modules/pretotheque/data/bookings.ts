@@ -1,9 +1,12 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/core/db/client";
-import { booking, member, user, type Booking } from "@/core/db/schema";
+import { booking, item, member, user, type Booking, type Item } from "@/core/db/schema";
 import { logActivity } from "@/core/activity";
 import { createNotification } from "@/core/notifications";
-import { parse, type CalendarDate } from "@/core/date";
+import { createActionToken } from "@/core/action-tokens";
+import { formatFrench, parse, type CalendarDate } from "@/core/date";
+import { sendMail } from "@/core/mail/send";
+import { BookingRequestEmail } from "@/core/mail/templates/BookingRequestEmail";
 import { busyRanges, canBook, type BookingCheck } from "@/modules/pretotheque/domain/availability";
 
 export interface BookingRequestInput {
@@ -44,6 +47,74 @@ export async function listBookingsWithBorrowerForItem(
     .where(eq(booking.itemId, itemId));
 
   return rows.map((row) => ({ ...row.booking, borrowerName: row.borrowerName }));
+}
+
+export interface BookingWithItem extends Booking {
+  item: Item;
+  borrowerName: string;
+}
+
+export async function getBookingWithItem(bookingId: string): Promise<BookingWithItem | null> {
+  const row = await db.query.booking.findFirst({ where: (b, { eq }) => eq(b.id, bookingId) });
+  if (!row) return null;
+
+  const [relatedItem, borrowerMember] = await Promise.all([
+    db.query.item.findFirst({ where: (i, { eq }) => eq(i.id, row.itemId) }),
+    db.query.member.findFirst({ where: (m, { eq }) => eq(m.id, row.borrowerId) }),
+  ]);
+  if (!relatedItem || !borrowerMember) return null;
+
+  const borrowerUser = await db.query.user.findFirst({
+    where: (u, { eq }) => eq(u.id, borrowerMember.userId),
+  });
+
+  return { ...row, item: relatedItem, borrowerName: borrowerUser?.name ?? "Un membre" };
+}
+
+export type RespondResult =
+  | { ok: true; booking: Booking }
+  | { ok: false; reason: "not-found" }
+  | { ok: false; reason: "forbidden" } // respondedBy isn't the item's owner
+  | { ok: false; reason: "already-responded" }
+  | { ok: false; reason: "conflict" }; // exclusion constraint — dates got taken since the request was made
+
+/**
+ * Approves or rejects a pending request. `respondedBy` must be the item's
+ * owner — the email-token flow already guarantees this (the token is minted
+ * for the owner), but this check is what actually protects the in-app
+ * dashboard action, where any logged-in member could otherwise pass any
+ * bookingId. Approving can still race another booking confirmed in the
+ * meantime — same exclusion-constraint safety net as createBookingRequest.
+ */
+export async function respondToBooking(
+  bookingId: string,
+  decision: "approved" | "rejected",
+  respondedBy: string,
+): Promise<RespondResult> {
+  const existing = await db.query.booking.findFirst({ where: (b, { eq }) => eq(b.id, bookingId) });
+  if (!existing) return { ok: false, reason: "not-found" };
+
+  const relatedItem = await db.query.item.findFirst({
+    where: (i, { eq }) => eq(i.id, existing.itemId),
+  });
+  if (!relatedItem || relatedItem.ownerId !== respondedBy) {
+    return { ok: false, reason: "forbidden" };
+  }
+
+  if (existing.status !== "pending") return { ok: false, reason: "already-responded" };
+
+  try {
+    const [updated] = await db
+      .update(booking)
+      .set({ status: decision, respondedAt: new Date(), respondedBy, updatedAt: new Date() })
+      .where(eq(booking.id, bookingId))
+      .returning();
+    if (!updated) return { ok: false, reason: "not-found" };
+    return { ok: true, booking: updated };
+  } catch (error) {
+    if (isExclusionViolation(error)) return { ok: false, reason: "conflict" };
+    throw error;
+  }
 }
 
 function isExclusionViolation(error: unknown): boolean {
@@ -135,5 +206,200 @@ export async function createBookingRequest(
     payload: { itemName: targetItem.name, startDate: input.startDate, endDate: input.endDate },
   });
 
+  if (status === "pending") {
+    await sendBookingRequestEmail(created, targetItem.name, targetItem.ownerId);
+  }
+
   return { ok: true, booking: created, status };
+}
+
+async function sendBookingRequestEmail(
+  createdBooking: Booking,
+  itemName: string,
+  ownerId: string,
+): Promise<void> {
+  const [ownerMember, borrowerMember] = await Promise.all([
+    db.query.member.findFirst({ where: (m, { eq }) => eq(m.id, ownerId) }),
+    db.query.member.findFirst({ where: (m, { eq }) => eq(m.id, createdBooking.borrowerId) }),
+  ]);
+  if (!ownerMember || !borrowerMember) return; // shouldn't happen — both were just referenced by FK
+
+  const [ownerUser, borrowerUser] = await Promise.all([
+    db.query.user.findFirst({ where: (u, { eq }) => eq(u.id, ownerMember.userId) }),
+    db.query.user.findFirst({ where: (u, { eq }) => eq(u.id, borrowerMember.userId) }),
+  ]);
+  if (!ownerUser || !borrowerUser) return;
+
+  const [approveToken, rejectToken] = await Promise.all([
+    createActionToken(ownerId, "booking.approve", { bookingId: createdBooking.id }),
+    createActionToken(ownerId, "booking.reject", { bookingId: createdBooking.id }),
+  ]);
+
+  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const startLabel = formatFrench(createdBooking.startDate as CalendarDate);
+  const endLabel = formatFrench(createdBooking.endDate as CalendarDate);
+
+  await sendMail({
+    to: ownerUser.email,
+    subject: `LE CLHUB — demande pour ${itemName}`,
+    react: BookingRequestEmail({
+      itemName,
+      borrowerName: borrowerUser.name,
+      startDateLabel: startLabel,
+      endDateLabel: endLabel,
+      message: createdBooking.message,
+      approveUrl: `${appUrl}/valider/${approveToken}`,
+      rejectUrl: `${appUrl}/valider/${rejectToken}`,
+    }),
+    devFallbackMessage: `Booking request email for ${ownerUser.email} — approve: ${appUrl}/valider/${approveToken} — reject: ${appUrl}/valider/${rejectToken}`,
+  });
+}
+
+export type TransitionResult =
+  | { ok: true; booking: Booking }
+  | { ok: false; reason: "not-found" }
+  | { ok: false; reason: "forbidden" }
+  | { ok: false; reason: "wrong-status" };
+
+async function notifyOwnerOfTransition(
+  updatedBooking: Booking,
+  kind: "booking.picked-up" | "booking.returned",
+): Promise<void> {
+  const relatedItem = await db.query.item.findFirst({
+    where: (i, { eq }) => eq(i.id, updatedBooking.itemId),
+  });
+  if (!relatedItem) return;
+
+  await logActivity({
+    section: "pretotheque",
+    kind,
+    actorId: updatedBooking.borrowerId,
+    subjectRef: `booking:${updatedBooking.id}`,
+    payload: { itemName: relatedItem.name },
+  });
+
+  await createNotification({
+    memberId: relatedItem.ownerId,
+    kind,
+    entityRef: `booking:${updatedBooking.id}`,
+    payload: { itemName: relatedItem.name },
+  });
+}
+
+/** Only the borrower confirms pickup/return — see docs/01-produit.md §5.3. */
+export async function markPickedUp(bookingId: string, memberId: string): Promise<TransitionResult> {
+  const existing = await db.query.booking.findFirst({ where: (b, { eq }) => eq(b.id, bookingId) });
+  if (!existing) return { ok: false, reason: "not-found" };
+  if (existing.borrowerId !== memberId) return { ok: false, reason: "forbidden" };
+  if (existing.status !== "approved") return { ok: false, reason: "wrong-status" };
+
+  const [updated] = await db
+    .update(booking)
+    .set({ status: "active", pickedUpAt: new Date(), updatedAt: new Date() })
+    .where(eq(booking.id, bookingId))
+    .returning();
+  if (!updated) return { ok: false, reason: "not-found" };
+
+  await notifyOwnerOfTransition(updated, "booking.picked-up");
+  return { ok: true, booking: updated };
+}
+
+export async function markReturned(
+  bookingId: string,
+  memberId: string,
+  returnCondition?: string | null,
+): Promise<TransitionResult> {
+  const existing = await db.query.booking.findFirst({ where: (b, { eq }) => eq(b.id, bookingId) });
+  if (!existing) return { ok: false, reason: "not-found" };
+  if (existing.borrowerId !== memberId) return { ok: false, reason: "forbidden" };
+  if (existing.status !== "active") return { ok: false, reason: "wrong-status" };
+
+  const [updated] = await db
+    .update(booking)
+    .set({
+      status: "returned",
+      returnedAt: new Date(),
+      returnCondition: returnCondition ?? null,
+      updatedAt: new Date(),
+    })
+    .where(eq(booking.id, bookingId))
+    .returning();
+  if (!updated) return { ok: false, reason: "not-found" };
+
+  await notifyOwnerOfTransition(updated, "booking.returned");
+  return { ok: true, booking: updated };
+}
+
+export interface BookingWithItemSummary extends Booking {
+  itemName: string;
+  itemSlug: string;
+}
+
+/** "Mes emprunts" — every booking this member has made, most recent first. */
+export async function listBookingsByBorrower(memberId: string): Promise<BookingWithItemSummary[]> {
+  const rows = await db
+    .select({ booking, itemName: item.name, itemSlug: item.slug })
+    .from(booking)
+    .innerJoin(item, eq(item.id, booking.itemId))
+    .where(eq(booking.borrowerId, memberId))
+    .orderBy(desc(booking.startDate));
+
+  return rows.map((r) => ({ ...r.booking, itemName: r.itemName, itemSlug: r.itemSlug }));
+}
+
+export interface PendingRequestForOwner extends Booking {
+  itemName: string;
+  itemSlug: string;
+  borrowerName: string;
+}
+
+/** "À valider" — pending requests on items this member owns. */
+export async function listPendingRequestsForOwner(
+  memberId: string,
+): Promise<PendingRequestForOwner[]> {
+  const rows = await db
+    .select({ booking, itemName: item.name, itemSlug: item.slug, borrowerName: user.name })
+    .from(booking)
+    .innerJoin(item, eq(item.id, booking.itemId))
+    .innerJoin(member, eq(member.id, booking.borrowerId))
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(and(eq(item.ownerId, memberId), eq(booking.status, "pending")))
+    .orderBy(desc(booking.createdAt));
+
+  return rows.map((r) => ({
+    ...r.booking,
+    itemName: r.itemName,
+    itemSlug: r.itemSlug,
+    borrowerName: r.borrowerName,
+  }));
+}
+
+export async function cancelBooking(bookingId: string, memberId: string): Promise<TransitionResult> {
+  const existing = await db.query.booking.findFirst({ where: (b, { eq }) => eq(b.id, bookingId) });
+  if (!existing) return { ok: false, reason: "not-found" };
+  if (existing.borrowerId !== memberId) return { ok: false, reason: "forbidden" };
+  if (existing.status !== "pending" && existing.status !== "approved") {
+    return { ok: false, reason: "wrong-status" };
+  }
+
+  const [updated] = await db
+    .update(booking)
+    .set({ status: "cancelled", updatedAt: new Date() })
+    .where(eq(booking.id, bookingId))
+    .returning();
+  if (!updated) return { ok: false, reason: "not-found" };
+
+  const relatedItem = await db.query.item.findFirst({
+    where: (i, { eq }) => eq(i.id, updated.itemId),
+  });
+  if (relatedItem) {
+    await createNotification({
+      memberId: relatedItem.ownerId,
+      kind: "booking.cancelled",
+      entityRef: `booking:${updated.id}`,
+      payload: { itemName: relatedItem.name },
+    });
+  }
+
+  return { ok: true, booking: updated };
 }

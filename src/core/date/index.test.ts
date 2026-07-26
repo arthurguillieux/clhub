@@ -6,6 +6,7 @@ import {
   eachDay,
   endOfMonth,
   format,
+  formatFrench,
   isAfter,
   isBefore,
   isWeekend,
@@ -50,6 +51,12 @@ describe("format", () => {
   it("is the identity on an already-valid date", () => {
     const d = parse("2026-01-05");
     expect(format(d)).toBe("2026-01-05");
+  });
+});
+
+describe("formatFrench", () => {
+  it("renders as DD/MM/YYYY", () => {
+    expect(formatFrench(parse("2026-07-05"))).toBe("05/07/2026");
   });
 });
 

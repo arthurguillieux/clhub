@@ -73,44 +73,50 @@ disponibilité d'abord, l'interface ensuite.**
 
 ### 2a — Le domaine
 
-- [ ] `modules/pretotheque/domain/` : `overlaps`, `mergeRanges`, `busyRanges`,
+- [x] `modules/pretotheque/domain/` : `overlaps`, `mergeRanges`, `busyRanges`,
       `applyBuffer`, `freeSlots`, `canBook`, `suggestAlternatives`
-- [ ] Tests exhaustifs : bornes inclusives, plages adjacentes, chevauchement d'un jour,
+- [x] Tests exhaustifs : bornes inclusives, plages adjacentes, chevauchement d'un jour,
       jours tampon, durée maximale, objet indisponible
-- [ ] Schéma `item` et `booking`, contrainte d'exclusion `btree_gist`
-- [ ] Test d'intégration prouvant qu'une double réservation concurrente échoue en base
+- [x] Schéma `item` et `booking`, contrainte d'exclusion `btree_gist`
+- [x] Test d'intégration prouvant qu'une double réservation concurrente échoue en base
 
 ### 2b — Les objets
 
-- [ ] CRUD complet des objets, avec tous les champs de la fiche
-- [ ] Envoi de plusieurs photos, réordonnancement, photo principale
-- [ ] Auto-remplissage depuis une URL (métadonnées Open Graph, côté serveur)
-- [ ] Catalogue : grille, recherche, filtres par section, par propriétaire, par
+- [x] CRUD complet des objets, avec tous les champs de la fiche
+- [ ] Envoi de plusieurs photos, réordonnancement, photo principale — simplifié en une
+      seule photo de couverture (`item.photoPath`) pour le lancement ; la table
+      `item_photo` (galerie) reste à faire si le besoin se confirme
+- [ ] Auto-remplissage depuis une URL (métadonnées Open Graph, côté serveur) — non fait,
+      `productUrl` est aujourd'hui un simple champ texte rempli à la main
+- [x] Catalogue : grille, recherche, filtres par section, par propriétaire, par
       disponibilité
-- [ ] Page de fiche objet
+- [x] Page de fiche objet
 
 ### 2c — Le calendrier
 
-- [ ] `core/ui/calendar/layout.ts` : `buildMonthGrid`, `sliceByWeek`, `packLanes` + tests
-- [ ] Vue mensuelle avec plages multi-jours, coins arrondis aux seules vraies extrémités
-- [ ] Deux états visuels : confirmé (plein) et en attente (hachuré)
-- [ ] Sélection de plage : glisser sur ordinateur, tap-tap sur mobile
+- [x] `core/ui/calendar/layout.ts` : `buildMonthGrid`, `sliceByWeek`, `packLanes` + tests
+- [x] Vue mensuelle avec plages multi-jours, coins arrondis aux seules vraies extrémités
+- [x] Deux états visuels : confirmé (plein) et en attente (hachuré)
+- [x] Sélection de plage — fait en tap-tap (deux clics) partout ; le glisser-déposer sur
+      ordinateur n'est pas implémenté, le tap-tap fonctionne aussi bien à la souris
 - [ ] Vue agenda pour mobile
 - [ ] Navigation clavier et rôles ARIA
 
 ### 2d — Le cycle de prêt
 
-- [ ] Demande de réservation avec message
-- [ ] Validation automatique par objet
-- [ ] Mail au propriétaire avec les deux boutons signés, fonctionnant sans connexion
-- [ ] Page de confirmation de validation ou de refus
-- [ ] Transitions d'état, `booking_event`, annulation par l'emprunteur
-- [ ] Récupération et retour, avec état constaté
-- [ ] Tableaux de bord : « mes objets », « mes emprunts », « à valider »
+- [x] Demande de réservation avec message
+- [x] Validation automatique par objet
+- [x] Mail au propriétaire avec les deux boutons signés, fonctionnant sans connexion
+- [x] Page de confirmation de validation ou de refus
+- [x] Transitions d'état, annulation par l'emprunteur (`booking_event` dédié non créé —
+      l'historique passe par `core/activity`)
+- [x] Récupération et retour, avec état constaté
+- [x] Tableaux de bord : « mes objets », « mes emprunts », « à valider »
 
 **Condition de sortie** — un membre réserve un objet appartenant à un autre, le
 propriétaire valide depuis son téléphone en cliquant dans le mail sans se connecter, et le
-prêt se déroule jusqu'au retour.
+prêt se déroule jusqu'au retour. ✅ Vérifié de bout en bout dans le navigateur le
+2026-07-26.
 
 ---
 

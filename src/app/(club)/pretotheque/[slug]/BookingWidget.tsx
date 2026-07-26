@@ -1,18 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import type { CalendarDate } from "@/core/date";
+import { formatFrench, type CalendarDate } from "@/core/date";
 import { MonthCalendar, type CalendarBooking } from "@/core/ui/calendar/MonthCalendar";
 import { Button } from "@/core/ui/components/Button";
 import { FormField, Textarea } from "@/core/ui/components/Field";
 import { requestBooking, type RequestBookingState } from "./actions";
 
 const initialState: RequestBookingState = { status: "idle" };
-
-function formatFr(date: CalendarDate): string {
-  const [y, m, d] = date.split("-");
-  return `${d}/${m}/${y}`;
-}
 
 export function BookingWidget({
   itemId,
@@ -41,7 +36,8 @@ export function BookingWidget({
           <input type="hidden" name="startDate" value={range.start} />
           <input type="hidden" name="endDate" value={range.end} />
           <p className="text-sm text-ink">
-            Du <strong>{formatFr(range.start)}</strong> au <strong>{formatFr(range.end)}</strong>
+            Du <strong>{formatFrench(range.start)}</strong> au{" "}
+            <strong>{formatFrench(range.end)}</strong>
           </p>
           <FormField label="Message pour le propriétaire (optionnel)" htmlFor="message">
             <Textarea id="message" name="message" rows={2} placeholder="Pour refaire ma terrasse..." />
