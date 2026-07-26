@@ -22,6 +22,12 @@ export interface CalendarBooking {
   status: string;
   borrowerName: string;
   borrowerId?: string;
+  /** Set only when the item has more than one active unit (ADR-004) — disambiguates overlapping ribbons. */
+  unitLabel?: string;
+}
+
+function displayLabel(b: CalendarBooking): string {
+  return b.unitLabel ? `${b.borrowerName} · ${b.unitLabel}` : b.borrowerName;
 }
 
 const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -78,7 +84,7 @@ function describeDay(day: CalendarDate, bookings: CalendarBooking[]): string {
   );
   if (!covering) return `${base}, disponible`;
   const statusLabel = covering.status === "pending" ? "demande en attente" : "réservé";
-  return `${base}, ${statusLabel} — ${covering.borrowerName}`;
+  return `${base}, ${statusLabel} — ${displayLabel(covering)}`;
 }
 
 export interface DragUpdate {
@@ -151,7 +157,7 @@ export function MonthCalendar({
         weeks,
       );
       for (const seg of segs) {
-        perWeek[seg.weekIndex]?.push({ ...seg, id: b.id, status: b.status, label: b.borrowerName, isMine });
+        perWeek[seg.weekIndex]?.push({ ...seg, id: b.id, status: b.status, label: displayLabel(b), isMine });
       }
     }
     return perWeek.map((segs) => packLanes(segs));

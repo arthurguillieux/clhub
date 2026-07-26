@@ -17,6 +17,13 @@ import {
   moveItemPhoto,
   setPrimaryItemPhoto,
 } from "@/modules/pretotheque/data/itemPhotos";
+import {
+  addItemUnit,
+  archiveItemUnit,
+  renameItemUnit,
+  unarchiveItemUnit,
+  type UnitResult,
+} from "@/modules/pretotheque/data/itemUnits";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide");
 
@@ -292,4 +299,78 @@ export async function resolveMaintenanceAction(
 
   revalidatePath(`/pretotheque/${itemSlug}`);
   return { status: "success" };
+}
+
+export type UnitActionResult = { ok: true } | { ok: false; message: string };
+
+function describeUnitError(reason: Extract<UnitResult, { ok: false }>["reason"]): string {
+  switch (reason) {
+    case "forbidden":
+      return "Seul le propriétaire peut gérer les exemplaires.";
+    case "not-found":
+      return "Cet objet n'existe plus.";
+    case "last-active-unit":
+      return "Impossible de retirer le dernier exemplaire actif — rends plutôt l'objet indisponible si besoin.";
+  }
+}
+
+export async function addItemUnitAction(
+  itemId: string,
+  itemSlug: string,
+  label: string | null,
+): Promise<UnitActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Tu dois être connecté." };
+
+  const result = await addItemUnit(itemId, session.member.id, label);
+  if (!result.ok) return { ok: false, message: describeUnitError(result.reason) };
+
+  revalidatePath(`/pretotheque/${itemSlug}`);
+  return { ok: true };
+}
+
+export async function renameItemUnitAction(
+  itemId: string,
+  itemSlug: string,
+  unitId: string,
+  label: string | null,
+): Promise<UnitActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Tu dois être connecté." };
+
+  const result = await renameItemUnit(itemId, session.member.id, unitId, label);
+  if (!result.ok) return { ok: false, message: describeUnitError(result.reason) };
+
+  revalidatePath(`/pretotheque/${itemSlug}`);
+  return { ok: true };
+}
+
+export async function archiveItemUnitAction(
+  itemId: string,
+  itemSlug: string,
+  unitId: string,
+): Promise<UnitActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Tu dois être connecté." };
+
+  const result = await archiveItemUnit(itemId, session.member.id, unitId);
+  if (!result.ok) return { ok: false, message: describeUnitError(result.reason) };
+
+  revalidatePath(`/pretotheque/${itemSlug}`);
+  return { ok: true };
+}
+
+export async function unarchiveItemUnitAction(
+  itemId: string,
+  itemSlug: string,
+  unitId: string,
+): Promise<UnitActionResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, message: "Tu dois être connecté." };
+
+  const result = await unarchiveItemUnit(itemId, session.member.id, unitId);
+  if (!result.ok) return { ok: false, message: describeUnitError(result.reason) };
+
+  revalidatePath(`/pretotheque/${itemSlug}`);
+  return { ok: true };
 }

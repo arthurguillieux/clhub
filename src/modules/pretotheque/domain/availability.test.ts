@@ -4,6 +4,8 @@ import {
   applyBuffer,
   busyRanges,
   canBook,
+  combinedBusyRanges,
+  findAvailableUnitIndex,
   freeSlots,
   mergeRanges,
   overlaps,
@@ -246,5 +248,68 @@ describe("suggestAlternatives", () => {
   it("caps results at the requested limit", () => {
     const suggestions = suggestAlternatives([], r("2026-07-01", "2026-07-01"), window, 2);
     expect(suggestions).toHaveLength(2);
+  });
+});
+
+describe("combinedBusyRanges", () => {
+  it("returns nothing for zero units", () => {
+    expect(combinedBusyRanges([])).toEqual([]);
+  });
+
+  it("a single unit passes its own busy ranges through unchanged", () => {
+    const unit = [r("2026-07-10", "2026-07-15")];
+    expect(combinedBusyRanges([unit])).toEqual(unit);
+  });
+
+  it("two units busy on the exact same days are fully busy at the item level", () => {
+    const unitA = [r("2026-07-10", "2026-07-15")];
+    const unitB = [r("2026-07-10", "2026-07-15")];
+    expect(combinedBusyRanges([unitA, unitB])).toEqual([r("2026-07-10", "2026-07-15")]);
+  });
+
+  it("two units busy on different days are never fully busy", () => {
+    const unitA = [r("2026-07-01", "2026-07-05")];
+    const unitB = [r("2026-07-10", "2026-07-15")];
+    expect(combinedBusyRanges([unitA, unitB])).toEqual([]);
+  });
+
+  it("only the overlapping slice of two staggered busy ranges is fully busy", () => {
+    const unitA = [r("2026-07-01", "2026-07-10")]; // free from day 11
+    const unitB = [r("2026-07-05", "2026-07-15")]; // busy from day 5
+    // Both busy only 07-05..07-10 — that's the only stretch with zero free units.
+    expect(combinedBusyRanges([unitA, unitB])).toEqual([r("2026-07-05", "2026-07-10")]);
+  });
+
+  it("one always-free unit means the item is never fully busy", () => {
+    const unitA = [r("2026-07-01", "2026-07-31")];
+    const unitB: Range[] = [];
+    expect(combinedBusyRanges([unitA, unitB])).toEqual([]);
+  });
+
+  it("three units require all three busy at once to count", () => {
+    const unitA = [r("2026-07-01", "2026-07-31")];
+    const unitB = [r("2026-07-01", "2026-07-31")];
+    const unitC = [r("2026-07-15", "2026-07-20")]; // only this window has all three busy
+    expect(combinedBusyRanges([unitA, unitB, unitC])).toEqual([r("2026-07-15", "2026-07-20")]);
+  });
+});
+
+describe("findAvailableUnitIndex", () => {
+  const request = r("2026-07-10", "2026-07-15");
+
+  it("returns -1 when there are no units", () => {
+    expect(findAvailableUnitIndex([], request)).toBe(-1);
+  });
+
+  it("picks the first free unit, in order", () => {
+    const busyUnit = [r("2026-07-10", "2026-07-15")];
+    const freeUnit: Range[] = [];
+    expect(findAvailableUnitIndex([busyUnit, freeUnit], request)).toBe(1);
+    expect(findAvailableUnitIndex([freeUnit, busyUnit], request)).toBe(0);
+  });
+
+  it("returns -1 when every unit conflicts", () => {
+    const busyUnit = [r("2026-07-10", "2026-07-15")];
+    expect(findAvailableUnitIndex([busyUnit, busyUnit], request)).toBe(-1);
   });
 });

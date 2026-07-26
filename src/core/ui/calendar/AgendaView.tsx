@@ -33,7 +33,7 @@ export function AgendaView({ bookings }: { bookings: CalendarBooking[] }) {
             </span>
           </div>
           <span className="whitespace-nowrap text-xs text-muted">
-            {b.borrowerName} — {STATUS_LABELS[b.status] ?? b.status}
+            {`${b.borrowerName}${b.unitLabel ? ` · ${b.unitLabel}` : ""} — ${STATUS_LABELS[b.status] ?? b.status}`}
           </span>
         </li>
       ))}

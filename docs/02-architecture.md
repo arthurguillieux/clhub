@@ -118,7 +118,6 @@ item
   product_url, price_cents, purchase_year
   replacement_value_cents null
   condition           text     -- 'neuf'|'bon'|'usage'|'fragile'
-  quantity            int default 1        -- voir ADR-004
   accessories, consumables, safety_notes   text
   pickup_location, pickup_notes            text
   auto_approve        boolean default false
@@ -128,6 +127,7 @@ item
   created_at, updated_at, archived_at
 
 item_photo           id, item_id, path, width, height, sort, is_primary
+item_unit            id, item_id → item, label null, archived_at null   -- ADR-004
 item_owner           item_id, member_id            -- copropriété (achat groupé)
 kit / kit_item                                     -- lots : « kit soirée »
 
@@ -137,6 +137,7 @@ project              -- un « chantier »
 booking
   id
   item_id       → item
+  unit_id       → item_unit     -- ADR-004 : l'exemplaire réellement emprunté
   borrower_id   → member
   project_id    → project null
   start_date    date          -- inclusif
@@ -169,7 +170,7 @@ CREATE EXTENSION IF NOT EXISTS btree_gist;
 
 ALTER TABLE booking ADD CONSTRAINT booking_no_overlap
   EXCLUDE USING gist (
-    item_id WITH =,
+    unit_id WITH =,
     daterange(start_date, end_date, '[]') WITH &&
   ) WHERE (status IN ('approved', 'active'));
 ```
@@ -181,6 +182,8 @@ Deux propriétés importantes de cette contrainte :
   document produit), et il tombe naturellement du `WHERE`.
 - Un double clic simultané ne peut pas produire deux prêts confirmés. La deuxième
   transaction échoue avec une violation de contrainte, qu'on traduit en message clair.
+- Elle porte sur `unit_id`, pas `item_id` (ADR-004) : deux exemplaires du même objet se
+  prêtent indépendamment, chacun avec sa propre garantie anti-chevauchement.
 
 ## 4. Le calendrier — construit à la main, et pourquoi
 
@@ -401,16 +404,28 @@ est une configuration parfaitement banale.
 Voir §4. Le calendrier est le produit ; on ne délègue pas le produit à une dépendance qui
 impose son DOM.
 
-### ADR-004 — La quantité est ignorée pour la disponibilité en phases 1 et 2
+### ADR-004 — `item_unit` : la disponibilité par exemplaire
 Un objet en 6 exemplaires (des tréteaux) ne peut pas être couvert par la contrainte
-d'exclusion telle qu'écrite. La modélisation correcte est une table `item_unit`, une ligne
-par exemplaire, la réservation portant sur une unité et la disponibilité devenant un
-comptage d'unités libres.
+d'exclusion sur `item_id` seul. La table `item_unit` porte une ligne par exemplaire ;
+`booking.unit_id` référence l'unité réellement empruntée, et la contrainte d'exclusion
+`booking_no_overlap` porte sur `(unit_id, daterange)` plutôt que sur `(item_id,
+daterange)` — deux tréteaux du même objet se prêtent désormais indépendamment
+(drizzle/0013_wakeful_skullbuster.sql).
 
-Cette généralisation est **planifiée pour le lot 3**, pas avancée : la priorité est
-d'obtenir un moteur de disponibilité juste et intégralement testé sur le modèle simple.
-Comme la logique vit dans des fonctions pures, l'extension est un changement circonscrit,
-et la migration est triviale (une unité par objet existant).
+La logique de disponibilité vivant dans des fonctions pures, l'extension est restée
+circonscrite : `combinedBusyRanges` (modules/pretotheque/domain/availability.ts) combine
+les plages occupées de chaque unité — un objet n'est réellement complet que le jour où
+*toutes* ses unités le sont — puis réutilise `canBook`/`suggestAlternatives` sans
+modification. `findAvailableUnitIndex` choisit ensuite l'unité réellement assignée à une
+nouvelle demande. Un objet à une seule unité est simplement le cas particulier où cette
+combinaison ne change rien.
+
+Chaque objet démarre avec une unité par défaut (créée par `createItem`) ; le propriétaire
+en ajoute d'autres depuis la fiche objet (section « Exemplaires ») s'il possède plusieurs
+exemplaires. Retirer (archiver) une unité est bloqué s'il s'agit de la dernière active —
+rendre l'objet indisponible est un choix explicite via `item.status`, pas un effet de
+bord. La migration a créé une unité par objet existant (`quantity`, jamais exposé dans
+aucun formulaire, est supprimé).
 
 ### ADR-005 — Réservations en dates pures
 Voir §5. Élimine par construction toute une classe de bugs, et correspond à la réalité

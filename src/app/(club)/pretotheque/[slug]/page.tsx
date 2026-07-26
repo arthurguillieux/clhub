@@ -5,6 +5,7 @@ import { listBookingsWithBorrowerForItem } from "@/modules/pretotheque/data/book
 import { listCommentsForItem } from "@/modules/pretotheque/data/comments";
 import { listMaintenanceLogForItem } from "@/modules/pretotheque/data/maintenance";
 import { listItemPhotos } from "@/modules/pretotheque/data/itemPhotos";
+import { listAllUnitsForItem } from "@/modules/pretotheque/data/itemUnits";
 import { itemQrSvg } from "@/core/qrcode";
 import Link from "next/link";
 import { Container } from "@/core/ui/components/Container";
@@ -16,6 +17,7 @@ import { BookingWidget } from "./BookingWidget";
 import { CommentForm } from "./CommentForm";
 import { MaintenanceForm } from "./MaintenanceForm";
 import { PhotoGallery } from "./PhotoGallery";
+import { UnitsManager } from "./UnitsManager";
 
 const MAINTENANCE_KIND_LABELS: Record<string, string> = {
   issue: "Signalement",
@@ -52,17 +54,22 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     notFound();
   }
 
-  const [bookings, comments, maintenanceLog, photos] = await Promise.all([
+  const [bookings, comments, maintenanceLog, photos, units] = await Promise.all([
     listBookingsWithBorrowerForItem(item.id),
     listCommentsForItem(item.id),
     listMaintenanceLogForItem(item.id),
     listItemPhotos(item.id),
+    listAllUnitsForItem(item.id),
   ]);
 
   const isOwner = session.member.id === item.ownerId;
   const isAvailable = item.status === "available";
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
   const qrSvg = await itemQrSvg(`${appUrl}/pretotheque/${item.slug}`);
+
+  const activeUnits = units.filter((u) => !u.archivedAt);
+  const showUnitLabels = activeUnits.length > 1;
+  const unitLabelById = new Map(activeUnits.map((u, i) => [u.id, u.label ?? `Exemplaire ${i + 1}`]));
 
   return (
     <Container>
@@ -193,6 +200,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                   status: b.status,
                   borrowerName: b.borrowerName,
                   borrowerId: b.borrowerId,
+                  unitLabel: showUnitLabels ? unitLabelById.get(b.unitId) : undefined,
                 }))}
             />
           ) : (
@@ -203,6 +211,19 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           )}
         </Card>
       </div>
+
+      {isOwner && (
+        <div className="mt-8">
+          <SectionTitle>Exemplaires</SectionTitle>
+          <Card className="mt-3 p-5">
+            <UnitsManager
+              itemId={item.id}
+              itemSlug={item.slug}
+              units={units.map((u) => ({ id: u.id, label: u.label, archivedAt: u.archivedAt }))}
+            />
+          </Card>
+        </div>
+      )}
 
       <div className="mt-8">
         <SectionTitle>Signalements et entretien</SectionTitle>

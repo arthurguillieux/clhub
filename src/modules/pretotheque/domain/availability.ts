@@ -162,3 +162,55 @@ export function suggestAlternatives(
 
   return candidates.slice(0, limit);
 }
+
+/**
+ * Multi-unit availability (ADR-004): an item with several interchangeable
+ * copies (six trestles) is only actually busy on a given day when *every*
+ * copy is busy that day. This combines each unit's own (already-buffered)
+ * busy ranges into a single "busy at the item level" set, which can then be
+ * fed straight into `canBook`/`freeSlots`/`suggestAlternatives` unchanged —
+ * exactly the "circumscribed extension" ADR-004 anticipated, since a
+ * single-unit item is just the special case where the one unit's busy
+ * ranges pass through untouched.
+ */
+export function combinedBusyRanges(perUnitBusy: Range[][]): Range[] {
+  const totalUnits = perUnitBusy.length;
+  if (totalUnits === 0) return [];
+
+  const deltas = new Map<CalendarDate, number>();
+  for (const unitBusy of perUnitBusy) {
+    for (const range of mergeRanges(unitBusy)) {
+      deltas.set(range.start, (deltas.get(range.start) ?? 0) + 1);
+      const after = addDays(range.end, 1);
+      deltas.set(after, (deltas.get(after) ?? 0) - 1);
+    }
+  }
+
+  const boundaries = [...deltas.keys()].sort(compare);
+  const fullyBusy: Range[] = [];
+  let count = 0;
+  let busyStart: CalendarDate | null = null;
+
+  for (const date of boundaries) {
+    count += deltas.get(date) as number;
+    if (count >= totalUnits && busyStart === null) {
+      busyStart = date;
+    } else if (count < totalUnits && busyStart !== null) {
+      fullyBusy.push({ start: busyStart, end: addDays(date, -1) });
+      busyStart = null;
+    }
+  }
+
+  return mergeRanges(fullyBusy);
+}
+
+/**
+ * Which unit to actually assign a new booking to, once the combined check
+ * above has confirmed *some* unit is free for the whole request: the first
+ * one (in the given order — unit creation order) whose own busy ranges
+ * don't overlap it. Returns -1 only if the caller's combined check was
+ * wrong, which would be a bug at the call site, not a real outcome.
+ */
+export function findAvailableUnitIndex(perUnitBusy: Range[][], request: Range): number {
+  return perUnitBusy.findIndex((busy) => !mergeRanges(busy).some((b) => overlaps(b, request)));
+}

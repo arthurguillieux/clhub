@@ -19,10 +19,6 @@ export const item = pgTable("item", {
   priceCents: integer("price_cents"),
   replacementValueCents: integer("replacement_value_cents"),
   condition: text("condition").notNull().default("bon"), // 'neuf' | 'bon' | 'usage' | 'fragile'
-  // One row per item even for multi-unit ones (e.g. 6 trestles) — per-unit
-  // availability (ADR-004) is deferred to Lot 3, this is just informational
-  // until item_unit exists.
-  quantity: integer("quantity").notNull().default(1),
   accessories: text("accessories"),
   consumables: text("consumables"),
   safetyNotes: text("safety_notes"),

@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/core/db/client";
-import { item, member, user, type Item } from "@/core/db/schema";
+import { item, itemUnit, member, user, type Item } from "@/core/db/schema";
 
 const COMBINING_DIACRITICS = /[̀-ͯ]/g;
 
@@ -46,16 +46,20 @@ export interface ItemInput {
   bufferDays: number;
 }
 
+/** Every item starts with exactly one unit (ADR-004) — owners add more from the item page if they have several copies. */
 export async function createItem(ownerId: string, input: ItemInput): Promise<Item> {
   const slug = await uniqueSlug(slugify(input.name));
-  const [created] = await db
-    .insert(item)
-    .values({ ...input, ownerId, slug })
-    .returning();
-  if (!created) {
-    throw new Error("Failed to create item");
-  }
-  return created;
+  return db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(item)
+      .values({ ...input, ownerId, slug })
+      .returning();
+    if (!created) {
+      throw new Error("Failed to create item");
+    }
+    await tx.insert(itemUnit).values({ itemId: created.id });
+    return created;
+  });
 }
 
 export async function setItemPhoto(itemId: string, photoPath: string): Promise<void> {

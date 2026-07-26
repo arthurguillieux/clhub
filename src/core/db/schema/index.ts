@@ -4,6 +4,7 @@ export * from "./auth";
 export * from "./activity";
 export * from "./notification";
 export * from "./item";
+export * from "./itemUnit";
 export * from "./booking";
 export * from "./actionToken";
 export * from "./waitlist";

@@ -10,9 +10,12 @@ import { BookingRequestEmail } from "@/core/mail/templates/BookingRequestEmail";
 import {
   busyRanges,
   canBook,
+  combinedBusyRanges,
+  findAvailableUnitIndex,
   suggestAlternatives,
   type Range,
 } from "@/modules/pretotheque/domain/availability";
+import { listActiveUnitsForItem } from "@/modules/pretotheque/data/itemUnits";
 import { notifyWaitlistIfFreed } from "@/modules/pretotheque/data/waitlist";
 
 export interface BookingRequestInput {
@@ -36,8 +39,13 @@ export type BookingRequestResult =
   // comes with "libre du 15 au 18" instead of a bare "c'est pris".
   | { ok: false; reason: "overlap"; conflictingRange: Range; suggestions: Range[] };
 
-export async function listBookingsForItem(itemId: string): Promise<Booking[]> {
-  return db.select().from(booking).where(eq(booking.itemId, itemId));
+export async function listBookingsForUnit(unitId: string): Promise<Booking[]> {
+  return db.select().from(booking).where(eq(booking.unitId, unitId));
+}
+
+async function listBookingsForUnits(unitIds: string[]): Promise<Booking[]> {
+  if (unitIds.length === 0) return [];
+  return db.select().from(booking).where(inArray(booking.unitId, unitIds));
 }
 
 export interface BookingWithBorrower extends Booking {
@@ -155,28 +163,41 @@ export async function createBookingRequest(
     return { ok: false, reason: "item-unavailable" };
   }
 
+  const units = await listActiveUnitsForItem(input.itemId);
+  if (units.length === 0) {
+    return { ok: false, reason: "item-unavailable" };
+  }
+
   const start = parse(input.startDate);
   const end = parse(input.endDate);
 
-  const existing = await listBookingsForItem(input.itemId);
-  const busy = busyRanges(
-    existing.map((b) => ({
-      range: { start: b.startDate as CalendarDate, end: b.endDate as CalendarDate },
-      status: b.status,
-    })),
-    targetItem.bufferDays,
+  const unitBookings = await listBookingsForUnits(units.map((u) => u.id));
+  const perUnitBusy = units.map((u) =>
+    busyRanges(
+      unitBookings
+        .filter((b) => b.unitId === u.id)
+        .map((b) => ({
+          range: { start: b.startDate as CalendarDate, end: b.endDate as CalendarDate },
+          status: b.status,
+        })),
+      targetItem.bufferDays,
+    ),
   );
+  // Only fully-booked-on-every-unit stretches actually block a new request
+  // (ADR-004) — reuses canBook/suggestAlternatives unchanged, since a
+  // single-unit item is just the case where perUnitBusy has one entry.
+  const overallBusy = combinedBusyRanges(perUnitBusy);
 
   const check = canBook(
     { start, end },
-    busy,
+    overallBusy,
     { maxLoanDays: targetItem.maxLoanDays, bufferDays: targetItem.bufferDays },
   );
   if (!check.ok) {
     if (check.reason === "overlap") {
       const earliestSearch = compare(today(), addDays(start, -14)) > 0 ? today() : addDays(start, -14);
       const suggestions = suggestAlternatives(
-        busy,
+        overallBusy,
         { start, end },
         { start: earliestSearch, end: addDays(end, 120) },
         3,
@@ -184,6 +205,12 @@ export async function createBookingRequest(
       return { ok: false, reason: "overlap", conflictingRange: check.conflictingRange, suggestions };
     }
     return check;
+  }
+
+  const chosenUnit = units[findAvailableUnitIndex(perUnitBusy, { start, end })];
+  if (!chosenUnit) {
+    // Shouldn't happen: the combined check above just confirmed some unit is free.
+    return { ok: false, reason: "db-conflict" };
   }
 
   const status = targetItem.autoApprove ? "approved" : "pending";
@@ -194,6 +221,7 @@ export async function createBookingRequest(
       .insert(booking)
       .values({
         itemId: input.itemId,
+        unitId: chosenUnit.id,
         borrowerId: input.borrowerId,
         startDate: input.startDate,
         endDate: input.endDate,
@@ -487,11 +515,11 @@ export type UpdateBookingDatesResult =
 /**
  * Backs "déplacer ou étirer sa réservation directement sur la grille"
  * (docs/01-produit.md §5.2). Re-runs the same `canBook` check as a fresh
- * request — against every *other* booking on the item, since this one is
- * itself being moved — so a drag can't sneak past validation a manual
- * request would have hit. An already-approved booking whose dates actually
- * change drops back to 'pending': the owner approved a specific window, not
- * "whatever the borrower drags it to".
+ * request — against every *other* booking on the same unit (ADR-004), since
+ * this one is itself being moved — so a drag can't sneak past validation a
+ * manual request would have hit. An already-approved booking whose dates
+ * actually change drops back to 'pending': the owner approved a specific
+ * window, not "whatever the borrower drags it to".
  */
 export async function updateBookingDates(
   bookingId: string,
@@ -515,7 +543,10 @@ export async function updateBookingDates(
   const start = parse(newStartDate);
   const end = parse(newEndDate);
 
-  const otherBookings = (await listBookingsForItem(existing.itemId)).filter((b) => b.id !== bookingId);
+  // Scoped to this booking's own unit — a drag reschedules the borrower's
+  // copy, it doesn't hand them a different one. Other units' bookings are
+  // irrelevant here (unlike createBookingRequest, which is choosing among them).
+  const otherBookings = (await listBookingsForUnit(existing.unitId)).filter((b) => b.id !== bookingId);
   const busy = busyRanges(
     otherBookings.map((b) => ({
       range: { start: b.startDate as CalendarDate, end: b.endDate as CalendarDate },

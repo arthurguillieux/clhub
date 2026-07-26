@@ -141,7 +141,7 @@ prêt se déroule jusqu'au retour. ✅ Vérifié de bout en bout dans le navigat
 - [ ] Flux iCal par membre
 - [ ] Recherche d'objet + achat groupé + copropriété
 - [ ] Lots (« kit soirée »)
-- [ ] `item_unit` : la disponibilité par exemplaire (ADR-004)
+- [x] `item_unit` : la disponibilité par exemplaire (ADR-004)
 - [ ] PWA installable, manifeste, icônes, lecture hors ligne de ses emprunts
 - [x] QR codes par objet + planche d'étiquettes imprimable
 - [x] Sauvegardes automatiques (`docker/backup.sh`) + **procédure de restauration
