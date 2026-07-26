@@ -8,6 +8,13 @@
       "when": 1785080500499,
       "tag": "0000_lumpy_firestar",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785082295193,
+      "tag": "0001_huge_bug",
+      "breakpoints": true
     }
   ]
 }

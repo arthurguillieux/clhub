@@ -1,10 +1,12 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins";
+import { logActivity } from "@/core/activity";
 import { db } from "@/core/db/client";
 import { account, member, session, user, verification } from "@/core/db/schema";
 import { sendMail } from "@/core/mail/send";
 import { MagicLinkEmail } from "@/core/mail/templates/MagicLinkEmail";
+import { createNotification } from "@/core/notifications";
 import { clubHasNoMembersYet, findValidInvitationByEmail, markInvitationAccepted } from "./invitations";
 
 async function deliverMagicLink(email: string, url: string) {
@@ -62,13 +64,34 @@ export const auth = betterAuth({
               })
             : null;
 
-          await db.insert(member).values({
-            userId: createdUser.id,
-            invitedById: inviter?.id ?? null,
+          const [newMember] = await db
+            .insert(member)
+            .values({ userId: createdUser.id, invitedById: inviter?.id ?? null })
+            .returning();
+
+          if (!newMember) {
+            throw new Error("Failed to create member profile after user creation");
+          }
+
+          await logActivity({
+            section: "club",
+            kind: "member.joined",
+            actorId: newMember.id,
+            subjectRef: `member:${newMember.id}`,
+            payload: { memberNumber: newMember.memberNumber, invitedByMemberId: inviter?.id ?? null },
           });
 
           if (invited) {
             await markInvitationAccepted(invited.id);
+          }
+
+          if (inviter) {
+            await createNotification({
+              memberId: inviter.id,
+              kind: "invitation.accepted",
+              entityRef: `member:${newMember.id}`,
+              payload: { newMemberName: createdUser.name, newMemberNumber: newMember.memberNumber },
+            });
           }
         },
       },
