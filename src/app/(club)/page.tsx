@@ -66,6 +66,10 @@ function describeActivity(a: ActivityEntry): string {
       const p = a.payload as { itemName?: string };
       return `Une demande pour ${p.itemName ?? "un objet"} a expiré, faute de réponse à temps.`;
     }
+    case "wanted.posted": {
+      const p = a.payload as { title?: string };
+      return `Une recherche a été publiée : « ${p.title ?? "?"} ».`;
+    }
     default:
       return a.kind;
   }
@@ -117,6 +121,10 @@ function describeNotification(n: Notification): string {
       const p = n.payload as { itemName?: string; startDate?: string };
       const dateLabel = p.startDate ? ` (${formatFrench(p.startDate as CalendarDate)})` : "";
       return `Récupération de ${p.itemName ?? "ton emprunt"} demain${dateLabel} !`;
+    }
+    case "wanted.group-buy": {
+      const p = n.payload as { title?: string; interestCount?: number };
+      return `On est ${p.interestCount ?? "plusieurs"} intéressés par « ${p.title ?? "?"} » — on l'achète ensemble ?`;
     }
     case "waitlist.available": {
       const p = n.payload as { itemName?: string; startDate?: string; endDate?: string };
