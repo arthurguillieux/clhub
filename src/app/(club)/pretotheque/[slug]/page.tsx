@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
 import { getSession } from "@/core/auth/session";
 import { getItemWithOwnerBySlug } from "@/modules/pretotheque/data/items";
+import { listBookingsWithBorrowerForItem } from "@/modules/pretotheque/data/bookings";
 import { Container } from "@/core/ui/components/Container";
 import { Card } from "@/core/ui/components/Card";
 import { Badge } from "@/core/ui/components/Badge";
+import { SectionTitle } from "@/core/ui/components/Heading";
 import { CATEGORY_BG, categoryLabel } from "@/core/ui/categories";
+import { BookingWidget } from "./BookingWidget";
 
 const CONDITION_LABELS: Record<string, string> = {
   neuf: "Neuf",
@@ -35,6 +38,8 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
   if (!item) {
     notFound();
   }
+
+  const bookings = await listBookingsWithBorrowerForItem(item.id);
 
   return (
     <Container>
@@ -119,11 +124,28 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
             />
           </dl>
 
-          <p className="mt-6 text-xs text-muted">
-            Le calendrier de réservation arrive au lot 2c.
-          </p>
         </div>
       </Card>
+
+      <div className="mt-8">
+        <SectionTitle>Disponibilité</SectionTitle>
+        <Card className="mt-3 p-5">
+          <BookingWidget
+            itemId={item.id}
+            itemSlug={item.slug}
+            category={item.category}
+            bookings={bookings
+              .filter((b) => b.status === "pending" || b.status === "approved" || b.status === "active")
+              .map((b) => ({
+                id: b.id,
+                startDate: b.startDate,
+                endDate: b.endDate,
+                status: b.status,
+                borrowerName: b.borrowerName,
+              }))}
+          />
+        </Card>
+      </div>
     </Container>
   );
 }

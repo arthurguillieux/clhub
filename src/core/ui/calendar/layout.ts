@@ -100,10 +100,10 @@ export function sliceByWeek(range: Range, weeks: Week[]): Segment[] {
  * the first lane whose previous occupant has already ended. This is the same
  * algorithm Google Calendar's month view uses for stacking multi-day events.
  */
-export function packLanes(segments: PlaceableSegment[]): PlacedSegment[] {
+export function packLanes<T extends PlaceableSegment>(segments: T[]): (T & { lane: number })[] {
   const sorted = [...segments].sort((a, b) => a.startCol - b.startCol || b.span - a.span);
   const laneLastCol: number[] = [];
-  const placed: PlacedSegment[] = [];
+  const placed: (T & { lane: number })[] = [];
 
   for (const segment of sorted) {
     const endCol = segment.startCol + segment.span - 1;
