@@ -131,7 +131,9 @@ prêt se déroule jusqu'au retour. ✅ Vérifié de bout en bout dans le navigat
       /api/cron` déclenché par le Planificateur DSM plutôt qu'un vrai conteneur `worker`
       (voir docs/04-exploitation.md §7) ; relances (owner qui ne répond pas) et résumé
       périodique restent à faire
-- [ ] **Chantiers** : réserver plusieurs objets pour un même projet
+- [x] **Chantiers** : réserver plusieurs objets pour un même projet — un mail par
+      *réservation* est envoyé, pas encore consolidé par propriétaire quand il possède
+      plusieurs objets du même chantier
 - [ ] Commentaires et astuces sur les fiches
 - [ ] Signalements et journal d'entretien
 - [ ] Flux iCal par membre

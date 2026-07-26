@@ -21,6 +21,8 @@ export interface BookingRequestInput {
   startDate: string; // CalendarDate-shaped "YYYY-MM-DD"
   endDate: string;
   message?: string | null;
+  /** Set when this request is one item of a "chantier" — see project.ts. */
+  projectId?: string | null;
 }
 
 export type BookingRequestResult =
@@ -196,6 +198,7 @@ export async function createBookingRequest(
         startDate: input.startDate,
         endDate: input.endDate,
         message: input.message ?? null,
+        projectId: input.projectId ?? null,
         status,
       })
       .returning();

@@ -6,6 +6,7 @@ import {
   listPendingRequestsForOwner,
 } from "@/modules/pretotheque/data/bookings";
 import { listWaitlistForMember } from "@/modules/pretotheque/data/waitlist";
+import { listProjectsForMember } from "@/modules/pretotheque/data/projects";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
@@ -59,11 +60,12 @@ export default async function MyPretothequePage() {
   const session = await getSession();
   if (!session) return null; // guarded by (club)/layout.tsx
 
-  const [myItems, myBookings, pendingRequests, myWaitlist] = await Promise.all([
+  const [myItems, myBookings, pendingRequests, myWaitlist, myProjects] = await Promise.all([
     listItems({ ownerId: session.member.id }),
     listBookingsByBorrower(session.member.id),
     listPendingRequestsForOwner(session.member.id),
     listWaitlistForMember(session.member.id),
+    listProjectsForMember(session.member.id),
   ]);
 
   return (
@@ -129,6 +131,51 @@ export default async function MyPretothequePage() {
                     <ActionButton action={cancelMyBooking} bookingId={b.id} label="Annuler" />
                   )}
                 </div>
+              </div>
+            ))}
+          </Card>
+        )}
+      </section>
+
+      <section className="mt-10">
+        <div className="flex items-center justify-between">
+          <SectionTitle>Mes chantiers</SectionTitle>
+          <Link
+            href="/pretotheque/chantiers/new"
+            className="text-xs font-semibold text-primary underline underline-offset-2"
+          >
+            + Nouveau chantier
+          </Link>
+        </div>
+        {myProjects.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">
+            Un projet qui demande plusieurs objets à la fois ? Regroupe la demande en un
+            chantier.
+          </p>
+        ) : (
+          <Card className="mt-3 divide-y divide-line-soft">
+            {myProjects.map((p) => (
+              <div key={p.id} className="p-4">
+                <p className="text-sm font-semibold text-ink">{p.name}</p>
+                <p className="text-xs text-muted">
+                  Du {formatFrench(p.startDate as CalendarDate)} au{" "}
+                  {formatFrench(p.endDate as CalendarDate)}
+                </p>
+                <ul className="mt-2 flex flex-col gap-1">
+                  {p.bookings.map((b) => (
+                    <li key={b.bookingId} className="flex items-center justify-between text-xs">
+                      <Link
+                        href={`/pretotheque/${b.itemSlug}`}
+                        className="text-ink hover:underline"
+                      >
+                        {b.itemName}
+                      </Link>
+                      <span className="text-muted">
+                        {BOOKING_STATUS_LABELS[b.status] ?? b.status}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ))}
           </Card>

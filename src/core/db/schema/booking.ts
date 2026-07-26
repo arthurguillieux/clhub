@@ -1,6 +1,7 @@
 import { pgTable, uuid, text, date, timestamp } from "drizzle-orm/pg-core";
 import { item } from "./item";
 import { member } from "./member";
+import { project } from "./project";
 
 /**
  * The exclusion constraint that makes double-booking a single item
@@ -17,6 +18,8 @@ export const booking = pgTable("booking", {
   borrowerId: uuid("borrower_id")
     .notNull()
     .references(() => member.id),
+  // Set when this booking was created as part of a "chantier" — see project.ts.
+  projectId: uuid("project_id").references(() => project.id),
   startDate: date("start_date", { mode: "string" }).notNull(),
   endDate: date("end_date", { mode: "string" }).notNull(),
   startSlot: text("start_slot"), // 'matin' | 'aprem' | 'soir', null = whole day
