@@ -19,7 +19,7 @@ export default async function HomePage() {
       <h1 style={{ fontSize: "20px" }}>LE CLHUB</h1>
       <p style={{ color: "#555", fontSize: "14px" }}>
         {session.user.name} — membre #{session.member.memberNumber} —{" "}
-        <a href="/invite">inviter quelqu&apos;un</a>
+        <a href="/invite">inviter quelqu&apos;un</a> — <a href="/settings">réglages</a>
       </p>
 
       <h2 style={{ fontSize: "16px", marginTop: "32px" }}>Notifications</h2>

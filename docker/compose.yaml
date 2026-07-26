@@ -18,7 +18,10 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./uploads:/app/uploads
+      # Under public/ so Next's own static file serving covers it directly —
+      # see core/storage/index.ts. Docker creates this path inside the image's
+      # public/ folder at container start even though it's empty at build time.
+      - ./uploads:/app/public/uploads
 
   # `worker` (scheduled reminders, digests, nightly backup — see docs/03-roadmap.md,
   # Lot 3) joins this file once it actually exists. No point shipping a service

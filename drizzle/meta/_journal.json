@@ -15,6 +15,13 @@
       "when": 1785082295193,
       "tag": "0001_huge_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785083232404,
+      "tag": "0002_green_anthem",
+      "breakpoints": true
     }
   ]
 }

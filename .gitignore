@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# user uploads (local dev only — production mounts a persistent volume here)
+/public/uploads/
+
 # production
 /build
 

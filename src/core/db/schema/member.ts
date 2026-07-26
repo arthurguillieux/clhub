@@ -16,7 +16,6 @@ export const member = pgTable("member", {
   // Postgres-assigned, in creation order — avoids a race between two
   // invitations accepted at the same instant computing the same "next" number.
   memberNumber: integer("member_number").generatedAlwaysAsIdentity().unique(),
-  avatarPath: text("avatar_path"),
   bio: text("bio"),
   phone: text("phone"),
   role: text("role").notNull().default("member"), // 'member' | 'admin'
