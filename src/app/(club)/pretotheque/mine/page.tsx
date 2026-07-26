@@ -11,6 +11,7 @@ import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { Badge } from "@/core/ui/components/Badge";
 import { formatFrench, type CalendarDate } from "@/core/date";
+import { itemStatusLabel } from "@/core/ui/categories";
 import {
   approveRequest,
   cancelMyBooking,
@@ -27,13 +28,6 @@ const BOOKING_STATUS_LABELS: Record<string, string> = {
   returned: "Rendu",
   rejected: "Refusé",
   cancelled: "Annulé",
-};
-
-const ITEM_STATUS_LABELS: Record<string, string> = {
-  available: "Disponible",
-  unavailable: "Indisponible",
-  broken: "En panne",
-  retired: "Retiré",
 };
 
 function ActionButton({
@@ -184,7 +178,7 @@ export default async function MyPretothequePage() {
               >
                 <span className="font-medium text-ink">{it.name}</span>
                 <span className="text-xs text-muted">
-                  {ITEM_STATUS_LABELS[it.status] ?? it.status}
+                  {itemStatusLabel(it.status)}
                 </span>
               </Link>
             ))}

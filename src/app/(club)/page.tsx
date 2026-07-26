@@ -38,6 +38,14 @@ function describeActivity(a: ActivityEntry): string {
       const p = a.payload as { itemName?: string };
       return `${p.itemName ?? "Un objet"} a été rendu.`;
     }
+    case "item.issue-reported": {
+      const p = a.payload as { itemName?: string };
+      return `Un problème a été signalé sur ${p.itemName ?? "un objet"}.`;
+    }
+    case "item.repaired": {
+      const p = a.payload as { itemName?: string };
+      return `${p.itemName ?? "Un objet"} est de nouveau disponible après réparation.`;
+    }
     default:
       return a.kind;
   }
@@ -76,6 +84,10 @@ function describeNotification(n: Notification): string {
     case "booking.returned": {
       const p = n.payload as { itemName?: string };
       return `${p.itemName ?? "Ton objet"} a été rendu.`;
+    }
+    case "item.issue-reported": {
+      const p = n.payload as { itemName?: string; note?: string };
+      return `Un problème a été signalé sur ${p.itemName ?? "un objet"}${p.note ? ` : « ${p.note} »` : ""}.`;
     }
     case "waitlist.available": {
       const p = n.payload as { itemName?: string; startDate?: string; endDate?: string };

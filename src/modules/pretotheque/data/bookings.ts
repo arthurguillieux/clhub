@@ -26,6 +26,7 @@ export interface BookingRequestInput {
 export type BookingRequestResult =
   | { ok: true; booking: Booking; status: "pending" | "approved" }
   | { ok: false; reason: "item-not-found" }
+  | { ok: false; reason: "item-unavailable" } // item is broken/retired/unavailable
   | { ok: false; reason: "db-conflict" } // exclusion constraint caught a genuine race
   | { ok: false; reason: "invalid-range" }
   | { ok: false; reason: "too-long"; requestedDays: number; maxDays: number }
@@ -147,6 +148,9 @@ export async function createBookingRequest(
   });
   if (!targetItem) {
     return { ok: false, reason: "item-not-found" };
+  }
+  if (targetItem.status !== "available") {
+    return { ok: false, reason: "item-unavailable" };
   }
 
   const start = parse(input.startDate);

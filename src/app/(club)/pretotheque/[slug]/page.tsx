@@ -3,13 +3,20 @@ import { getSession } from "@/core/auth/session";
 import { getItemWithOwnerBySlug } from "@/modules/pretotheque/data/items";
 import { listBookingsWithBorrowerForItem } from "@/modules/pretotheque/data/bookings";
 import { listCommentsForItem } from "@/modules/pretotheque/data/comments";
+import { listMaintenanceLogForItem } from "@/modules/pretotheque/data/maintenance";
 import { Container } from "@/core/ui/components/Container";
 import { Card } from "@/core/ui/components/Card";
 import { Badge } from "@/core/ui/components/Badge";
 import { SectionTitle } from "@/core/ui/components/Heading";
-import { CATEGORY_BG, categoryLabel } from "@/core/ui/categories";
+import { CATEGORY_BG, categoryLabel, itemStatusLabel } from "@/core/ui/categories";
 import { BookingWidget } from "./BookingWidget";
 import { CommentForm } from "./CommentForm";
+import { MaintenanceForm } from "./MaintenanceForm";
+
+const MAINTENANCE_KIND_LABELS: Record<string, string> = {
+  issue: "Signalement",
+  maintenance: "Entretien",
+};
 
 const CONDITION_LABELS: Record<string, string> = {
   neuf: "Neuf",
@@ -41,10 +48,14 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     notFound();
   }
 
-  const [bookings, comments] = await Promise.all([
+  const [bookings, comments, maintenanceLog] = await Promise.all([
     listBookingsWithBorrowerForItem(item.id),
     listCommentsForItem(item.id),
+    listMaintenanceLogForItem(item.id),
   ]);
+
+  const isOwner = session.member.id === item.ownerId;
+  const isAvailable = item.status === "available";
 
   return (
     <Container>
@@ -56,7 +67,14 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           )}
         </div>
         <div className="p-6">
-          <Badge>{categoryLabel(item.category)}</Badge>
+          <div className="flex flex-wrap gap-2">
+            <Badge>{categoryLabel(item.category)}</Badge>
+            {!isAvailable && (
+              <span className="inline-flex items-center rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-medium text-white dark:bg-red-500">
+                {itemStatusLabel(item.status)}
+              </span>
+            )}
+          </div>
           <h1 className="mt-3 font-display text-2xl font-extrabold text-ink text-balance">
             {item.name}
           </h1>
@@ -135,19 +153,55 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
       <div className="mt-8">
         <SectionTitle>Disponibilité</SectionTitle>
         <Card className="mt-3 p-5">
-          <BookingWidget
+          {isAvailable ? (
+            <BookingWidget
+              itemId={item.id}
+              itemSlug={item.slug}
+              category={item.category}
+              bookings={bookings
+                .filter((b) => b.status === "pending" || b.status === "approved" || b.status === "active")
+                .map((b) => ({
+                  id: b.id,
+                  startDate: b.startDate,
+                  endDate: b.endDate,
+                  status: b.status,
+                  borrowerName: b.borrowerName,
+                }))}
+            />
+          ) : (
+            <p className="text-sm text-muted">
+              Cet objet n&apos;est pas disponible au prêt pour le moment
+              ({itemStatusLabel(item.status).toLowerCase()}).
+            </p>
+          )}
+        </Card>
+      </div>
+
+      <div className="mt-8">
+        <SectionTitle>Signalements et entretien</SectionTitle>
+        <Card className="mt-3 p-5">
+          {maintenanceLog.length === 0 ? (
+            <p className="text-sm text-muted">Aucun historique pour l&apos;instant.</p>
+          ) : (
+            <ul className="flex flex-col gap-4">
+              {maintenanceLog.map((entry) => (
+                <li key={entry.id} className="border-b border-line-soft pb-4 last:border-0 last:pb-0">
+                  <p className="text-xs font-semibold tracking-wide text-muted uppercase">
+                    {MAINTENANCE_KIND_LABELS[entry.kind] ?? entry.kind}
+                  </p>
+                  <p className="mt-1 text-sm text-ink whitespace-pre-wrap">{entry.note}</p>
+                  <p className="mt-1 text-xs text-muted">
+                    {entry.authorName} — {entry.createdAt.toLocaleDateString("fr-FR")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+          <MaintenanceForm
             itemId={item.id}
             itemSlug={item.slug}
-            category={item.category}
-            bookings={bookings
-              .filter((b) => b.status === "pending" || b.status === "approved" || b.status === "active")
-              .map((b) => ({
-                id: b.id,
-                startDate: b.startDate,
-                endDate: b.endDate,
-                status: b.status,
-                borrowerName: b.borrowerName,
-              }))}
+            isOwner={isOwner}
+            isBroken={!isAvailable}
           />
         </Card>
       </div>

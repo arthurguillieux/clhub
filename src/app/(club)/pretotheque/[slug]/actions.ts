@@ -6,6 +6,7 @@ import { getSession } from "@/core/auth/session";
 import { createBookingRequest, type BookingRequestResult } from "@/modules/pretotheque/data/bookings";
 import { joinWaitlist } from "@/modules/pretotheque/data/waitlist";
 import { addComment } from "@/modules/pretotheque/data/comments";
+import { reportIssue, resolveMaintenance } from "@/modules/pretotheque/data/maintenance";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide");
 
@@ -35,6 +36,8 @@ function describeRejection(result: Extract<BookingRequestResult, { ok: false }>)
       return `Ce prêt dépasse la durée maximale autorisée par le propriétaire (${result.maxDays} jours).`;
     case "item-not-found":
       return "Cet objet n'existe plus.";
+    case "item-unavailable":
+      return "Cet objet n'est actuellement pas disponible au prêt.";
     case "db-conflict":
       return "Quelqu'un vient de réserver ces dates à l'instant — réessaie avec d'autres dates.";
   }
@@ -120,6 +123,60 @@ export async function postComment(
   }
 
   await addComment(itemId, session.member.id, parsed.data.body);
+  revalidatePath(`/pretotheque/${itemSlug}`);
+  return { status: "success" };
+}
+
+const noteSchema = z.object({
+  note: z.string().trim().min(1, "Décris le problème en quelques mots.").max(500),
+});
+
+export type ReportIssueState =
+  | { status: "idle" }
+  | { status: "success" }
+  | { status: "error"; message: string };
+
+export async function reportIssueAction(
+  itemId: string,
+  itemSlug: string,
+  _prevState: ReportIssueState,
+  formData: FormData,
+): Promise<ReportIssueState> {
+  const session = await getSession();
+  if (!session) return { status: "error", message: "Tu dois être connecté." };
+
+  const parsed = noteSchema.safeParse({ note: formData.get("note") });
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  await reportIssue(itemId, session.member.id, parsed.data.note);
+  revalidatePath(`/pretotheque/${itemSlug}`);
+  return { status: "success" };
+}
+
+export async function resolveMaintenanceAction(
+  itemId: string,
+  itemSlug: string,
+  _prevState: ReportIssueState,
+  formData: FormData,
+): Promise<ReportIssueState> {
+  const session = await getSession();
+  if (!session) return { status: "error", message: "Tu dois être connecté." };
+
+  const parsed = noteSchema.safeParse({ note: formData.get("note") });
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  const result = await resolveMaintenance(itemId, session.member.id, parsed.data.note);
+  if (!result.ok) {
+    return {
+      status: "error",
+      message: result.reason === "forbidden" ? "Seul le propriétaire peut faire ça." : "Cet objet n'existe plus.",
+    };
+  }
+
   revalidatePath(`/pretotheque/${itemSlug}`);
   return { status: "success" };
 }

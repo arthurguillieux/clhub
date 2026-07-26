@@ -30,3 +30,14 @@ export const CATEGORY_TEXT: Record<string, string> = {
 export function categoryLabel(category: string): string {
   return CATEGORY_LABELS[category] ?? category;
 }
+
+export const ITEM_STATUS_LABELS: Record<string, string> = {
+  available: "Disponible",
+  unavailable: "Indisponible",
+  broken: "En panne",
+  retired: "Retiré",
+};
+
+export function itemStatusLabel(status: string): string {
+  return ITEM_STATUS_LABELS[status] ?? status;
+}
