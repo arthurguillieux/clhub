@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { formatFrench, type CalendarDate } from "@/core/date";
 import { MonthCalendar, type CalendarBooking } from "@/core/ui/calendar/MonthCalendar";
+import { AgendaView } from "@/core/ui/calendar/AgendaView";
 import { Button } from "@/core/ui/components/Button";
 import { FormField, Textarea } from "@/core/ui/components/Field";
 import { joinWaitlistAction, requestBooking, type RequestBookingState } from "./actions";
@@ -22,6 +23,7 @@ export function BookingWidget({
 }) {
   const [range, setRange] = useState<{ start: CalendarDate; end: CalendarDate } | null>(null);
   const [waitlistJoined, setWaitlistJoined] = useState(false);
+  const [view, setView] = useState<"month" | "agenda">("month");
   const action = requestBooking.bind(null, itemId, itemSlug);
   const [state, formAction, pending] = useActionState(action, initialState);
 
@@ -38,7 +40,28 @@ export function BookingWidget({
 
   return (
     <div>
-      <MonthCalendar category={category} bookings={bookings} onSelectRange={updateRange} />
+      <div className="mb-3 flex gap-1 text-xs font-semibold">
+        <button
+          type="button"
+          onClick={() => setView("month")}
+          className={`rounded-full px-3 py-1 ${view === "month" ? "bg-accent text-accent-ink" : "text-muted hover:bg-surface"}`}
+        >
+          Mois
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("agenda")}
+          className={`rounded-full px-3 py-1 ${view === "agenda" ? "bg-accent text-accent-ink" : "text-muted hover:bg-surface"}`}
+        >
+          Agenda
+        </button>
+      </div>
+
+      {view === "month" ? (
+        <MonthCalendar category={category} bookings={bookings} onSelectRange={updateRange} />
+      ) : (
+        <AgendaView bookings={bookings} />
+      )}
 
       {range && (
         <form
