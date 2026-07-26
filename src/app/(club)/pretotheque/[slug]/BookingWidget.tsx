@@ -53,7 +53,26 @@ export function BookingWidget({
             </p>
           )}
           {state.status === "error" && (
-            <p className="text-sm text-red-600 dark:text-red-400">{state.message}</p>
+            <div className="text-sm text-red-600 dark:text-red-400">
+              <p>{state.message}</p>
+              {state.suggestions && state.suggestions.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted">Libre à la place :</span>
+                  {state.suggestions.map((s) => (
+                    <button
+                      key={`${s.start}-${s.end}`}
+                      type="button"
+                      onClick={() =>
+                        setRange({ start: s.start as CalendarDate, end: s.end as CalendarDate })
+                      }
+                      className="rounded-full border border-line px-2.5 py-1 text-xs font-medium text-ink hover:bg-surface"
+                    >
+                      {formatFrench(s.start as CalendarDate)} → {formatFrench(s.end as CalendarDate)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </form>
       )}

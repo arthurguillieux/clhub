@@ -4,10 +4,15 @@ import { booking, item, member, user, type Booking, type Item } from "@/core/db/
 import { logActivity } from "@/core/activity";
 import { createNotification } from "@/core/notifications";
 import { createActionToken } from "@/core/action-tokens";
-import { formatFrench, parse, type CalendarDate } from "@/core/date";
+import { addDays, compare, formatFrench, parse, today, type CalendarDate } from "@/core/date";
 import { sendMail } from "@/core/mail/send";
 import { BookingRequestEmail } from "@/core/mail/templates/BookingRequestEmail";
-import { busyRanges, canBook, type BookingCheck } from "@/modules/pretotheque/domain/availability";
+import {
+  busyRanges,
+  canBook,
+  suggestAlternatives,
+  type Range,
+} from "@/modules/pretotheque/domain/availability";
 
 export interface BookingRequestInput {
   itemId: string;
@@ -17,16 +22,15 @@ export interface BookingRequestInput {
   message?: string | null;
 }
 
-// createBookingRequest never actually returns BookingCheck's bare `{ ok: true }`
-// variant (only its failures get propagated), so pulling in the whole type
-// would give the union an ambiguous, non-discriminating success case.
-type BookingRejection = Extract<BookingCheck, { ok: false }>;
-
 export type BookingRequestResult =
   | { ok: true; booking: Booking; status: "pending" | "approved" }
   | { ok: false; reason: "item-not-found" }
   | { ok: false; reason: "db-conflict" } // exclusion constraint caught a genuine race
-  | BookingRejection;
+  | { ok: false; reason: "invalid-range" }
+  | { ok: false; reason: "too-long"; requestedDays: number; maxDays: number }
+  // suggestions: up to 3 free ranges of the same length nearby, so a rejection
+  // comes with "libre du 15 au 18" instead of a bare "c'est pris".
+  | { ok: false; reason: "overlap"; conflictingRange: Range; suggestions: Range[] };
 
 export async function listBookingsForItem(itemId: string): Promise<Booking[]> {
   return db.select().from(booking).where(eq(booking.itemId, itemId));
@@ -162,6 +166,16 @@ export async function createBookingRequest(
     { maxLoanDays: targetItem.maxLoanDays, bufferDays: targetItem.bufferDays },
   );
   if (!check.ok) {
+    if (check.reason === "overlap") {
+      const earliestSearch = compare(today(), addDays(start, -14)) > 0 ? today() : addDays(start, -14);
+      const suggestions = suggestAlternatives(
+        busy,
+        { start, end },
+        { start: earliestSearch, end: addDays(end, 120) },
+        3,
+      );
+      return { ok: false, reason: "overlap", conflictingRange: check.conflictingRange, suggestions };
+    }
     return check;
   }
 

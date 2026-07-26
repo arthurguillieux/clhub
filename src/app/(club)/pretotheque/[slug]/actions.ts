@@ -21,7 +21,7 @@ const schema = z.object({
 export type RequestBookingState =
   | { status: "idle" }
   | { status: "success"; approved: boolean }
-  | { status: "error"; message: string };
+  | { status: "error"; message: string; suggestions?: { start: string; end: string }[] };
 
 function describeRejection(result: Extract<BookingRequestResult, { ok: false }>): string {
   switch (result.reason) {
@@ -67,7 +67,11 @@ export async function requestBooking(
   });
 
   if (!result.ok) {
-    return { status: "error", message: describeRejection(result) };
+    return {
+      status: "error",
+      message: describeRejection(result),
+      suggestions: result.reason === "overlap" ? result.suggestions : undefined,
+    };
   }
 
   revalidatePath(`/pretotheque/${itemSlug}`);
