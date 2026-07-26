@@ -64,6 +64,13 @@
       "when": 1785094461501,
       "tag": "0008_add_maintenance_log",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785095236223,
+      "tag": "0009_add_member_calendar_token",
+      "breakpoints": true
     }
   ]
 }

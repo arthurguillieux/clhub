@@ -21,6 +21,8 @@ export const member = pgTable("member", {
   role: text("role").notNull().default("member"), // 'member' | 'admin'
   invitedById: uuid("invited_by_id").references((): AnyPgColumn => member.id),
   notifPrefs: jsonb("notif_prefs").notNull().default({}),
+  // Generated lazily on first request for the iCal feed URL — null until then.
+  calendarToken: text("calendar_token").unique(),
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

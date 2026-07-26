@@ -1,14 +1,20 @@
 import { getSession } from "@/core/auth/session";
+import { getOrCreateCalendarToken } from "@/modules/pretotheque/data/icalFeed";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { MemberCard } from "@/core/ui/components/MemberCard";
 import { Card } from "@/core/ui/components/Card";
 import { uploadAvatar } from "./actions";
 import { ProfileForm } from "./ProfileForm";
+import { CalendarFeedUrl } from "./CalendarFeedUrl";
 
 export default async function SettingsPage() {
   const session = await getSession();
   if (!session) return null; // guarded by (club)/layout.tsx
+
+  const calendarToken = await getOrCreateCalendarToken(session.member.id);
+  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const calendarUrl = `${appUrl}/api/ical/${calendarToken}`;
 
   return (
     <Container>
@@ -49,6 +55,19 @@ export default async function SettingsPage() {
         <SectionTitle>Profil</SectionTitle>
         <Card className="mt-3 p-5">
           <ProfileForm bio={session.member.bio} phone={session.member.phone} />
+        </Card>
+      </section>
+
+      <section className="mt-10">
+        <SectionTitle>Mon calendrier</SectionTitle>
+        <Card className="mt-3 p-5">
+          <p className="text-sm text-muted">
+            Abonne-toi à ce lien depuis ton agenda (Google Calendar, Apple Calendar...) pour voir
+            tes emprunts et tes prêts confirmés.
+          </p>
+          <div className="mt-3">
+            <CalendarFeedUrl url={calendarUrl} />
+          </div>
         </Card>
       </section>
     </Container>
