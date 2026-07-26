@@ -6,6 +6,7 @@ import { logActivity } from "@/core/activity";
 import { getSession } from "@/core/auth/session";
 import { saveItemPhoto } from "@/core/storage/itemPhoto";
 import { createItem, setItemPhoto } from "@/modules/pretotheque/data/items";
+import { fetchOpenGraphMetadata, type OpenGraphMetadata } from "@/core/opengraph";
 
 const CATEGORIES = ["bricolage", "jardinage", "menage", "festif", "autre"] as const;
 const CONDITIONS = ["neuf", "bon", "usage", "fragile"] as const;
@@ -59,6 +60,16 @@ const createItemSchema = z.object({
     .transform((v) => (v && v.trim() !== "" ? Number.parseInt(v, 10) : 0)),
 });
 
+export async function fetchProductMetadataAction(
+  productUrl: string,
+): Promise<OpenGraphMetadata | null> {
+  const session = await getSession();
+  if (!session) return null;
+  if (!z.url().safeParse(productUrl).success) return null;
+
+  return fetchOpenGraphMetadata(productUrl);
+}
+
 export type CreateItemFormState = { status: "idle" } | { status: "error"; message: string };
 
 export async function createItemAction(
@@ -99,10 +110,15 @@ export async function createItemAction(
   const created = await createItem(session.member.id, parsed.data);
 
   const photo = formData.get("photo");
+  const ogImageUrl = formData.get("ogImageUrl");
   if (photo instanceof File && photo.size > 0) {
     const buffer = Buffer.from(await photo.arrayBuffer());
     const path = await saveItemPhoto(created.id, buffer);
     await setItemPhoto(created.id, path);
+  } else if (typeof ogImageUrl === "string" && ogImageUrl && z.url().safeParse(ogImageUrl).success) {
+    // The "récupérer les infos" preview image — hotlinked as-is rather than
+    // downloaded and reprocessed through sharp, unlike a real file upload.
+    await setItemPhoto(created.id, ogImageUrl);
   }
 
   await logActivity({

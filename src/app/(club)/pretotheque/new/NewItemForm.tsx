@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { Button } from "@/core/ui/components/Button";
 import { FormField, Input, Select, Textarea } from "@/core/ui/components/Field";
-import { createItemAction, type CreateItemFormState } from "./actions";
+import { createItemAction, fetchProductMetadataAction, type CreateItemFormState } from "./actions";
 
 const initialState: CreateItemFormState = { status: "idle" };
 
@@ -20,12 +20,45 @@ function Fieldset({ legend, children }: { legend: string; children: React.ReactN
 
 export function NewItemForm() {
   const [state, formAction, pending] = useActionState(createItemAction, initialState);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const priceRef = useRef<HTMLInputElement>(null);
+  const productUrlRef = useRef<HTMLInputElement>(null);
+  const [ogImageUrl, setOgImageUrl] = useState<string | null>(null);
+  const [fetchingOg, setFetchingOg] = useState(false);
+  const [ogError, setOgError] = useState<string | null>(null);
+
+  async function handleFetchMetadata() {
+    const url = productUrlRef.current?.value.trim();
+    if (!url) return;
+
+    setFetchingOg(true);
+    setOgError(null);
+    try {
+      const metadata = await fetchProductMetadataAction(url);
+      if (!metadata) {
+        setOgError("Impossible de récupérer les informations pour ce lien.");
+        return;
+      }
+      if (metadata.title && nameRef.current && !nameRef.current.value) {
+        nameRef.current.value = metadata.title;
+      }
+      if (metadata.priceCents !== null && priceRef.current && !priceRef.current.value) {
+        priceRef.current.value = (metadata.priceCents / 100).toFixed(2);
+      }
+      if (metadata.image) {
+        setOgImageUrl(metadata.image);
+      }
+    } finally {
+      setFetchingOg(false);
+    }
+  }
 
   return (
-    <form action={formAction} encType="multipart/form-data" className="flex flex-col gap-6">
+    <form action={formAction} className="flex flex-col gap-6">
+      <input type="hidden" name="ogImageUrl" value={ogImageUrl ?? ""} />
       <Fieldset legend="Identité">
         <FormField label="Nom *" htmlFor="name">
-          <Input id="name" name="name" required />
+          <Input id="name" name="name" ref={nameRef} required />
         </FormField>
         <FormField label="Section *" htmlFor="category">
           <Select id="category" name="category" required defaultValue="bricolage">
@@ -58,11 +91,27 @@ export function NewItemForm() {
           <Input id="model" name="model" />
         </FormField>
         <FormField label="Lien vers le produit" htmlFor="productUrl">
-          <Input id="productUrl" name="productUrl" type="url" />
+          <div className="flex gap-2">
+            <Input id="productUrl" name="productUrl" type="url" ref={productUrlRef} />
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={fetchingOg}
+              onClick={handleFetchMetadata}
+              className="shrink-0 whitespace-nowrap"
+            >
+              {fetchingOg ? "Recherche..." : "Récupérer les infos"}
+            </Button>
+          </div>
+          {ogError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{ogError}</p>}
+          {ogImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- OG preview from an arbitrary external URL
+            <img src={ogImageUrl} alt="" className="mt-2 h-24 w-24 rounded-md object-cover" />
+          )}
         </FormField>
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Prix (€)" htmlFor="price">
-            <Input id="price" name="price" inputMode="decimal" />
+            <Input id="price" name="price" inputMode="decimal" ref={priceRef} />
           </FormField>
           <FormField label="Valeur de remplacement (€)" htmlFor="replacementValue">
             <Input id="replacementValue" name="replacementValue" inputMode="decimal" />

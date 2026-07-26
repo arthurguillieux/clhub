@@ -6,7 +6,9 @@ export function Label(props: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return <label className="text-sm font-medium text-ink" {...props} />;
 }
 
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+export function Input(
+  props: React.InputHTMLAttributes<HTMLInputElement> & { ref?: React.Ref<HTMLInputElement> },
+) {
   return <input className={fieldBase} {...props} />;
 }
 
