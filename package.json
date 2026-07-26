@@ -19,6 +19,7 @@
     "db:seed": "tsx --env-file=.env.local src/core/db/seed.ts"
   },
   "dependencies": {
+    "better-auth": "^1.6.25",
     "drizzle-orm": "^0.45.2",
     "next": "16.2.11",
     "pg": "^8.22.0",

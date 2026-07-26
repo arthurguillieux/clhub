@@ -28,7 +28,12 @@ function getDb(): Db {
  * vars available yet. The proxy defers connection to first actual query.
  */
 export const db: Db = new Proxy({} as Db, {
-  get(_target, prop, receiver) {
-    return Reflect.get(getDb(), prop, receiver);
+  get(_target, prop) {
+    const real = getDb();
+    const value = Reflect.get(real, prop);
+    // Bind methods to the real instance — a bare Reflect.get with this
+    // proxy as receiver would hand Drizzle's internals a `this` that isn't
+    // the actual db, breaking anything that reads `this` internally.
+    return typeof value === "function" ? value.bind(real) : value;
   },
 });
