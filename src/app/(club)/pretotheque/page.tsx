@@ -17,9 +17,17 @@ export default async function PretothequePage() {
     <Container size="lg">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PageTitle>Prêtothèque</PageTitle>
-        <LinkButton href="/pretotheque/new" variant="accent">
-          + Ajouter un objet
-        </LinkButton>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/pretotheque/etiquettes"
+            className="text-sm font-semibold text-primary underline underline-offset-2"
+          >
+            Étiquettes
+          </Link>
+          <LinkButton href="/pretotheque/new" variant="accent">
+            + Ajouter un objet
+          </LinkButton>
+        </div>
       </div>
 
       {items.length === 0 ? (

@@ -22,7 +22,7 @@ interface HeaderMember {
 
 export function Header({ user, member }: { user: HeaderUser; member: HeaderMember }) {
   return (
-    <header className="border-b border-line-soft bg-surface">
+    <header className="border-b border-line-soft bg-surface print:hidden">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link href="/" className="font-display text-lg font-extrabold tracking-tight text-ink">
           LE CL<span className="text-primary">HUB</span>

@@ -5,6 +5,8 @@ import { listBookingsWithBorrowerForItem } from "@/modules/pretotheque/data/book
 import { listCommentsForItem } from "@/modules/pretotheque/data/comments";
 import { listMaintenanceLogForItem } from "@/modules/pretotheque/data/maintenance";
 import { listItemPhotos } from "@/modules/pretotheque/data/itemPhotos";
+import { itemQrSvg } from "@/core/qrcode";
+import Link from "next/link";
 import { Container } from "@/core/ui/components/Container";
 import { Card } from "@/core/ui/components/Card";
 import { Badge } from "@/core/ui/components/Badge";
@@ -59,6 +61,8 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
 
   const isOwner = session.member.id === item.ownerId;
   const isAvailable = item.status === "available";
+  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const qrSvg = await itemQrSvg(`${appUrl}/pretotheque/${item.slug}`);
 
   return (
     <Container>
@@ -148,6 +152,23 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
             <DetailRow
               label="Validation"
               value={item.autoApprove ? "Automatique" : "Manuelle par le propriétaire"}
+            />
+            <DetailRow
+              label="Étiquette"
+              value={
+                <div className="flex items-center gap-3">
+                  <div
+                    className="h-20 w-20 shrink-0 [&_svg]:h-full [&_svg]:w-full"
+                    dangerouslySetInnerHTML={{ __html: qrSvg }}
+                  />
+                  <Link
+                    href="/pretotheque/etiquettes"
+                    className="text-xs text-primary underline underline-offset-2"
+                  >
+                    Imprimer toutes les étiquettes
+                  </Link>
+                </div>
+              }
             />
           </dl>
 

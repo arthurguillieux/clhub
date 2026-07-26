@@ -141,7 +141,7 @@ prêt se déroule jusqu'au retour. ✅ Vérifié de bout en bout dans le navigat
 - [ ] Lots (« kit soirée »)
 - [ ] `item_unit` : la disponibilité par exemplaire (ADR-004)
 - [ ] PWA installable, manifeste, icônes, lecture hors ligne de ses emprunts
-- [ ] QR codes par objet + planche d'étiquettes imprimable
+- [x] QR codes par objet + planche d'étiquettes imprimable
 - [x] Sauvegardes automatiques (`docker/backup.sh`) + **procédure de restauration
       testée** (`docker/restore.sh`) — dry-run réel en local le 26/07/2026 (voir
       docs/04-exploitation.md §7) ; reste un vrai passage sur le NAS une fois `db`
