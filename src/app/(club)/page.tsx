@@ -46,6 +46,10 @@ function describeActivity(a: ActivityEntry): string {
       const p = a.payload as { itemName?: string };
       return `${p.itemName ?? "Un objet"} est de nouveau disponible après réparation.`;
     }
+    case "booking.expired": {
+      const p = a.payload as { itemName?: string };
+      return `Une demande pour ${p.itemName ?? "un objet"} a expiré, faute de réponse à temps.`;
+    }
     default:
       return a.kind;
   }
@@ -88,6 +92,15 @@ function describeNotification(n: Notification): string {
     case "item.issue-reported": {
       const p = n.payload as { itemName?: string; note?: string };
       return `Un problème a été signalé sur ${p.itemName ?? "un objet"}${p.note ? ` : « ${p.note} »` : ""}.`;
+    }
+    case "booking.expired": {
+      const p = n.payload as { itemName?: string };
+      return `Ta demande pour ${p.itemName ?? "un objet"} a expiré, faute de réponse à temps — retente si besoin.`;
+    }
+    case "booking.pickup-reminder": {
+      const p = n.payload as { itemName?: string; startDate?: string };
+      const dateLabel = p.startDate ? ` (${formatFrench(p.startDate as CalendarDate)})` : "";
+      return `Récupération de ${p.itemName ?? "ton emprunt"} demain${dateLabel} !`;
     }
     case "waitlist.available": {
       const p = n.payload as { itemName?: string; startDate?: string; endDate?: string };

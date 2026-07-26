@@ -126,7 +126,11 @@ prêt se déroule jusqu'au retour. ✅ Vérifié de bout en bout dans le navigat
 - [ ] Suggestion de créneaux libres en cas de conflit
 - [ ] Liste d'attente (« préviens-moi si ça se libère »)
 - [ ] Déplacer et étirer sa réservation directement sur la grille
-- [ ] Conteneur `worker` + tâches planifiées : rappels, relances, expiration, résumé
+- [ ] Conteneur `worker` + tâches planifiées : rappels, relances, expiration, résumé —
+      rappels de récupération et expiration des demandes en attente faits, en `POST
+      /api/cron` déclenché par le Planificateur DSM plutôt qu'un vrai conteneur `worker`
+      (voir docs/04-exploitation.md §7) ; relances (owner qui ne répond pas) et résumé
+      périodique restent à faire
 - [ ] **Chantiers** : réserver plusieurs objets pour un même projet
 - [ ] Commentaires et astuces sur les fiches
 - [ ] Signalements et journal d'entretien
