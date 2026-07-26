@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/core/auth/session";
 import { listRecentActivity } from "@/core/activity";
@@ -19,7 +20,8 @@ export default async function HomePage() {
       <h1 style={{ fontSize: "20px" }}>LE CLHUB</h1>
       <p style={{ color: "#555", fontSize: "14px" }}>
         {session.user.name} — membre #{session.member.memberNumber} —{" "}
-        <a href="/invite">inviter quelqu&apos;un</a> — <a href="/settings">réglages</a>
+        <Link href="/pretotheque">prêtothèque</Link> —{" "}
+        <Link href="/invite">inviter quelqu&apos;un</Link> — <Link href="/settings">réglages</Link>
       </p>
 
       <h2 style={{ fontSize: "16px", marginTop: "32px" }}>Notifications</h2>

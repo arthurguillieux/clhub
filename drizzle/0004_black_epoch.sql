@@ -1,0 +1,1 @@
+ALTER TABLE "item" ADD COLUMN "photo_path" text;

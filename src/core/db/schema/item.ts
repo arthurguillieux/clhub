@@ -9,6 +9,9 @@ export const item = pgTable("item", {
     .references(() => member.id),
   name: text("name").notNull(),
   description: text("description"),
+  // A single cover photo for now — item_photo (multiple, reorderable) is a
+  // later Lot 2b item once the gallery UI actually needs it.
+  photoPath: text("photo_path"),
   category: text("category").notNull(), // 'bricolage' | 'jardinage' | 'menage' | 'festif' | 'autre'
   brand: text("brand"),
   model: text("model"),
