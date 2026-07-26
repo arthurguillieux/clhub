@@ -7,6 +7,12 @@ import { createBookingRequest, type BookingRequestResult } from "@/modules/preto
 import { joinWaitlist } from "@/modules/pretotheque/data/waitlist";
 import { addComment } from "@/modules/pretotheque/data/comments";
 import { reportIssue, resolveMaintenance } from "@/modules/pretotheque/data/maintenance";
+import {
+  addItemPhotos,
+  deleteItemPhoto,
+  moveItemPhoto,
+  setPrimaryItemPhoto,
+} from "@/modules/pretotheque/data/itemPhotos";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide");
 
@@ -125,6 +131,75 @@ export async function postComment(
   await addComment(itemId, session.member.id, parsed.data.body);
   revalidatePath(`/pretotheque/${itemSlug}`);
   return { status: "success" };
+}
+
+export type PhotoGalleryState =
+  | { status: "idle" }
+  | { status: "success" }
+  | { status: "error"; message: string };
+
+function describeGalleryError(reason: "not-found" | "forbidden"): string {
+  return reason === "forbidden"
+    ? "Seul le propriétaire peut gérer les photos."
+    : "Cet objet n'existe plus.";
+}
+
+export async function uploadItemPhotosAction(
+  itemId: string,
+  itemSlug: string,
+  _prevState: PhotoGalleryState,
+  formData: FormData,
+): Promise<PhotoGalleryState> {
+  const session = await getSession();
+  if (!session) return { status: "error", message: "Tu dois être connecté." };
+
+  const files = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length === 0) {
+    return { status: "error", message: "Choisis au moins une photo." };
+  }
+
+  const buffers = await Promise.all(files.map(async (f) => Buffer.from(await f.arrayBuffer())));
+  const result = await addItemPhotos(itemId, session.member.id, buffers);
+  if (!result.ok) {
+    return { status: "error", message: describeGalleryError(result.reason) };
+  }
+
+  revalidatePath(`/pretotheque/${itemSlug}`);
+  return { status: "success" };
+}
+
+export async function setPrimaryPhotoAction(
+  itemId: string,
+  itemSlug: string,
+  photoId: string,
+): Promise<void> {
+  const session = await getSession();
+  if (!session) return;
+  await setPrimaryItemPhoto(itemId, session.member.id, photoId);
+  revalidatePath(`/pretotheque/${itemSlug}`);
+}
+
+export async function deleteItemPhotoAction(
+  itemId: string,
+  itemSlug: string,
+  photoId: string,
+): Promise<void> {
+  const session = await getSession();
+  if (!session) return;
+  await deleteItemPhoto(itemId, session.member.id, photoId);
+  revalidatePath(`/pretotheque/${itemSlug}`);
+}
+
+export async function moveItemPhotoAction(
+  itemId: string,
+  itemSlug: string,
+  photoId: string,
+  direction: "up" | "down",
+): Promise<void> {
+  const session = await getSession();
+  if (!session) return;
+  await moveItemPhoto(itemId, session.member.id, photoId, direction);
+  revalidatePath(`/pretotheque/${itemSlug}`);
 }
 
 const noteSchema = z.object({

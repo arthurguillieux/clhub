@@ -9,3 +9,4 @@ export * from "./actionToken";
 export * from "./waitlist";
 export * from "./itemComment";
 export * from "./maintenanceLog";
+export * from "./itemPhoto";

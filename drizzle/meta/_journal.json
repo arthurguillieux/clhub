@@ -71,6 +71,13 @@
       "when": 1785095236223,
       "tag": "0009_add_member_calendar_token",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785098571676,
+      "tag": "0010_add_item_photo",
+      "breakpoints": true
     }
   ]
 }

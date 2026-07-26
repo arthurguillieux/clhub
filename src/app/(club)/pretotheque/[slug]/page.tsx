@@ -4,6 +4,7 @@ import { getItemWithOwnerBySlug } from "@/modules/pretotheque/data/items";
 import { listBookingsWithBorrowerForItem } from "@/modules/pretotheque/data/bookings";
 import { listCommentsForItem } from "@/modules/pretotheque/data/comments";
 import { listMaintenanceLogForItem } from "@/modules/pretotheque/data/maintenance";
+import { listItemPhotos } from "@/modules/pretotheque/data/itemPhotos";
 import { Container } from "@/core/ui/components/Container";
 import { Card } from "@/core/ui/components/Card";
 import { Badge } from "@/core/ui/components/Badge";
@@ -12,6 +13,7 @@ import { CATEGORY_BG, categoryLabel, itemStatusLabel } from "@/core/ui/categorie
 import { BookingWidget } from "./BookingWidget";
 import { CommentForm } from "./CommentForm";
 import { MaintenanceForm } from "./MaintenanceForm";
+import { PhotoGallery } from "./PhotoGallery";
 
 const MAINTENANCE_KIND_LABELS: Record<string, string> = {
   issue: "Signalement",
@@ -48,10 +50,11 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
     notFound();
   }
 
-  const [bookings, comments, maintenanceLog] = await Promise.all([
+  const [bookings, comments, maintenanceLog, photos] = await Promise.all([
     listBookingsWithBorrowerForItem(item.id),
     listCommentsForItem(item.id),
     listMaintenanceLogForItem(item.id),
+    listItemPhotos(item.id),
   ]);
 
   const isOwner = session.member.id === item.ownerId;
@@ -60,12 +63,13 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
   return (
     <Container>
       <Card className="overflow-hidden">
-        <div className={`relative h-56 ${CATEGORY_BG[item.category] ?? "bg-cat-autre"}`}>
-          {item.photoPath && (
-            // eslint-disable-next-line @next/next/no-img-element -- item hero photo
-            <img src={item.photoPath} alt="" className="h-full w-full object-cover" />
-          )}
-        </div>
+        <PhotoGallery
+          itemId={item.id}
+          itemSlug={item.slug}
+          categoryBg={CATEGORY_BG[item.category] ?? "bg-cat-autre"}
+          photos={photos.map((p) => ({ id: p.id, path: p.path, isPrimary: p.isPrimary }))}
+          isOwner={isOwner}
+        />
         <div className="p-6">
           <div className="flex flex-wrap gap-2">
             <Badge>{categoryLabel(item.category)}</Badge>
