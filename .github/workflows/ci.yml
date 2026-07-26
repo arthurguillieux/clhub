@@ -13,6 +13,29 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # A handful of tests are integration tests proving the exclusion
+    # constraint actually holds in Postgres — see
+    # src/modules/pretotheque/data/*.integration.test.ts. Pure unit tests
+    # don't need this service at all, but there's no clean way to split the
+    # `pnpm test` run in Vitest without a second config, so it's simplest to
+    # just always have a database available for the whole test job.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: clhub
+          POSTGRES_PASSWORD: clhub
+          POSTGRES_DB: clhub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U clhub -d clhub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://clhub:clhub@localhost:5432/clhub
+      BETTER_AUTH_SECRET: ci-only-not-a-real-secret
     steps:
       - uses: actions/checkout@v4
 
@@ -26,6 +49,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm db:migrate
       - run: pnpm test
 
   # Publishes ghcr.io/arthurguillieux/clhub — the Synology NAS only ever pulls
