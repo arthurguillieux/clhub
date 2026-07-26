@@ -48,18 +48,18 @@ réception (pas dans les indésirables).
 - [x] Better Auth avec magic link, sur invitation exclusivement
 - [x] `member`, numéro de membre attribué à la première connexion, parrainage enregistré
 - [x] Parcours d'invitation : un admin invite par mail, le filleul clique et entre
-- [ ] Envoi et stockage des avatars (`sharp`, vignettes pré-générées)
-- [ ] Design system : jetons de couleur, Bricolage Grotesque + Inter, mode sombre,
+- [x] Envoi et stockage des avatars (`sharp`, vignettes pré-générées)
+- [x] Design system : jetons de couleur, Bricolage Grotesque + Inter, mode sombre,
       composants de base
-- [ ] Coquille applicative : navigation, sélecteur de section, en-tête, navigation
+- [x] Coquille applicative : navigation, sélecteur de section, en-tête, navigation
       mobile
-- [ ] **La carte de membre** — la page profil, objet graphique signature
-- [ ] `core/notifications` : création, préférences, `action_token`, page de validation
+- [x] **La carte de membre** — la page profil, objet graphique signature
+- [x] `core/notifications` : création, préférences, `action_token`, page de validation
       publique
-- [ ] `core/mail` : mise en page commune des courriers du club
-- [ ] `core/activity` : écriture et lecture du flux
-- [ ] Page d'accueil du club affichant le flux
-- [ ] Réglages du membre : nom, avatar, bio, téléphone, préférences de notification
+- [x] `core/mail` : mise en page commune des courriers du club
+- [x] `core/activity` : écriture et lecture du flux
+- [x] Page d'accueil du club affichant le flux
+- [x] Réglages du membre : nom, avatar, bio, téléphone, préférences de notification
 
 **Condition de sortie** — deux membres invités peuvent se connecter par magic link,
 personnaliser leur carte, et voir leurs actions apparaître dans le flux commun.
@@ -82,12 +82,12 @@ disponibilité d'abord, l'interface ensuite.**
 
 ### 2b — Les objets
 
-- [x] CRUD complet des objets, avec tous les champs de la fiche
-- [ ] Envoi de plusieurs photos, réordonnancement, photo principale — simplifié en une
-      seule photo de couverture (`item.photoPath`) pour le lancement ; la table
-      `item_photo` (galerie) reste à faire si le besoin se confirme
-- [ ] Auto-remplissage depuis une URL (métadonnées Open Graph, côté serveur) — non fait,
-      `productUrl` est aujourd'hui un simple champ texte rempli à la main
+- [x] CRUD complet des objets, avec tous les champs de la fiche — à l'exception des
+      **étiquettes libres** et de l'**année d'achat** mentionnées en §5.1 du document
+      produit, jamais ajoutées au schéma `item`
+- [x] Envoi de plusieurs photos, réordonnancement, photo principale (table `item_photo`,
+      galerie avec photo principale)
+- [x] Auto-remplissage depuis une URL (métadonnées Open Graph, côté serveur)
 - [x] Catalogue : grille, recherche, filtres par section, par propriétaire, par
       disponibilité
 - [x] Page de fiche objet
@@ -101,8 +101,8 @@ disponibilité d'abord, l'interface ensuite.**
       ordinateur n'est pas implémenté pour la *sélection*, le tap-tap fonctionne aussi
       bien à la souris (le glisser existe en revanche pour déplacer/étirer une
       réservation existante, voir plus bas)
-- [ ] Vue agenda pour mobile
-- [ ] Navigation clavier et rôles ARIA
+- [x] Vue agenda pour mobile
+- [x] Navigation clavier et rôles ARIA
 
 ### 2d — Le cycle de prêt
 
@@ -124,25 +124,30 @@ prêt se déroule jusqu'au retour. ✅ Vérifié de bout en bout dans le navigat
 
 ## Lot 3 — Ergonomie et confiance
 
-- [ ] **Vue planning** : lignes = objets, colonnes = jours
-- [ ] Suggestion de créneaux libres en cas de conflit
-- [ ] Liste d'attente (« préviens-moi si ça se libère »)
-- [ ] Déplacer et étirer sa réservation directement sur la grille
+- [x] **Vue planning** : lignes = objets, colonnes = jours
+- [x] Suggestion de créneaux libres en cas de conflit
+- [x] Liste d'attente (« préviens-moi si ça se libère »)
+- [x] Déplacer et étirer sa réservation directement sur la grille
 - [ ] Conteneur `worker` + tâches planifiées : rappels, relances, expiration, résumé —
       rappels de récupération et expiration des demandes en attente faits, en `POST
       /api/cron` déclenché par le Planificateur DSM plutôt qu'un vrai conteneur `worker`
-      (voir docs/04-exploitation.md §7) ; relances (owner qui ne répond pas) et résumé
-      périodique restent à faire
+      (voir docs/04-exploitation.md §7) ; **relances en cas de dépassement (emprunteur puis
+      propriétaire, voir docs/01-produit.md §5.3) et résumé périodique restent à faire** —
+      seul vrai trou fonctionnel identifié dans le cycle de prêt
 - [x] **Chantiers** : réserver plusieurs objets pour un même projet — un mail par
       *réservation* est envoyé, pas encore consolidé par propriétaire quand il possède
       plusieurs objets du même chantier
-- [ ] Commentaires et astuces sur les fiches
-- [ ] Signalements et journal d'entretien
-- [ ] Flux iCal par membre
-- [ ] Recherche d'objet + achat groupé + copropriété
+- [x] Commentaires et astuces sur les fiches
+- [x] Signalements et journal d'entretien
+- [x] Flux iCal par membre
+- [x] Recherche d'objet + déclenchement d'achat groupé — la **copropriété** sur l'objet
+      créé (§5.5 du document produit) n'est en revanche pas modélisée : un achat groupé se
+      termine par une notification aux intéressés, pas par un objet à plusieurs
+      propriétaires en base. Nécessite une décision produit (répartition, qui gère l'objet)
+      avant d'être construite
 - [ ] Lots (« kit soirée »)
 - [x] `item_unit` : la disponibilité par exemplaire (ADR-004)
-- [ ] PWA installable, manifeste, icônes, lecture hors ligne de ses emprunts
+- [x] PWA installable, manifeste, icônes, lecture hors ligne de ses emprunts
 - [x] QR codes par objet + planche d'étiquettes imprimable
 - [x] Sauvegardes automatiques (`docker/backup.sh`) + **procédure de restauration
       testée** (`docker/restore.sh`) — dry-run réel en local le 26/07/2026 (voir
