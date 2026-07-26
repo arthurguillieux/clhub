@@ -95,6 +95,26 @@ export function sliceByWeek(range: Range, weeks: Week[]): Segment[] {
 }
 
 /**
+ * Clips a range to a single window (no week-splitting) — the planning view's
+ * rows = items, columns = days grid needs exactly one segment per booking
+ * per row, not one per week like the month view.
+ */
+export function clipToRange(range: Range, window: Range): Segment | null {
+  if (!overlapsRange(range, window)) return null;
+
+  const clippedStart = compare(range.start, window.start) > 0 ? range.start : window.start;
+  const clippedEnd = compare(range.end, window.end) < 0 ? range.end : window.end;
+
+  return {
+    weekIndex: 0,
+    startCol: diffDays(window.start, clippedStart),
+    span: diffDays(clippedStart, clippedEnd) + 1,
+    isRangeStart: compare(clippedStart, range.start) === 0,
+    isRangeEnd: compare(clippedEnd, range.end) === 0,
+  };
+}
+
+/**
  * Greedy first-fit lane assignment within a single week: segments starting
  * earlier (then longer, on ties) claim lanes first, and each segment takes
  * the first lane whose previous occupant has already ended. This is the same

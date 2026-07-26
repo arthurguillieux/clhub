@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { parse } from "@/core/date";
-import { buildMonthGrid, packLanes, sliceByWeek, type PlaceableSegment, type Range } from "./layout";
+import {
+  buildMonthGrid,
+  clipToRange,
+  packLanes,
+  sliceByWeek,
+  type PlaceableSegment,
+  type Range,
+} from "./layout";
 
 function r(start: string, end: string): Range {
   return { start: parse(start), end: parse(end) };
@@ -151,6 +158,53 @@ describe("packLanes", () => {
     const placed = packLanes([seg("a", 0, 5), seg("b", 1, 5), seg("c", 2, 5)]);
     const lanes = new Set(placed.map((p) => p.lane));
     expect(lanes.size).toBe(3);
+  });
+});
+
+describe("clipToRange", () => {
+  const window = r("2026-07-10", "2026-07-20");
+
+  it("returns a full-span segment with both endpoints real for a range entirely inside the window", () => {
+    expect(clipToRange(r("2026-07-12", "2026-07-14"), window)).toEqual({
+      weekIndex: 0,
+      startCol: 2,
+      span: 3,
+      isRangeStart: true,
+      isRangeEnd: true,
+    });
+  });
+
+  it("clips the start when the range begins before the window", () => {
+    const seg = clipToRange(r("2026-07-05", "2026-07-12"), window);
+    expect(seg).toMatchObject({ startCol: 0, isRangeStart: false, isRangeEnd: true });
+  });
+
+  it("clips the end when the range continues past the window", () => {
+    const seg = clipToRange(r("2026-07-18", "2026-07-25"), window);
+    expect(seg).toMatchObject({ startCol: 8, span: 3, isRangeStart: true, isRangeEnd: false });
+  });
+
+  it("spans the whole window with no real endpoint when the range engulfs it", () => {
+    expect(clipToRange(r("2026-06-01", "2026-08-01"), window)).toMatchObject({
+      startCol: 0,
+      span: 11,
+      isRangeStart: false,
+      isRangeEnd: false,
+    });
+  });
+
+  it("returns null for a range entirely outside the window", () => {
+    expect(clipToRange(r("2026-01-01", "2026-01-05"), window)).toBeNull();
+  });
+
+  it("returns a span-1 segment for a single day exactly on the window's edge", () => {
+    expect(clipToRange(r("2026-07-20", "2026-07-20"), window)).toEqual({
+      weekIndex: 0,
+      startCol: 10,
+      span: 1,
+      isRangeStart: true,
+      isRangeEnd: true,
+    });
   });
 });
 

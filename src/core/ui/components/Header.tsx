@@ -3,6 +3,7 @@ import Link from "next/link";
 const NAV_LINKS = [
   { href: "/", label: "Accueil" },
   { href: "/pretotheque", label: "Prêtothèque" },
+  { href: "/pretotheque/planning", label: "Planning" },
   { href: "/pretotheque/mine", label: "Mon activité" },
   { href: "/invite", label: "Inviter" },
 ];

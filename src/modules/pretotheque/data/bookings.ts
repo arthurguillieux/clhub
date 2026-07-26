@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/core/db/client";
 import { booking, item, member, user, type Booking, type Item } from "@/core/db/schema";
 import { logActivity } from "@/core/activity";
@@ -390,6 +390,48 @@ export async function listPendingRequestsForOwner(
     ...r.booking,
     itemName: r.itemName,
     itemSlug: r.itemSlug,
+    borrowerName: r.borrowerName,
+  }));
+}
+
+export interface PlanningBooking {
+  id: string;
+  itemId: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  borrowerName: string;
+}
+
+/**
+ * Every booking touching `[windowStart, windowEnd]`, across every item —
+ * the planning view's raw material. Pending requests are included (unlike
+ * `busyRanges`) since the point of this view is to see everything at a
+ * glance, confirmed or not.
+ */
+export async function listBookingsForPlanning(
+  windowStart: string,
+  windowEnd: string,
+): Promise<PlanningBooking[]> {
+  const rows = await db
+    .select({ booking, borrowerName: user.name })
+    .from(booking)
+    .innerJoin(member, eq(member.id, booking.borrowerId))
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(
+      and(
+        inArray(booking.status, ["pending", "approved", "active"]),
+        lte(booking.startDate, windowEnd),
+        gte(booking.endDate, windowStart),
+      ),
+    );
+
+  return rows.map((r) => ({
+    id: r.booking.id,
+    itemId: r.booking.itemId,
+    startDate: r.booking.startDate,
+    endDate: r.booking.endDate,
+    status: r.booking.status,
     borrowerName: r.borrowerName,
   }));
 }
