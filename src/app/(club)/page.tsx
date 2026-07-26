@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getSession } from "@/core/auth/session";
 import { listRecentActivity } from "@/core/activity";
 import { listNotifications } from "@/core/notifications";
@@ -7,6 +8,21 @@ import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { categoryLabel } from "@/core/ui/categories";
 import { formatFrench, type CalendarDate } from "@/core/date";
+
+const SECTIONS = [
+  {
+    name: "Prêtothèque",
+    description: "Le matériel du club, réservable en deux clics.",
+    href: "/pretotheque",
+    live: true,
+  },
+  {
+    name: "Les menus du club",
+    description: "Organiser un repas de groupe — qui vient, qui apporte quoi.",
+    href: null,
+    live: false,
+  },
+] as const;
 
 function describeActivity(a: ActivityEntry): string {
   switch (a.kind) {
@@ -127,6 +143,32 @@ export default async function HomePage() {
   return (
     <Container>
       <PageTitle>Salut, {session.user.name}</PageTitle>
+
+      <section className="mt-8">
+        <SectionTitle>Sections du club</SectionTitle>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {SECTIONS.map((section) =>
+            section.live && section.href ? (
+              <Link key={section.name} href={section.href}>
+                <Card className="h-full p-5 transition-colors hover:border-primary">
+                  <p className="font-display font-bold text-ink">{section.name}</p>
+                  <p className="mt-1 text-sm text-muted">{section.description}</p>
+                </Card>
+              </Link>
+            ) : (
+              <Card key={section.name} className="h-full border-dashed p-5 opacity-60">
+                <div className="flex items-center gap-2">
+                  <p className="font-display font-bold text-ink">{section.name}</p>
+                  <span className="rounded-full border border-line-soft px-2 py-0.5 text-[10px] font-semibold tracking-wide text-muted uppercase">
+                    À venir
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-muted">{section.description}</p>
+              </Card>
+            ),
+          )}
+        </div>
+      </section>
 
       <section className="mt-10">
         <SectionTitle>Notifications</SectionTitle>
