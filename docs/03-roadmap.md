@@ -136,7 +136,11 @@ prêt se déroule jusqu'au retour. ✅ Vérifié de bout en bout dans le navigat
 - [ ] `item_unit` : la disponibilité par exemplaire (ADR-004)
 - [ ] PWA installable, manifeste, icônes, lecture hors ligne de ses emprunts
 - [ ] QR codes par objet + planche d'étiquettes imprimable
-- [ ] Sauvegardes automatiques + **procédure de restauration testée**
+- [x] Sauvegardes automatiques (`docker/backup.sh`) + **procédure de restauration
+      testée** (`docker/restore.sh`) — dry-run réel en local le 26/07/2026 (voir
+      docs/04-exploitation.md §7) ; reste un vrai passage sur le NAS une fois `db`
+      déployé, seule chose qu'un test local ne peut pas couvrir (chemins `/volume1/...`,
+      permissions DSM)
 
 **Condition de sortie** — les rappels tombent tout seuls, un chantier de trois objets chez
 deux propriétaires se réserve d'un geste, et une restauration de sauvegarde a été
