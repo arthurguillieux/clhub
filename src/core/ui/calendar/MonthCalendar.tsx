@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addDays,
   compare,
   endOfMonth,
+  formatFrench,
   startOfMonth,
   today,
+  weekday,
   type CalendarDate,
 } from "@/core/date";
 import { buildMonthGrid, packLanes, sliceByWeek, type PlaceableSegment } from "./layout";
@@ -50,11 +52,31 @@ function prevMonthAnchor(current: CalendarDate): CalendarDate {
   return addDays(startOfMonth(current), -1);
 }
 
+/** Same month, same day-of-month, clamped to the shorter month's last day. */
+function shiftMonth(anchor: CalendarDate, monthDelta: 1 | -1): CalendarDate {
+  const dayOfMonth = Number(anchor.slice(8, 10));
+  const targetAnchor = monthDelta === 1 ? nextMonthAnchor(anchor) : prevMonthAnchor(anchor);
+  const lastDayOfTarget = Number(endOfMonth(targetAnchor).slice(8, 10));
+  const clampedDay = Math.min(dayOfMonth, lastDayOfTarget);
+  return `${targetAnchor.slice(0, 8)}${String(clampedDay).padStart(2, "0")}` as CalendarDate;
+}
+
 function cornerRadius(seg: { isRangeStart: boolean; isRangeEnd: boolean }): string {
   if (seg.isRangeStart && seg.isRangeEnd) return "rounded-md";
   if (seg.isRangeStart) return "rounded-l-md";
   if (seg.isRangeEnd) return "rounded-r-md";
   return "";
+}
+
+function describeDay(day: CalendarDate, bookings: CalendarBooking[]): string {
+  const base = formatFrench(day);
+  const covering = bookings.find(
+    (b) =>
+      compare(day, b.startDate as CalendarDate) >= 0 && compare(day, b.endDate as CalendarDate) <= 0,
+  );
+  if (!covering) return `${base}, disponible`;
+  const statusLabel = covering.status === "pending" ? "demande en attente" : "réservé";
+  return `${base}, ${statusLabel} — ${covering.borrowerName}`;
 }
 
 export function MonthCalendar({
@@ -73,6 +95,22 @@ export function MonthCalendar({
   const weeks = useMemo(() => buildMonthGrid(monthAnchor), [monthAnchor]);
   const todayDate = useMemo(() => today(), []);
   const currentMonthNumber = startOfMonth(monthAnchor).slice(0, 7); // "YYYY-MM"
+  const allVisibleDays = useMemo(() => weeks.flatMap((w) => w.days), [weeks]);
+
+  const [focusedDay, setFocusedDay] = useState<CalendarDate>(() =>
+    weeks.flatMap((w) => w.days).includes(todayDate) ? todayDate : startOfMonth(monthAnchor),
+  );
+  const dayButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const pendingFocusDay = useRef<CalendarDate | null>(null);
+
+  useEffect(() => {
+    if (!pendingFocusDay.current) return;
+    const target = pendingFocusDay.current;
+    if (allVisibleDays.includes(target)) {
+      dayButtonRefs.current.get(target)?.focus();
+      pendingFocusDay.current = null;
+    }
+  }, [allVisibleDays]);
 
   const weekSegments = useMemo(() => {
     const perWeek: (PlaceableSegment & { status: string; label: string })[][] = weeks.map(
@@ -93,6 +131,7 @@ export function MonthCalendar({
   const catBg = CATEGORY_BG[category] ?? "bg-cat-autre";
 
   function handleDayClick(day: CalendarDate) {
+    setFocusedDay(day);
     if (!onSelectRange) return;
     if (!selStart || selEnd) {
       setSelStart(day);
@@ -109,6 +148,54 @@ export function MonthCalendar({
     if (!selStart) return false;
     const end = selEnd ?? selStart;
     return compare(day, selStart) >= 0 && compare(day, end) <= 0;
+  }
+
+  /** Moves the roving-tabindex focus to `target`, paginating the month if it falls outside the visible grid. */
+  function moveFocusTo(target: CalendarDate) {
+    setFocusedDay(target);
+    if (allVisibleDays.includes(target)) {
+      dayButtonRefs.current.get(target)?.focus();
+      return;
+    }
+    pendingFocusDay.current = target;
+    setMonthAnchor(compare(target, monthAnchor) < 0 ? prevMonthAnchor(monthAnchor) : nextMonthAnchor(monthAnchor));
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, day: CalendarDate) {
+    switch (event.key) {
+      case "ArrowLeft":
+        event.preventDefault();
+        moveFocusTo(addDays(day, -1));
+        break;
+      case "ArrowRight":
+        event.preventDefault();
+        moveFocusTo(addDays(day, 1));
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        moveFocusTo(addDays(day, -7));
+        break;
+      case "ArrowDown":
+        event.preventDefault();
+        moveFocusTo(addDays(day, 7));
+        break;
+      case "Home":
+        event.preventDefault();
+        moveFocusTo(addDays(day, -(weekday(day) - 1)));
+        break;
+      case "End":
+        event.preventDefault();
+        moveFocusTo(addDays(day, 7 - weekday(day)));
+        break;
+      case "PageUp":
+        event.preventDefault();
+        moveFocusTo(shiftMonth(day, -1));
+        break;
+      case "PageDown":
+        event.preventDefault();
+        moveFocusTo(shiftMonth(day, 1));
+        break;
+    }
   }
 
   return (
@@ -141,13 +228,18 @@ export function MonthCalendar({
         ))}
       </div>
 
-      <div className="flex flex-col gap-0.5">
+      <div
+        role="grid"
+        aria-label={`Calendrier — ${monthLabel(monthAnchor)}`}
+        className="flex flex-col gap-0.5"
+      >
         {weeks.map((week, weekIndex) => {
           const segs = weekSegments[weekIndex] ?? [];
           const laneCount = Math.max(1, ...segs.map((s) => s.lane + 1));
           return (
             <div
               key={week.start}
+              role="row"
               className="grid grid-cols-7 gap-x-0.5"
               style={{ gridTemplateRows: `28px repeat(${laneCount}, ${RIBBON_HEIGHT}px)` }}
             >
@@ -158,12 +250,23 @@ export function MonthCalendar({
                 return (
                   <button
                     key={day}
+                    ref={(el) => {
+                      if (el) dayButtonRefs.current.set(day, el);
+                      else dayButtonRefs.current.delete(day);
+                    }}
                     type="button"
+                    role="gridcell"
+                    aria-selected={selected}
+                    aria-label={describeDay(day, bookings)}
+                    tabIndex={day === focusedDay ? 0 : -1}
                     disabled={!onSelectRange}
                     onClick={() => handleDayClick(day)}
+                    onFocus={() => setFocusedDay(day)}
+                    onKeyDown={(e) => handleKeyDown(e, day)}
                     style={{ gridColumn: dayIndex + 1, gridRow: 1 }}
                     className={[
                       "flex h-7 w-7 items-center justify-center justify-self-center rounded-full text-xs",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                       inMonth ? "text-ink" : "text-muted/40",
                       isToday ? "font-bold ring-1 ring-primary" : "",
                       selected ? "bg-accent text-accent-ink" : onSelectRange ? "hover:bg-surface" : "",
@@ -177,6 +280,7 @@ export function MonthCalendar({
               {segs.map((seg) => (
                 <div
                   key={`${seg.id}-${seg.weekIndex}`}
+                  aria-hidden="true"
                   style={{ gridColumn: `${seg.startCol + 1} / span ${seg.span}`, gridRow: seg.lane + 2 }}
                   className={[
                     "flex items-center overflow-hidden px-1.5 text-[10.5px] font-medium whitespace-nowrap",
