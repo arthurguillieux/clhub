@@ -1,20 +1,22 @@
-import { redirect } from "next/navigation";
 import { getSession } from "@/core/auth/session";
+import { Container } from "@/core/ui/components/Container";
+import { PageTitle } from "@/core/ui/components/Heading";
+import { Card } from "@/core/ui/components/Card";
 import { InviteForm } from "./InviteForm";
 
 export default async function InvitePage() {
   const session = await getSession();
-  if (!session) {
-    redirect("/sign-in");
-  }
+  if (!session) return null; // guarded by (club)/layout.tsx
 
   return (
-    <main style={{ maxWidth: "400px", margin: "48px auto", fontFamily: "sans-serif" }}>
-      <h1 style={{ fontSize: "20px" }}>Inviter quelqu&apos;un au club</h1>
-      <p style={{ color: "#555", fontSize: "14px" }}>
+    <Container size="sm">
+      <PageTitle>Inviter quelqu&apos;un</PageTitle>
+      <p className="mt-2 text-sm text-muted">
         Connecté en tant que {session.user.name} (membre #{session.member.memberNumber}).
       </p>
-      <InviteForm />
-    </main>
+      <Card className="mt-6 p-5">
+        <InviteForm />
+      </Card>
+    </Container>
   );
 }

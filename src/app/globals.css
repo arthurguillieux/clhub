@@ -1,26 +1,81 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --ink: #23201a;
+  --ground: #eaebe1;
+  --surface: #f5f5ee;
+  --surface-raised: #ffffff;
+  --line: #d8d8c8;
+  --line-soft: #e2e2d4;
+  --muted: #6b6858;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --primary: #1f3d2e;
+  --primary-ink: #f4f1e6;
+  --accent: #e4572e;
+  --accent-ink: #ffffff;
+
+  --cat-bricolage: #e4572e;
+  --cat-jardinage: #5b7f3a;
+  --cat-menage: #2e8b8b;
+  --cat-festif: #9c3d74;
+  --cat-autre: #736c5a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --ink: #ede9dd;
+    --ground: #17160f;
+    --surface: #1e1c15;
+    --surface-raised: #26241b;
+    --line: #37341f;
+    --line-soft: #2b2919;
+    --muted: #a6a08a;
+
+    --primary: #4e8a6b;
+    --primary-ink: #10160f;
+    --accent: #f0764e;
+    --accent-ink: #1a0f09;
+
+    --cat-bricolage: #f0764e;
+    --cat-jardinage: #86ad5f;
+    --cat-menage: #4caeae;
+    --cat-festif: #c0679c;
+    --cat-autre: #a79f87;
   }
 }
 
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-muted: var(--muted);
+
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+
+  --color-cat-bricolage: var(--cat-bricolage);
+  --color-cat-jardinage: var(--cat-jardinage);
+  --color-cat-menage: var(--cat-menage);
+  --color-cat-festif: var(--cat-festif);
+  --color-cat-autre: var(--cat-autre);
+
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans:
+    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+
+  --radius-card: 14px;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }

@@ -1,39 +1,56 @@
-import { redirect } from "next/navigation";
 import { getSession } from "@/core/auth/session";
+import { Container } from "@/core/ui/components/Container";
+import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
+import { MemberCard } from "@/core/ui/components/MemberCard";
+import { Card } from "@/core/ui/components/Card";
 import { uploadAvatar } from "./actions";
 import { ProfileForm } from "./ProfileForm";
 
 export default async function SettingsPage() {
   const session = await getSession();
-  if (!session) {
-    redirect("/sign-in");
-  }
+  if (!session) return null; // guarded by (club)/layout.tsx
 
   return (
-    <main style={{ maxWidth: "400px", margin: "48px auto", fontFamily: "sans-serif" }}>
-      <h1 style={{ fontSize: "20px" }}>Réglages</h1>
-      <p style={{ color: "#555", fontSize: "14px" }}>
-        {session.user.name} — membre #{session.member.memberNumber}
-      </p>
+    <Container>
+      <PageTitle>Réglages</PageTitle>
 
-      <h2 style={{ fontSize: "16px", marginTop: "24px" }}>Avatar</h2>
-      {session.user.image && (
-        // eslint-disable-next-line @next/next/no-img-element -- raw <img> is fine for this unstyled placeholder page
-        <img
-          src={session.user.image}
-          alt=""
-          width={80}
-          height={80}
-          style={{ borderRadius: "50%", display: "block", marginBottom: "12px" }}
+      <div className="mt-6">
+        <MemberCard
+          name={session.user.name}
+          memberNumber={session.member.memberNumber}
+          image={session.user.image}
+          bio={session.member.bio}
+          joinedAt={session.member.joinedAt}
         />
-      )}
-      <form action={uploadAvatar} style={{ display: "flex", gap: "8px" }}>
-        <input type="file" name="avatar" accept="image/*" required />
-        <button type="submit">Envoyer</button>
-      </form>
+      </div>
 
-      <h2 style={{ fontSize: "16px", marginTop: "24px" }}>Profil</h2>
-      <ProfileForm bio={session.member.bio} phone={session.member.phone} />
-    </main>
+      <section className="mt-10">
+        <SectionTitle>Avatar</SectionTitle>
+        <Card className="mt-3 p-5">
+          <form action={uploadAvatar} className="flex flex-wrap items-center gap-3">
+            <input
+              type="file"
+              name="avatar"
+              accept="image/*"
+              required
+              className="text-sm text-ink file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-ink"
+            />
+            <button
+              type="submit"
+              className="rounded-md border border-line bg-transparent px-4 py-2 text-sm font-semibold text-ink hover:bg-surface"
+            >
+              Envoyer
+            </button>
+          </form>
+        </Card>
+      </section>
+
+      <section className="mt-10">
+        <SectionTitle>Profil</SectionTitle>
+        <Card className="mt-3 p-5">
+          <ProfileForm bio={session.member.bio} phone={session.member.phone} />
+        </Card>
+      </section>
+    </Container>
   );
 }

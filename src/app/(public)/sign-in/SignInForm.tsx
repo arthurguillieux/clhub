@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { authClient } from "@/core/auth/client";
+import { Button } from "@/core/ui/components/Button";
+import { FormField, Input } from "@/core/ui/components/Field";
 
 type State = { status: "idle" | "sent" | "error"; message?: string };
 
@@ -21,34 +23,35 @@ export function SignInForm({ defaultEmail = "" }: { defaultEmail?: string }) {
       callbackURL: "/invite",
     });
     setPending(false);
-    setState(
-      error ? { status: "error", message: error.message } : { status: "sent" },
-    );
+    setState(error ? { status: "error", message: error.message } : { status: "sent" });
   }
 
   if (state.status === "sent") {
-    return <p>Vérifie ta boîte mail — le lien arrive dans quelques instants.</p>;
+    return (
+      <p className="text-center text-sm text-ink">
+        Vérifie ta boîte mail — le lien arrive dans quelques instants.
+      </p>
+    );
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{ display: "flex", flexDirection: "column", gap: "12px" }}
-    >
-      <label htmlFor="email">Ton adresse mail</label>
-      <input
-        id="email"
-        type="email"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="toi@example.com"
-        style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "4px" }}
-      />
-      <button type="submit" disabled={pending} style={{ padding: "8px 16px" }}>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <FormField label="Ton adresse mail" htmlFor="email">
+        <Input
+          id="email"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="toi@example.com"
+        />
+      </FormField>
+      <Button type="submit" disabled={pending}>
         {pending ? "Envoi..." : "Recevoir mon lien de connexion"}
-      </button>
-      {state.status === "error" && <p style={{ color: "crimson" }}>{state.message}</p>}
+      </Button>
+      {state.status === "error" && (
+        <p className="text-sm text-red-600 dark:text-red-400">{state.message}</p>
+      )}
     </form>
   );
 }
