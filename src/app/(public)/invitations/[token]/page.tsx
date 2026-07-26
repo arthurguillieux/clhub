@@ -26,8 +26,7 @@ export default async function InvitationPage({
     <main style={{ maxWidth: "400px", margin: "48px auto", fontFamily: "sans-serif" }}>
       <h1 style={{ fontSize: "20px" }}>Bienvenue au CLHUB</h1>
       <p style={{ color: "#555", fontSize: "14px" }}>
-        {inviterUser?.name ?? "Un membre"} t&apos;a invité·e à rejoindre le club. Confirme ton
-        adresse pour recevoir ton lien de connexion.
+        {`${inviterUser?.name ?? "Un membre"} t'a invité·e à rejoindre le club. Confirme ton adresse pour recevoir ton lien de connexion.`}
       </p>
       <SignInForm defaultEmail={invitation.email} />
     </main>

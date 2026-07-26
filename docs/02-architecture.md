@@ -75,12 +75,15 @@ sortants depuis `domain/`.
 ### 3.1 Socle
 
 ```
-member
+user                 -- géré par Better Auth, forme standard, on n'y touche pas
+  id text pk, name, email unique, email_verified, image, created_at, updated_at
+session / account / verification        -- idem, tables Better Auth standard
+
+member               -- le profil club, distinct de l'identité (voir ADR-011)
   id                uuid pk
-  member_number     int unique          -- #001, attribué à la 1re connexion
-  email             citext unique
-  display_name      text
-  avatar_path       text null
+  user_id           text unique → user.id
+  member_number     int unique          -- identity Postgres, attribué à la 1re connexion
+  avatar_path       text null           -- upload propre au club, distinct de user.image
   bio               text null
   phone             text null           -- pour se donner rendez-vous
   role              text                -- 'member' | 'admin'
@@ -89,8 +92,7 @@ member
   notif_prefs       jsonb               -- { digest: 'instant'|'daily'|'off', ... }
   created_at, updated_at
 
-invitation           id, email, token_hash, invited_by_id, expires_at, accepted_at
-session / account / verification        -- tables gérées par Better Auth
+invitation           id, email, token_hash, invited_by_id → member, expires_at, accepted_at
 
 action_token         -- validation en un clic depuis un mail, sans connexion
   id, token_hash unique, member_id, action text, payload jsonb,
@@ -422,6 +424,36 @@ arbitre. Évite les réservations défensives et la course au clic. Tombe nature
 ### ADR-007 — Écussons et flux d'activité dans le socle
 Ils doivent agréger toutes les sections présentes et futures. Les placer dans la
 Prêtothèque imposerait une réécriture à la deuxième section.
+
+### ADR-011 — `user` et `member` séparés, plutôt qu'une table unique
+Section 3.1 sketchait à l'origine un `member` unique portant aussi l'identité (email,
+nom). En implémentant Better Auth, ses deux mécanismes de personnalisation du modèle
+utilisateur (mapping `schema.user` vers une table maison, ou `user.modelName` +
+`fields`) demandent de renommer des colonnes et de faire correspondre exactement la forme
+interne attendue — fragile, et mal documenté pour l'adaptateur Drizzle à la version
+testée (1.6.25).
+
+Plus sûr : laisser Better Auth posséder entièrement `user` (forme standard, jamais
+modifiée), et faire de `member` une table de profil applicatif reliée par `member.user_id`.
+Toute la mécanique d'authentification (session, magic link, tokens) reste l'affaire de
+Better Auth ; `member` ne porte que ce qui est propre au club (numéro, parrainage, bio,
+préférences). Coût : une jointure pour afficher un nom quelque part. Bénéfice : aucune
+dépendance à un comportement interne non garanti d'une version à l'autre.
+
+### ADR-012 — `member_number` en colonne IDENTITY, pas calculé en application
+Un calcul `max(member_number) + 1` côté application peut faire race entre deux
+acceptations d'invitation simultanées. Une colonne `GENERATED ALWAYS AS IDENTITY`
+délègue l'atomicité à Postgres : le numéro est assigné au moment de l'insertion de la
+ligne `member`, sans jamais pouvoir se dupliquer.
+
+### ADR-013 — Portes d'entrée sur invitation : dans `sendMagicLink`, pas `disableSignUp`
+Le plugin magic-link expose `disableSignUp` pour bloquer toute création de compte, mais
+ça empêcherait aussi la création légitime lors du premier clic d'un invité. À la place,
+`sendMagicLink` vérifie avant l'envoi : e-mail déjà membre → toujours autorisé ; sinon
+→ il faut une invitation valide (ou être le tout premier membre du club, cas de
+bootstrap). Si l'envoi est refusé, aucun lien n'est jamais généré : personne ne peut donc
+se créer un compte sans invitation, sans qu'il soit nécessaire de désactiver l'auto-création
+gérée nativement par Better Auth au moment de la vérification du lien.
 
 ### ADR-009 — Sous-domaine `clhub.puzzpok.fr`, pas un sous-chemin
 L'application Flask déjà hébergée utilise une règle de proxy en sous-chemin

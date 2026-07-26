@@ -44,10 +44,10 @@ réception (pas dans les indésirables).
 
 ## Lot 1 — Le socle du club
 
-- [ ] Module `core/date` (`CalendarDate`) et sa suite de tests
-- [ ] Better Auth avec magic link, sur invitation exclusivement
-- [ ] `member`, numéro de membre attribué à la première connexion, parrainage enregistré
-- [ ] Parcours d'invitation : un admin invite par mail, le filleul clique et entre
+- [x] Module `core/date` (`CalendarDate`) et sa suite de tests
+- [x] Better Auth avec magic link, sur invitation exclusivement
+- [x] `member`, numéro de membre attribué à la première connexion, parrainage enregistré
+- [x] Parcours d'invitation : un admin invite par mail, le filleul clique et entre
 - [ ] Envoi et stockage des avatars (`sharp`, vignettes pré-générées)
 - [ ] Design system : jetons de couleur, Bricolage Grotesque + Inter, mode sombre,
       composants de base
