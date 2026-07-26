@@ -1,0 +1,52 @@
+# Deployed on the Synology DS720+ via Container Manager (Projects mode).
+# See docs/04-exploitation.md for the full deployment procedure.
+#
+# The image is built by GitHub Actions and published to GHCR — the NAS only
+# ever runs `docker compose pull && docker compose up -d` (see deploy.sh).
+# It never builds the image itself: a `next build` needs more RAM than this
+# 2 GB NAS can spare (ADR-010 in docs/02-architecture.md).
+
+services:
+  web:
+    image: ghcr.io/arthurguillieux/clhub:latest
+    restart: unless-stopped
+    mem_limit: 400m
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+
+  # `worker` (scheduled reminders, digests, nightly backup — see docs/03-roadmap.md,
+  # Lot 3) joins this file once it actually exists. No point shipping a service
+  # with no image command behind it.
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      POSTGRES_USER: clhub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: clhub
+    volumes:
+      - ./pg:/var/lib/postgresql/data
+      - ./init-extensions.sql:/docker-entrypoint-initdb.d/init-extensions.sql:ro
+    # Tuned for a small NAS — see "Budget mémoire" in docs/04-exploitation.md.
+    # The defaults reserve far more shared memory than this box can spare.
+    command: >
+      postgres
+      -c shared_buffers=96MB
+      -c effective_cache_size=256MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=32MB
+      -c max_connections=20
+      -c wal_compression=on
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clhub -d clhub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

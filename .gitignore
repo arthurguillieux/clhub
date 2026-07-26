@@ -41,9 +41,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# drizzle
-drizzle/meta/
-
 # editor
 .vscode/*
 !.vscode/extensions.json
