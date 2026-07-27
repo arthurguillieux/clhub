@@ -20,6 +20,7 @@ import {
   expense,
   settlementPayment,
   recipe,
+  recipeReview,
   notification,
   activity,
   invitation,
@@ -212,6 +213,11 @@ export async function deleteMemberCascade(memberId: string): Promise<void> {
     }
     await tx.delete(expenseEvent).where(eq(expenseEvent.createdById, memberId));
 
+    await tx.delete(recipeReview).where(eq(recipeReview.memberId, memberId));
+    const ownRecipes = await tx.select({ id: recipe.id }).from(recipe).where(eq(recipe.createdById, memberId));
+    for (const rec of ownRecipes) {
+      await tx.delete(recipeReview).where(eq(recipeReview.recipeId, rec.id));
+    }
     await tx.delete(recipe).where(eq(recipe.createdById, memberId));
     await tx.delete(notification).where(eq(notification.memberId, memberId));
     await tx.delete(activity).where(eq(activity.actorId, memberId));
