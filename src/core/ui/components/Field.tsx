@@ -6,18 +6,22 @@ export function Label(props: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return <label className="text-sm font-medium text-ink" {...props} />;
 }
 
-export function Input(
-  props: React.InputHTMLAttributes<HTMLInputElement> & { ref?: React.Ref<HTMLInputElement> },
-) {
-  return <input className={fieldBase} {...props} />;
+export function Input({
+  className = "",
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & { ref?: React.Ref<HTMLInputElement> }) {
+  return <input className={`${fieldBase} ${className}`} {...props} />;
 }
 
-export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={`${fieldBase} min-h-24`} {...props} />;
+export function Textarea({
+  className = "",
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea className={`${fieldBase} min-h-24 ${className}`} {...props} />;
 }
 
-export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={fieldBase} {...props} />;
+export function Select({ className = "", ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={`${fieldBase} ${className}`} {...props} />;
 }
 
 export function FormField({

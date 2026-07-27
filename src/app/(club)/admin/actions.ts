@@ -1,8 +1,15 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { unlockAdmin } from "@/core/auth/admin";
+import { revalidatePath } from "next/cache";
+import { unlockAdmin, requireAdmin } from "@/core/auth/admin";
 import { getSession } from "@/core/auth/session";
+import {
+  deleteMemberCascade,
+  inviteMemberByEmail,
+  setMemberRole,
+} from "@/modules/admin/data/members";
+import { deleteItemCascade, reassignItemOwner } from "@/modules/admin/data/items";
 
 export type UnlockAdminState = { status: "idle" } | { status: "error"; message: string };
 
@@ -27,4 +34,53 @@ export async function unlockAdminAction(
   if (!ok) return { status: "error", message: "Code incorrect." };
 
   redirect("/admin");
+}
+
+export type InviteState = { status: "idle" } | { status: "success" } | { status: "error"; message: string };
+
+export async function adminInviteAction(
+  _prevState: InviteState,
+  formData: FormData,
+): Promise<InviteState> {
+  const session = await requireAdmin();
+
+  const email = formData.get("email");
+  if (typeof email !== "string" || !email.includes("@")) {
+    return { status: "error", message: "Adresse mail invalide." };
+  }
+
+  await inviteMemberByEmail(session.member.id, session.user.name, email);
+  revalidatePath("/admin/membres");
+  return { status: "success" };
+}
+
+export async function adminSetRoleAction(memberId: string, role: "member" | "admin"): Promise<void> {
+  await requireAdmin();
+  await setMemberRole(memberId, role);
+  revalidatePath("/admin/membres");
+}
+
+export async function adminDeleteMemberAction(memberId: string): Promise<void> {
+  const session = await requireAdmin();
+  if (session.member.id === memberId) {
+    throw new Error("Impossible de se supprimer soi-même depuis l'admin.");
+  }
+  await deleteMemberCascade(memberId);
+  revalidatePath("/admin/membres");
+  revalidatePath("/membres");
+  revalidatePath("/");
+}
+
+export async function adminDeleteItemAction(itemId: string): Promise<void> {
+  await requireAdmin();
+  await deleteItemCascade(itemId);
+  revalidatePath("/admin/objets");
+  revalidatePath("/pretotheque");
+}
+
+export async function adminReassignItemAction(itemId: string, newOwnerId: string): Promise<void> {
+  await requireAdmin();
+  await reassignItemOwner(itemId, newOwnerId);
+  revalidatePath("/admin/objets");
+  revalidatePath("/pretotheque");
 }
