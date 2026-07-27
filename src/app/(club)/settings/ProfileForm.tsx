@@ -11,10 +11,12 @@ export function ProfileForm({
   name,
   bio,
   phone,
+  householdSize,
 }: {
   name: string;
   bio: string | null;
   phone: string | null;
+  householdSize: number;
 }) {
   const [state, formAction, pending] = useActionState(updateProfile, initialState);
 
@@ -29,6 +31,20 @@ export function ProfileForm({
       <FormField label="Téléphone" htmlFor="phone">
         <Input id="phone" name="phone" type="tel" defaultValue={phone ?? ""} />
       </FormField>
+      <FormField label="Nombre de personnes derrière ce profil" htmlFor="householdSize">
+        <Input
+          id="householdSize"
+          name="householdSize"
+          type="number"
+          min={1}
+          max={10}
+          defaultValue={householdSize}
+        />
+      </FormField>
+      <p className="-mt-2 text-xs text-muted">
+        Utilisé pour répartir les dépenses de la Caisse commune — un profil partagé comme « Marine et
+        Arthur » compte pour 2.
+      </p>
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? "Enregistrement..." : "Enregistrer"}
       </Button>

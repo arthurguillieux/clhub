@@ -48,6 +48,9 @@ export async function updateProfile(
   const name = formData.get("name");
   const bio = formData.get("bio");
   const phone = formData.get("phone");
+  const householdSizeRaw = Number(formData.get("householdSize"));
+  const householdSize =
+    Number.isFinite(householdSizeRaw) && householdSizeRaw >= 1 ? Math.round(householdSizeRaw) : 1;
 
   const trimmedName = typeof name === "string" ? name.trim() : "";
   if (trimmedName === "") {
@@ -61,6 +64,7 @@ export async function updateProfile(
     .set({
       bio: typeof bio === "string" && bio.trim() !== "" ? bio.trim() : null,
       phone: typeof phone === "string" && phone.trim() !== "" ? phone.trim() : null,
+      householdSize,
       updatedAt: new Date(),
     })
     .where(eq(member.id, session.member.id));

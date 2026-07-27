@@ -1,0 +1,1 @@
+DROP TABLE "caisse_transaction" CASCADE;

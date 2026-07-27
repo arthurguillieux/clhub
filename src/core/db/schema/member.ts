@@ -19,6 +19,11 @@ export const member = pgTable("member", {
   bio: text("bio"),
   phone: text("phone"),
   role: text("role").notNull().default("member"), // 'member' | 'admin'
+  // How many people this profile actually represents — "Marine et Arthur"
+  // share one account since they lend/borrow as a pair. Pre-fills a new
+  // caisse event's default share count for this member; adjustable per
+  // event from there (docs/03-roadmap.md, Caisse commune).
+  householdSize: integer("household_size").notNull().default(1),
   invitedById: uuid("invited_by_id").references((): AnyPgColumn => member.id),
   notifPrefs: jsonb("notif_prefs").notNull().default({}),
   // Generated lazily on first request for the iCal feed URL — null until then.

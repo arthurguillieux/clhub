@@ -1,4 +1,4 @@
-import { count, eq } from "drizzle-orm";
+import { count, eq, or } from "drizzle-orm";
 import { db } from "@/core/db/client";
 import {
   member,
@@ -15,7 +15,10 @@ import {
   memberAchievement,
   menuEvent,
   menuResponse,
-  caisseTransaction,
+  expenseEvent,
+  eventParticipant,
+  expense,
+  settlementPayment,
   recipe,
   notification,
   activity,
@@ -78,7 +81,8 @@ export interface MemberDeletionImpact {
   wantedPosts: number;
   projects: number;
   menuEvents: number;
-  caisseTransactions: number;
+  expenseEventsOrganized: number;
+  expensesInvolved: number;
   recipes: number;
   activityEntries: number;
   notifications: number;
@@ -98,7 +102,8 @@ export async function getMemberDeletionImpact(memberId: string): Promise<MemberD
     wantedPosts,
     projects,
     menuEvents,
-    caisseTransactions,
+    expenseEventsOrganized,
+    expensesInvolved,
     recipes,
     activityEntries,
     notifications,
@@ -109,7 +114,13 @@ export async function getMemberDeletionImpact(memberId: string): Promise<MemberD
     countRows(db.select({ n: count() }).from(wantedPost).where(eq(wantedPost.requesterId, memberId))),
     countRows(db.select({ n: count() }).from(project).where(eq(project.requesterId, memberId))),
     countRows(db.select({ n: count() }).from(menuEvent).where(eq(menuEvent.createdById, memberId))),
-    countRows(db.select({ n: count() }).from(caisseTransaction).where(eq(caisseTransaction.memberId, memberId))),
+    countRows(db.select({ n: count() }).from(expenseEvent).where(eq(expenseEvent.createdById, memberId))),
+    countRows(
+      db
+        .select({ n: count() })
+        .from(expense)
+        .where(or(eq(expense.paidByMemberId, memberId), eq(expense.createdById, memberId))),
+    ),
     countRows(db.select({ n: count() }).from(recipe).where(eq(recipe.createdById, memberId))),
     countRows(db.select({ n: count() }).from(activity).where(eq(activity.actorId, memberId))),
     countRows(db.select({ n: count() }).from(notification).where(eq(notification.memberId, memberId))),
@@ -122,7 +133,8 @@ export async function getMemberDeletionImpact(memberId: string): Promise<MemberD
     wantedPosts,
     projects,
     menuEvents,
-    caisseTransactions,
+    expenseEventsOrganized,
+    expensesInvolved,
     recipes,
     activityEntries,
     notifications,
@@ -181,7 +193,25 @@ export async function deleteMemberCascade(memberId: string): Promise<void> {
     }
     await tx.delete(menuEvent).where(eq(menuEvent.createdById, memberId));
 
-    await tx.delete(caisseTransaction).where(eq(caisseTransaction.memberId, memberId));
+    // Caisse: settlements and expenses they're party to, their own
+    // participation rows, and any event they organized — mirrors menuEvent
+    // above, deleting the organizer takes the event with it.
+    await tx
+      .delete(settlementPayment)
+      .where(or(eq(settlementPayment.fromMemberId, memberId), eq(settlementPayment.toMemberId, memberId)));
+    await tx.delete(expense).where(or(eq(expense.paidByMemberId, memberId), eq(expense.createdById, memberId)));
+    await tx.delete(eventParticipant).where(eq(eventParticipant.memberId, memberId));
+    const ownExpenseEvents = await tx
+      .select({ id: expenseEvent.id })
+      .from(expenseEvent)
+      .where(eq(expenseEvent.createdById, memberId));
+    for (const ev of ownExpenseEvents) {
+      await tx.delete(settlementPayment).where(eq(settlementPayment.eventId, ev.id));
+      await tx.delete(expense).where(eq(expense.eventId, ev.id));
+      await tx.delete(eventParticipant).where(eq(eventParticipant.eventId, ev.id));
+    }
+    await tx.delete(expenseEvent).where(eq(expenseEvent.createdById, memberId));
+
     await tx.delete(recipe).where(eq(recipe.createdById, memberId));
     await tx.delete(notification).where(eq(notification.memberId, memberId));
     await tx.delete(activity).where(eq(activity.actorId, memberId));
