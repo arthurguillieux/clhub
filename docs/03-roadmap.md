@@ -206,8 +206,14 @@ effectuée pour de vrai au moins une fois.
       à réécrire à la main. Fetch protégé contre le SSRF comme l'auto-remplissage Open
       Graph (`core/net/urlSafety.ts`, mutualisé entre les deux). Aucune synchronisation ni
       cache : lecture à la volée à chaque consultation, au plus simple comme demandé
-- **Autres sections candidates**, ajoutées en « à venir » sur la page d'accueil (non
-  cliquables, aucun code derrière) : **la caisse commune**, **nos recettes**
+- [x] **Quatrième section : la caisse commune** (`/caisse`) — première version : un
+      journal de mouvements (contribution ou dépense, montant, description), le solde
+      couramment affiché n'étant jamais qu'une somme recalculée depuis ce journal. Pas de
+      répartition ni de remboursement entre membres (ce n'est pas un Splitwise) — le strict
+      nécessaire pour savoir combien reste dans le pot
+- [x] **Cinquième section : nos recettes** (`/recettes`) — première version : un membre
+      ajoute une recette (titre, ingrédients, préparation), le carnet est commun et lu par
+      tous. Pas de notation ni de commentaires pour l'instant
 - **Prêt de livres et de jeux** — le même moteur, une catégorie de plus
 
 ---
