@@ -1,0 +1,1 @@
+ALTER TABLE "member" ADD COLUMN "personal_calendar_url" text;

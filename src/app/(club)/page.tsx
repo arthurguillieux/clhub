@@ -24,9 +24,9 @@ const SECTIONS = [
   },
   {
     name: "L'agenda en commun",
-    description: "Les événements et disponibilités du club, en un coup d'œil.",
-    href: null,
-    live: false,
+    description: "Les jours et week-ends où tout le monde est libre, en un coup d'œil.",
+    href: "/agenda",
+    live: true,
   },
   {
     name: "Caisse commune",

@@ -8,6 +8,8 @@ import { getSession } from "@/core/auth/session";
 import { db } from "@/core/db/client";
 import { member } from "@/core/db/schema";
 import { saveAvatar } from "@/core/storage/avatar";
+import { fetchBusyDays } from "@/core/ical/fetch";
+import { addDays, today } from "@/core/date";
 
 export async function uploadAvatar(formData: FormData): Promise<void> {
   const session = await getSession();
@@ -57,4 +59,62 @@ export async function updateProfile(
 
   revalidatePath("/settings");
   return { status: "success" };
+}
+
+export type PersonalCalendarState =
+  | { status: "idle" }
+  | { status: "success"; eventsFound: boolean }
+  | { status: "removed" }
+  | { status: "error"; message: string };
+
+/**
+ * Saves the member's private ICS feed URL, testing it immediately (a quick
+ * fetch over the next couple of weeks) so a typo or a copy-paste mistake is
+ * caught here rather than silently showing up as "always free" later.
+ */
+export async function updatePersonalCalendarUrl(
+  _prevState: PersonalCalendarState,
+  formData: FormData,
+): Promise<PersonalCalendarState> {
+  const session = await getSession();
+  if (!session) return { status: "error", message: "Tu dois être connecté." };
+
+  const raw = formData.get("personalCalendarUrl");
+  const url = typeof raw === "string" ? raw.trim() : "";
+
+  if (url === "") {
+    await db
+      .update(member)
+      .set({ personalCalendarUrl: null, updatedAt: new Date() })
+      .where(eq(member.id, session.member.id));
+    revalidatePath("/settings");
+    return { status: "removed" };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { status: "error", message: "Ce n'est pas une URL valide." };
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    return { status: "error", message: "Ce n'est pas une URL valide." };
+  }
+
+  const testStart = today();
+  const busyDays = await fetchBusyDays(url, testStart, addDays(testStart, 14));
+  if (busyDays === null) {
+    return {
+      status: "error",
+      message: "Impossible de lire cet agenda — vérifie que c'est bien l'adresse secrète au format iCal.",
+    };
+  }
+
+  await db
+    .update(member)
+    .set({ personalCalendarUrl: url, updatedAt: new Date() })
+    .where(eq(member.id, session.member.id));
+
+  revalidatePath("/settings");
+  return { status: "success", eventsFound: busyDays.size > 0 };
 }

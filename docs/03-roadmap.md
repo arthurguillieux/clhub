@@ -195,9 +195,19 @@ effectuée pour de vrai au moins une fois.
       tirage au sort de qui cuisine pour l'instant (mentionné comme optionnel dans le
       document produit). Exactement aussi léger que prévu : aucun moteur de calendrier,
       juste le socle (membres, notifications, flux)
+- [x] **Troisième section : l'agenda en commun** (`/agenda`) — chaque membre colle dans ses
+      réglages l'adresse secrète iCal de son agenda perso (Google/Outlook/Apple) ; l'app
+      lit uniquement les plages occupées (jamais le titre, le lieu ni le contenu — ces
+      champs ne sont même pas extraits du fichier) et affiche une vue mensuelle commune
+      mettant en avant les jours où tout le monde est libre. Parsing RFC 5545 maison
+      (`core/ical/parse.ts`, unfolding des lignes, `VALUE=DATE`, `TZID`, temps flottants)
+      avec expansion de récurrence (`RRULE`/`EXDATE`) via la bibliothèque `rrule` — seule
+      dépendance ajoutée pour cette fonctionnalité, la logique de récurrence étant risquée
+      à réécrire à la main. Fetch protégé contre le SSRF comme l'auto-remplissage Open
+      Graph (`core/net/urlSafety.ts`, mutualisé entre les deux). Aucune synchronisation ni
+      cache : lecture à la volée à chaque consultation, au plus simple comme demandé
 - **Autres sections candidates**, ajoutées en « à venir » sur la page d'accueil (non
-  cliquables, aucun code derrière) : **l'agenda en commun**, **la caisse commune**, **nos
-  recettes**
+  cliquables, aucun code derrière) : **la caisse commune**, **nos recettes**
 - **Prêt de livres et de jeux** — le même moteur, une catégorie de plus
 
 ---

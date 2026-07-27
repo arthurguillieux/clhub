@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { href: "/pretotheque/recherches", label: "Recherches" },
   { href: "/pretotheque/mine", label: "Mon activité" },
   { href: "/menus", label: "Menus" },
+  { href: "/agenda", label: "Agenda commun" },
   { href: "/wrapped", label: "Wrapped" },
   { href: "/invite", label: "Inviter" },
 ];

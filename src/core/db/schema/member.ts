@@ -23,6 +23,11 @@ export const member = pgTable("member", {
   notifPrefs: jsonb("notif_prefs").notNull().default({}),
   // Generated lazily on first request for the iCal feed URL — null until then.
   calendarToken: text("calendar_token").unique(),
+  // The member's own private ICS feed URL (Google/Outlook/Apple "secret
+  // address"), pasted in Settings — read-only, server-side only, and only
+  // ever reduced to busy/free days (see core/ical/parse.ts). Never shown to
+  // other members, never re-exposed through any API.
+  personalCalendarUrl: text("personal_calendar_url"),
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

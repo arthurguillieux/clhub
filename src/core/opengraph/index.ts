@@ -5,6 +5,8 @@
  * elements, and pulling in an HTML parsing library for this alone isn't
  * worth it.
  */
+import { isSafeExternalUrl } from "@/core/net/urlSafety";
+
 export interface OpenGraphMetadata {
   title: string | null;
   image: string | null;
@@ -13,22 +15,9 @@ export interface OpenGraphMetadata {
 
 const META_TAG_PATTERN = /<meta\s+[^>]*>/gi;
 
-// Loose enough to catch a handful of private/loopback ranges without being a
-// complete SSRF blocklist — this endpoint is only reachable by invited
-// members pasting a link they chose, not the general public.
-const PRIVATE_HOSTNAME_PATTERN =
-  /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0|\[?::1\]?)$|\.local$/i;
-
 function extractAttr(tag: string, attr: string): string | null {
   const match = new RegExp(`${attr}\\s*=\\s*["']([^"']*)["']`, "i").exec(tag);
   return match ? match[1] ?? null : null;
-}
-
-function isSafeUrl(url: URL): boolean {
-  return (
-    (url.protocol === "http:" || url.protocol === "https:") &&
-    !PRIVATE_HOSTNAME_PATTERN.test(url.hostname)
-  );
 }
 
 export async function fetchOpenGraphMetadata(rawUrl: string): Promise<OpenGraphMetadata | null> {
@@ -38,7 +27,7 @@ export async function fetchOpenGraphMetadata(rawUrl: string): Promise<OpenGraphM
   } catch {
     return null;
   }
-  if (!isSafeUrl(url)) return null;
+  if (!isSafeExternalUrl(url)) return null;
 
   let html: string;
   try {
