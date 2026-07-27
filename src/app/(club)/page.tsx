@@ -61,6 +61,14 @@ function describeActivity(a: ActivityEntry): string {
       const dateLabel = p.eventDate ? ` (${formatFrench(p.eventDate as CalendarDate)})` : "";
       return `Un repas a été proposé : « ${p.title ?? "?"} »${dateLabel}.`;
     }
+    case "caisse.contribution": {
+      const p = a.payload as { amountCents?: number; description?: string };
+      return `${((p.amountCents ?? 0) / 100).toFixed(2)} € ajoutés à la caisse commune (${p.description ?? "?"}).`;
+    }
+    case "caisse.expense": {
+      const p = a.payload as { amountCents?: number; description?: string };
+      return `${((p.amountCents ?? 0) / 100).toFixed(2)} € dépensés depuis la caisse commune (${p.description ?? "?"}).`;
+    }
     default:
       return a.kind;
   }

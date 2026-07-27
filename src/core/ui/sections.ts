@@ -32,8 +32,8 @@ export const CLUB_SECTIONS: ClubSection[] = [
   {
     name: "Caisse commune",
     description: "Suivre les dépenses partagées du club.",
-    href: null,
-    live: false,
+    href: "/caisse",
+    live: true,
   },
   {
     name: "Nos recettes",
