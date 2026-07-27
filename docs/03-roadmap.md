@@ -128,12 +128,16 @@ prêt se déroule jusqu'au retour. ✅ Vérifié de bout en bout dans le navigat
 - [x] Suggestion de créneaux libres en cas de conflit
 - [x] Liste d'attente (« préviens-moi si ça se libère »)
 - [x] Déplacer et étirer sa réservation directement sur la grille
-- [ ] Conteneur `worker` + tâches planifiées : rappels, relances, expiration, résumé —
-      rappels de récupération et expiration des demandes en attente faits, en `POST
-      /api/cron` déclenché par le Planificateur DSM plutôt qu'un vrai conteneur `worker`
-      (voir docs/04-exploitation.md §7) ; **relances en cas de dépassement (emprunteur puis
-      propriétaire, voir docs/01-produit.md §5.3) et résumé périodique restent à faire** —
-      seul vrai trou fonctionnel identifié dans le cycle de prêt
+- [x] Conteneur `worker` + tâches planifiées : rappels, relances, expiration —
+      en `POST /api/cron` déclenché par le Planificateur DSM plutôt qu'un vrai conteneur
+      `worker` (voir docs/04-exploitation.md §7). Relances en cas de dépassement faites :
+      emprunteur à J+1, propriétaire à J+3 (docs/01-produit.md §5.3), chacune une seule
+      fois (vérifié : relancer le job le même jour n'envoie rien de plus), notification
+      in-app systématique + mail optionnel selon les préférences de chacun. Le résumé
+      périodique reste à faire
+- [x] Préférences de notification par membre (member.notifPrefs, en base depuis le
+      Lot 1 mais jamais honoré jusqu'ici) — gate l'envoi du mail, jamais la notification
+      in-app elle-même
 - [x] **Chantiers** : réserver plusieurs objets pour un même projet — un mail par
       *réservation* est envoyé, pas encore consolidé par propriétaire quand il possède
       plusieurs objets du même chantier
