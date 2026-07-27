@@ -13,15 +13,13 @@ export default async function MembresPage() {
 
   return (
     <Container>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <PageTitle>Membres</PageTitle>
-        <Link
-          href="/wrapped"
-          className="text-sm font-semibold text-primary underline underline-offset-2"
-        >
-          CLHUB Wrapped →
-        </Link>
-      </div>
+      <PageTitle>Membres</PageTitle>
+      <Link
+        href="/wrapped"
+        className="glow-text-primary mt-1 block font-display text-3xl font-extrabold tracking-tight text-primary text-balance hover:opacity-90"
+      >
+        CLHUB Wrapped
+      </Link>
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {members.map((m) => {

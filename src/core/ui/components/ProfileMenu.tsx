@@ -9,11 +9,8 @@ interface HeaderUser {
   name: string;
   image?: string | null;
 }
-interface HeaderMember {
-  memberNumber: number | null;
-}
 
-export function ProfileMenu({ user, member }: { user: HeaderUser; member: HeaderMember }) {
+export function ProfileMenu({ user }: { user: HeaderUser }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -50,7 +47,7 @@ export function ProfileMenu({ user, member }: { user: HeaderUser; member: Header
             {user.name.charAt(0).toUpperCase()}
           </span>
         )}
-        <span className="hidden sm:inline">#{member.memberNumber}</span>
+        <span className="hidden max-w-[130px] truncate sm:inline">{user.name}</span>
       </button>
 
       {open && (

@@ -9,9 +9,6 @@ interface HeaderUser {
   name: string;
   image?: string | null;
 }
-interface HeaderMember {
-  memberNumber: number | null;
-}
 
 /**
  * Deliberately light: Accueil is one click away via the logo, and Mon
@@ -20,7 +17,7 @@ interface HeaderMember {
  * `SectionSubNav` (see e.g. pretotheque/layout.tsx) rather than cramming
  * every section's sub-pages into this one bar.
  */
-export function Header({ user, member }: { user: HeaderUser; member: HeaderMember }) {
+export function Header({ user }: { user: HeaderUser }) {
   return (
     <header className="border-b border-line-soft bg-surface print:hidden">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
@@ -35,7 +32,7 @@ export function Header({ user, member }: { user: HeaderUser; member: HeaderMembe
           <SectionsMenu />
         </nav>
 
-        <ProfileMenu user={user} member={member} />
+        <ProfileMenu user={user} />
       </div>
     </header>
   );
