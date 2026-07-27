@@ -11,6 +11,7 @@ import { uploadAvatar } from "./actions";
 import { ProfileForm } from "./ProfileForm";
 import { CalendarFeedUrl } from "./CalendarFeedUrl";
 import { PersonalCalendarForm } from "./PersonalCalendarForm";
+import { NotificationPrefsForm } from "./NotificationPrefsForm";
 
 export default async function SettingsPage() {
   const session = await getSession();
@@ -97,6 +98,13 @@ export default async function SettingsPage() {
         <SectionTitle>Mon agenda personnel</SectionTitle>
         <Card className="mt-3 p-5">
           <PersonalCalendarForm currentUrl={session.member.personalCalendarUrl} />
+        </Card>
+      </section>
+
+      <section className="mt-10">
+        <SectionTitle>Notifications par mail</SectionTitle>
+        <Card className="mt-3 p-5">
+          <NotificationPrefsForm notifPrefs={session.member.notifPrefs} />
         </Card>
       </section>
 

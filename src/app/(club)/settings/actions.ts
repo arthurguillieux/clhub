@@ -10,6 +10,7 @@ import { member } from "@/core/db/schema";
 import { saveAvatar } from "@/core/storage/avatar";
 import { fetchBusyDays } from "@/core/ical/fetch";
 import { addDays, today } from "@/core/date";
+import { NOTIFICATION_CATEGORIES } from "@/core/notifications/preferences";
 
 export async function uploadAvatar(formData: FormData): Promise<void> {
   const session = await getSession();
@@ -131,4 +132,24 @@ export async function updatePersonalCalendarUrl(
 
   revalidatePath("/settings");
   return { status: "success", eventsFound: busyDays.size > 0 };
+}
+
+export type NotifPrefsState = { status: "idle" } | { status: "success" } | { status: "error"; message: string };
+
+export async function updateNotifPrefsAction(
+  _prevState: NotifPrefsState,
+  formData: FormData,
+): Promise<NotifPrefsState> {
+  const session = await getSession();
+  if (!session) return { status: "error", message: "Tu dois être connecté." };
+
+  const notifPrefs: Record<string, boolean> = {};
+  for (const category of NOTIFICATION_CATEGORIES) {
+    notifPrefs[category.key] = formData.get(category.key) === "on";
+  }
+
+  await db.update(member).set({ notifPrefs, updatedAt: new Date() }).where(eq(member.id, session.member.id));
+
+  revalidatePath("/settings");
+  return { status: "success" };
 }

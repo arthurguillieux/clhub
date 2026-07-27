@@ -7,6 +7,7 @@ import { createActionToken } from "@/core/action-tokens";
 import { addDays, compare, formatFrench, parse, today, type CalendarDate } from "@/core/date";
 import { sendMail } from "@/core/mail/send";
 import { BookingRequestEmail } from "@/core/mail/templates/BookingRequestEmail";
+import { wantsEmail } from "@/core/notifications/preferences";
 import {
   busyRanges,
   canBook,
@@ -273,6 +274,9 @@ async function sendBookingRequestEmail(
     db.query.member.findFirst({ where: (m, { eq }) => eq(m.id, createdBooking.borrowerId) }),
   ]);
   if (!ownerMember || !borrowerMember) return; // shouldn't happen — both were just referenced by FK
+  // The in-app notification (flux, cloche) was already created regardless —
+  // this only skips the extra mail, and the tokens that only exist for it.
+  if (!wantsEmail(ownerMember.notifPrefs, "bookingRequest")) return;
 
   const [ownerUser, borrowerUser] = await Promise.all([
     db.query.user.findFirst({ where: (u, { eq }) => eq(u.id, ownerMember.userId) }),
