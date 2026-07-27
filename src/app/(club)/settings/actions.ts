@@ -45,8 +45,16 @@ export async function updateProfile(
     return { status: "error", message: "Tu dois être connecté." };
   }
 
+  const name = formData.get("name");
   const bio = formData.get("bio");
   const phone = formData.get("phone");
+
+  const trimmedName = typeof name === "string" ? name.trim() : "";
+  if (trimmedName === "") {
+    return { status: "error", message: "Le nom ne peut pas être vide." };
+  }
+
+  await auth.api.updateUser({ body: { name: trimmedName }, headers: await headers() });
 
   await db
     .update(member)
@@ -57,7 +65,9 @@ export async function updateProfile(
     })
     .where(eq(member.id, session.member.id));
 
+  revalidatePath("/");
   revalidatePath("/settings");
+  revalidatePath("/membres");
   return { status: "success" };
 }
 

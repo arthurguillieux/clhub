@@ -7,11 +7,22 @@ import { updateProfile, type ProfileFormState } from "./actions";
 
 const initialState: ProfileFormState = { status: "idle" };
 
-export function ProfileForm({ bio, phone }: { bio: string | null; phone: string | null }) {
+export function ProfileForm({
+  name,
+  bio,
+  phone,
+}: {
+  name: string;
+  bio: string | null;
+  phone: string | null;
+}) {
   const [state, formAction, pending] = useActionState(updateProfile, initialState);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      <FormField label="Nom d'affichage" htmlFor="name">
+        <Input id="name" name="name" defaultValue={name} required />
+      </FormField>
       <FormField label="Bio" htmlFor="bio">
         <Textarea id="bio" name="bio" defaultValue={bio ?? ""} rows={3} />
       </FormField>

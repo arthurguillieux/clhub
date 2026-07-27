@@ -71,7 +71,7 @@ export default async function SettingsPage() {
       <section className="mt-10">
         <SectionTitle>Profil</SectionTitle>
         <Card className="mt-3 p-5">
-          <ProfileForm bio={session.member.bio} phone={session.member.phone} />
+          <ProfileForm name={session.user.name} bio={session.member.bio} phone={session.member.phone} />
         </Card>
       </section>
 
