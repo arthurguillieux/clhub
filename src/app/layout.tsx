@@ -18,15 +18,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#eaebe1" },
-    { media: "(prefers-color-scheme: dark)", color: "#17160f" },
-  ],
+  themeColor: "#08080d",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="fr" className={`${bricolage.variable} h-full antialiased`}>
+    <html lang="fr" className={`${bricolage.variable} dark h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-ground text-ink">
         {children}
         <ServiceWorkerRegister />

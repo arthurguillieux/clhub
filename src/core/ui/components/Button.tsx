@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 export const buttonVariants = {
-  primary: "bg-primary text-primary-ink hover:opacity-90",
-  accent: "bg-accent text-accent-ink hover:opacity-90",
+  primary: "bg-primary text-primary-ink glow-box-primary hover:opacity-90",
+  accent: "bg-accent text-accent-ink glow-box-accent hover:opacity-90",
   ghost: "border border-line bg-transparent text-ink hover:bg-surface",
 } as const;
 

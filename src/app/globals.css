@@ -1,47 +1,43 @@
 @import "tailwindcss";
 
+/*
+ * Le thème est toujours sombre, mais une vingtaine de composants utilisent
+ * encore la variante `dark:` de Tailwind (pensée à l'origine pour suivre
+ * `prefers-color-scheme`) pour choisir des teintes lisibles sur fond noir
+ * (ex. `text-red-600 dark:text-red-400`). Plutôt que de les récrire un par
+ * un, on force `dark:` à toujours s'appliquer — voir `className="dark"` sur
+ * <html> dans app/layout.tsx.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Un seul thème, assumé : noir + néons. Pas de variante claire — voir la
+ * discussion du 2026-07-27 (docs/03-roadmap.md n'en fait pas mention, c'est
+ * une préférence produit d'Arthur, pas une contrainte technique).
+ */
 :root {
-  --ink: #23201a;
-  --ground: #eaebe1;
-  --surface: #f5f5ee;
-  --surface-raised: #ffffff;
-  --line: #d8d8c8;
-  --line-soft: #e2e2d4;
-  --muted: #6b6858;
+  color-scheme: dark;
 
-  --primary: #1f3d2e;
-  --primary-ink: #f4f1e6;
-  --accent: #e4572e;
-  --accent-ink: #ffffff;
+  --ink: #f1f1f7;
+  --ground: #08080d;
+  --surface: #121218;
+  --surface-raised: #1a1a24;
+  --line: #2e2e3d;
+  --line-soft: #1c1c27;
+  --muted: #8f8fa8;
 
-  --cat-bricolage: #e4572e;
-  --cat-jardinage: #5b7f3a;
-  --cat-menage: #2e8b8b;
-  --cat-festif: #9c3d74;
-  --cat-autre: #736c5a;
-}
+  /* La couleur signature du club — le "HUB" du logo, les liens actifs. */
+  --primary: #39ffb0;
+  --primary-ink: #06140d;
+  /* Les appels à l'action — volontairement une deuxième teinte, pas une nuance de la première. */
+  --accent: #ff3ec9;
+  --accent-ink: #1a0512;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: #ede9dd;
-    --ground: #17160f;
-    --surface: #1e1c15;
-    --surface-raised: #26241b;
-    --line: #37341f;
-    --line-soft: #2b2919;
-    --muted: #a6a08a;
-
-    --primary: #4e8a6b;
-    --primary-ink: #10160f;
-    --accent: #f0764e;
-    --accent-ink: #1a0f09;
-
-    --cat-bricolage: #f0764e;
-    --cat-jardinage: #86ad5f;
-    --cat-menage: #4caeae;
-    --cat-festif: #c0679c;
-    --cat-autre: #a79f87;
-  }
+  --cat-bricolage: #ff7a29;
+  --cat-jardinage: #baff29;
+  --cat-menage: #29e0ff;
+  --cat-festif: #c04dff;
+  --cat-autre: #9a9ab0;
 }
 
 @theme inline {
@@ -78,4 +74,24 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * La lueur est ce qui distingue un néon d'une simple couleur vive — sans
+ * elle, primary/accent ne sont que des teintes saturées de plus. Classes
+ * dédiées (plutôt que des valeurs arbitraires Tailwind répétées partout)
+ * pour que la couleur et l'intensité du halo restent définies à un seul
+ * endroit.
+ */
+.glow-text-primary {
+  text-shadow: 0 0 12px color-mix(in srgb, var(--primary) 65%, transparent);
+}
+.glow-text-accent {
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+.glow-box-primary {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--primary) 40%, transparent);
+}
+.glow-box-accent {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
 }

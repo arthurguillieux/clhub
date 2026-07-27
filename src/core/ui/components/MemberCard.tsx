@@ -1,7 +1,12 @@
 import type { GaugePosition } from "@/core/achievements/gauge";
 import type { MemberBadge } from "@/core/achievements/engine";
 
-/** The signature graphic object of the club (docs/01-produit.md §4). */
+/**
+ * The signature graphic object of the club (docs/01-produit.md §4). Dark
+ * card with a glowing neon edge rather than a solid neon fill — `--primary`
+ * at full saturation across the whole surface would be a wall of green,
+ * not a "card". The glow does the work instead.
+ */
 export function MemberCard({
   name,
   memberNumber,
@@ -22,14 +27,13 @@ export function MemberCard({
 }) {
   return (
     <div
-      className="relative overflow-hidden rounded-card p-6 text-primary-ink shadow-lg"
+      className="glow-box-primary relative overflow-hidden rounded-card border border-primary/40 p-6 text-ink"
       style={{
-        background:
-          "linear-gradient(155deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 82%, black) 100%)",
+        background: "linear-gradient(155deg, var(--surface-raised) 0%, var(--ground) 100%)",
       }}
     >
       <div
-        className="pointer-events-none absolute inset-0 opacity-10"
+        className="pointer-events-none absolute inset-0 text-primary opacity-[0.08]"
         style={{
           backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)",
           backgroundSize: "14px 14px",
@@ -37,10 +41,10 @@ export function MemberCard({
       />
       <div className="relative flex items-start justify-between gap-3">
         <div>
-          <p className="font-mono text-xs tracking-wider opacity-75">
+          <p className="glow-text-primary font-mono text-xs tracking-wider text-primary">
             MEMBRE Nº {memberNumber !== null ? String(memberNumber).padStart(3, "0") : "???"}
           </p>
-          <p className="mt-0.5 text-xs opacity-60">
+          <p className="mt-0.5 text-xs text-muted">
             Depuis {joinedAt.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
           </p>
         </div>
@@ -49,22 +53,22 @@ export function MemberCard({
           <img
             src={image}
             alt=""
-            className="h-12 w-12 rounded-full border-2 border-white/30 object-cover"
+            className="h-12 w-12 rounded-full border-2 border-primary/50 object-cover"
           />
         ) : (
-          <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/30 bg-accent font-display text-lg font-extrabold text-accent-ink">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-primary/50 bg-accent font-display text-lg font-extrabold text-accent-ink">
             {name.charAt(0).toUpperCase()}
           </span>
         )}
       </div>
-      <h2 className="relative mt-4 font-display text-2xl font-extrabold">{name}</h2>
-      {bio && <p className="relative mt-1 text-sm opacity-80">{bio}</p>}
+      <h2 className="relative mt-4 font-display text-2xl font-extrabold text-ink">{name}</h2>
+      {bio && <p className="relative mt-1 text-sm text-muted">{bio}</p>}
 
       {gauge && (
         <div className="relative mt-4">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/15">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-line-soft">
             <div
-              className="h-full rounded-full bg-white/80"
+              className="glow-box-primary h-full rounded-full bg-primary"
               style={{
                 marginLeft: `${((gauge.ratio + 1) / 2) * 100}%`,
                 width: "3px",
@@ -72,7 +76,7 @@ export function MemberCard({
               }}
             />
           </div>
-          <p className="mt-1.5 text-xs opacity-80">
+          <p className="mt-1.5 text-xs text-muted">
             {gauge.emoji} {gauge.label}
           </p>
         </div>
@@ -84,7 +88,7 @@ export function MemberCard({
             <span
               key={b.key}
               title={`${b.name} — ${b.description}`}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/25 bg-white/10 text-base"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/30 bg-surface text-base"
             >
               {b.icon}
             </span>
