@@ -127,6 +127,13 @@
       "when": 1785143034144,
       "tag": "0017_orange_titania",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785143598576,
+      "tag": "0018_magical_starjammers",
+      "breakpoints": true
     }
   ]
 }

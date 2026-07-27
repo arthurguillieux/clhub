@@ -16,3 +16,4 @@ export * from "./project";
 export * from "./achievement";
 export * from "./menuEvent";
 export * from "./caisseTransaction";
+export * from "./recipe";

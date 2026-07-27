@@ -38,7 +38,7 @@ export const CLUB_SECTIONS: ClubSection[] = [
   {
     name: "Nos recettes",
     description: "Le livre de recettes du club, à plusieurs mains.",
-    href: null,
-    live: false,
+    href: "/recettes",
+    live: true,
   },
 ];

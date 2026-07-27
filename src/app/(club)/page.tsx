@@ -69,6 +69,10 @@ function describeActivity(a: ActivityEntry): string {
       const p = a.payload as { amountCents?: number; description?: string };
       return `${((p.amountCents ?? 0) / 100).toFixed(2)} € dépensés depuis la caisse commune (${p.description ?? "?"}).`;
     }
+    case "recipe.added": {
+      const p = a.payload as { title?: string };
+      return `Une nouvelle recette a rejoint le carnet : « ${p.title ?? "?"} ».`;
+    }
     default:
       return a.kind;
   }
