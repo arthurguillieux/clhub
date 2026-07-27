@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // e2e/global-setup.ts spawns its own Next build here (see next.config.ts) —
+    // generated output, not source.
+    ".next-e2e/**",
+    // Playwright's own run artifacts.
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

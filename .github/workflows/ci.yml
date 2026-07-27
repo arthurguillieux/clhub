@@ -52,11 +52,64 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm test
 
+  # Full browser parcours (invitation → magic-link sign-in, a Tricount
+  # split) against a real running instance — see e2e/global-setup.ts for
+  # how that instance and its own database are provisioned. Depends on
+  # `test` so a broken build never wastes a browser install.
+  e2e:
+    needs: test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: clhub
+          POSTGRES_PASSWORD: clhub
+          POSTGRES_DB: clhub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U clhub -d clhub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - name: Create the e2e database
+        run: |
+          PGPASSWORD=clhub psql -h localhost -U clhub -d clhub -c "CREATE DATABASE clhub_e2e OWNER clhub;"
+          PGPASSWORD=clhub psql -h localhost -U clhub -d clhub_e2e -c "CREATE EXTENSION IF NOT EXISTS btree_gist;"
+
+      - name: Migrate the e2e database
+        env:
+          DATABASE_URL: postgresql://clhub:clhub@localhost:5432/clhub_e2e
+        run: pnpm db:migrate
+
+      - run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
   # Publishes ghcr.io/arthurguillieux/clhub — the Synology NAS only ever pulls
   # this image, it never builds it (a `next build` needs more RAM than the
   # NAS can spare; see ADR-010 in docs/02-architecture.md).
   build-and-push:
-    needs: test
+    needs: [test, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
