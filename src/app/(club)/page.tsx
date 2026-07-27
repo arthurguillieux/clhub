@@ -7,40 +7,8 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { categoryLabel } from "@/core/ui/categories";
+import { CLUB_SECTIONS } from "@/core/ui/sections";
 import { formatFrench, type CalendarDate } from "@/core/date";
-
-const SECTIONS = [
-  {
-    name: "Prêtothèque",
-    description: "Le matériel du club, réservable en deux clics.",
-    href: "/pretotheque",
-    live: true,
-  },
-  {
-    name: "Les menus du club",
-    description: "Organiser un repas de groupe — qui vient, qui apporte quoi.",
-    href: "/menus",
-    live: true,
-  },
-  {
-    name: "L'agenda en commun",
-    description: "Les jours et week-ends où tout le monde est libre, en un coup d'œil.",
-    href: "/agenda",
-    live: true,
-  },
-  {
-    name: "Caisse commune",
-    description: "Suivre les dépenses partagées du club.",
-    href: null,
-    live: false,
-  },
-  {
-    name: "Nos recettes",
-    description: "Le livre de recettes du club, à plusieurs mains.",
-    href: null,
-    live: false,
-  },
-] as const;
 
 function describeActivity(a: ActivityEntry): string {
   switch (a.kind) {
@@ -194,7 +162,7 @@ export default async function HomePage() {
       <section className="mt-8">
         <SectionTitle>Sections du club</SectionTitle>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {SECTIONS.map((section) =>
+          {CLUB_SECTIONS.map((section) =>
             section.live && section.href ? (
               <Link key={section.name} href={section.href}>
                 <Card className="h-full p-5 transition-colors hover:border-primary">
