@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ProfileMenu } from "./ProfileMenu";
 import { SectionsMenu } from "./SectionsMenu";
+import { AdminGateLogo } from "./AdminGateLogo";
 
 // Deliberately minimal — just what the header renders, so it doesn't care
 // whether the caller's session shape comes from Better Auth or our own
@@ -21,9 +22,7 @@ export function Header({ user }: { user: HeaderUser }) {
   return (
     <header className="border-b border-line-soft bg-surface print:hidden">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href="/" className="font-display text-lg font-extrabold tracking-tight text-ink">
-          LE CL<span className="glow-text-primary text-primary">HUB</span>
-        </Link>
+        <AdminGateLogo />
 
         <nav className="flex items-center gap-5">
           <Link href="/membres" className="text-sm font-medium text-muted hover:text-ink">
