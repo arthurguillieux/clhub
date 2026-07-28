@@ -37,7 +37,7 @@ export function ProfileMenu({ user }: { user: HeaderUser }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="true"
-        className="flex items-center gap-2 rounded-full border border-line-soft py-1 pr-3 pl-1 text-sm text-ink hover:bg-surface-raised"
+        className="flex items-center gap-2 rounded-full border border-line-soft py-1 pr-3 pl-1 text-sm text-ink transition-colors hover:border-primary/50 hover:bg-surface-raised"
       >
         {user.image ? (
           // eslint-disable-next-line @next/next/no-img-element -- small avatar thumbnail
@@ -51,7 +51,7 @@ export function ProfileMenu({ user }: { user: HeaderUser }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-20 mt-2 w-48 rounded-md border border-line bg-surface-raised p-1.5 shadow-lg">
+        <div className="absolute right-0 z-40 mt-2 w-48 rounded-md border border-line bg-surface-raised p-1.5 shadow-lg">
           <Link
             href="/settings"
             onClick={() => setOpen(false)}

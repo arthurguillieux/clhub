@@ -11,11 +11,35 @@ const DIE_SIDES: Record<DieType, number> = { d4: 4, d6: 6, d8: 8, d10: 10, d12: 
 
 const MIN_COUNT = 1;
 const MAX_COUNT = 8;
+// Must match the `dice-spin` keyframe duration in globals.css — the cube's
+// spin animation and the moment we reveal the real result are one and the
+// same beat, not two things that happen to be close.
 const ROLL_DURATION_MS = 700;
-const ROLL_TICK_MS = 80;
 
 function rollOnce(sides: number): number {
   return 1 + Math.floor(Math.random() * sides);
+}
+
+function Die({ value, rolling, tone }: { value: number; rolling: boolean; tone: "accent" | "muted" | "primary" }) {
+  const faceTone =
+    tone === "accent"
+      ? "glow-box-accent border-accent text-accent"
+      : tone === "muted"
+        ? "border-line-soft text-muted"
+        : "glow-box-primary border-primary/50 text-ink";
+
+  return (
+    <div className="dice-scene h-16 w-16">
+      <div className={`dice-cube ${rolling ? "dice-spinning" : ""}`}>
+        <div className={`dice-face dice-face-front bg-surface-raised ${faceTone}`}>{value}</div>
+        <div className="dice-face dice-face-back border-line-soft bg-surface-raised text-muted">•</div>
+        <div className="dice-face dice-face-right border-line-soft bg-surface-raised text-muted">•</div>
+        <div className="dice-face dice-face-left border-line-soft bg-surface-raised text-muted">•</div>
+        <div className="dice-face dice-face-top border-line-soft bg-surface-raised text-muted">•</div>
+        <div className="dice-face dice-face-bottom border-line-soft bg-surface-raised text-muted">•</div>
+      </div>
+    </div>
+  );
 }
 
 export function DiceRoller() {
@@ -24,11 +48,11 @@ export function DiceRoller() {
   const [display, setDisplay] = useState<number[]>([]);
   const [rolling, setRolling] = useState(false);
   const [settled, setSettled] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
 
@@ -37,23 +61,21 @@ export function DiceRoller() {
     const sides = DIE_SIDES[dieType];
     setRolling(true);
     setSettled(false);
+    // Placeholder faces while the cube tumbles — the real result only
+    // appears once it stops, same as a physical die.
+    setDisplay(Array.from({ length: count }, () => 1));
 
-    const startedAt = Date.now();
-    intervalRef.current = setInterval(() => {
-      setDisplay(Array.from({ length: count }, () => rollOnce(sides)));
-      if (Date.now() - startedAt >= ROLL_DURATION_MS) {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        const finalValues = Array.from({ length: count }, () => rollOnce(sides));
-        setDisplay(finalValues);
-        setRolling(false);
-        setSettled(true);
+    timerRef.current = setTimeout(() => {
+      const finalValues = Array.from({ length: count }, () => rollOnce(sides));
+      setDisplay(finalValues);
+      setRolling(false);
+      setSettled(true);
 
-        if (dieType === "d20") {
-          if (finalValues.includes(20)) recordNaturalTwentyAction().catch(() => {});
-          if (finalValues.includes(1)) recordNaturalOneAction().catch(() => {});
-        }
+      if (dieType === "d20") {
+        if (finalValues.includes(20)) recordNaturalTwentyAction().catch(() => {});
+        if (finalValues.includes(1)) recordNaturalOneAction().catch(() => {});
       }
-    }, ROLL_TICK_MS);
+    }, ROLL_DURATION_MS);
   }
 
   const total = display.length > 0 ? display.reduce((sum, v) => sum + v, 0) : null;
@@ -114,26 +136,12 @@ export function DiceRoller() {
 
       {display.length > 0 && (
         <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-4">
             {display.map((value, i) => {
               const isNat20 = settled && dieType === "d20" && value === 20;
               const isNat1 = settled && dieType === "d20" && value === 1;
-              return (
-                <div
-                  key={i}
-                  className={`flex h-16 w-16 items-center justify-center rounded-2xl border font-display text-2xl font-extrabold tabular-nums ${
-                    rolling
-                      ? "dice-rolling border-line bg-surface-raised text-muted"
-                      : isNat20
-                        ? "dice-settle glow-box-accent border-accent bg-surface-raised text-accent"
-                        : isNat1
-                          ? "dice-settle border-line-soft bg-surface text-muted"
-                          : "dice-settle glow-box-primary border-primary/50 bg-surface-raised text-ink"
-                  }`}
-                >
-                  {value}
-                </div>
-              );
+              const tone = isNat20 ? "accent" : isNat1 ? "muted" : "primary";
+              return <Die key={i} value={value} rolling={rolling} tone={tone} />;
             })}
           </div>
 

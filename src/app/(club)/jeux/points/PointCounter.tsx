@@ -113,17 +113,24 @@ export function PointCounter() {
                 </button>
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
-                {PLAYER_COLORS.map((c) => (
-                  <button
-                    key={c.key}
-                    type="button"
-                    aria-label={`Couleur ${c.label}`}
-                    aria-pressed={c.key === player.colorKey}
-                    onClick={() => setColor(player.id, c.key)}
-                    className={`h-5 w-5 rounded-full ${c.bg} ${c.key === player.colorKey ? "ring-2 ring-ink ring-offset-2 ring-offset-surface-raised" : "opacity-50 hover:opacity-100"}`}
-                  />
-                ))}
+              <div>
+                <p className="mb-1.5 text-xs font-medium text-muted">Couleur</p>
+                <div className="flex flex-wrap gap-2">
+                  {PLAYER_COLORS.map((c) => (
+                    <button
+                      key={c.key}
+                      type="button"
+                      aria-label={`Couleur ${c.label}`}
+                      aria-pressed={c.key === player.colorKey}
+                      onClick={() => setColor(player.id, c.key)}
+                      className={`h-7 w-7 rounded-full ${c.bg} transition-transform ${
+                        c.key === player.colorKey
+                          ? "scale-110 ring-2 ring-ink ring-offset-2 ring-offset-surface-raised"
+                          : "opacity-50 hover:scale-105 hover:opacity-100"
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
 
               <div className="flex items-center justify-center gap-5">

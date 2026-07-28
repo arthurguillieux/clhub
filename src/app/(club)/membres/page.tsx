@@ -14,12 +14,6 @@ export default async function MembresPage() {
   return (
     <Container>
       <PageTitle>Membres</PageTitle>
-      <Link
-        href="/wrapped"
-        className="glow-text-primary mt-1 block font-display text-3xl font-extrabold tracking-tight text-primary text-balance hover:opacity-90"
-      >
-        CLHUB Wrapped
-      </Link>
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {members.map((m) => {
@@ -46,6 +40,13 @@ export default async function MembresPage() {
           );
         })}
       </div>
+
+      <Link
+        href="/wrapped"
+        className="glow-text-primary mt-8 block font-display text-3xl font-extrabold tracking-tight text-primary text-balance hover:opacity-90"
+      >
+        CLHUB Wrapped
+      </Link>
     </Container>
   );
 }

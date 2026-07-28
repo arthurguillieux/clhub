@@ -36,7 +36,7 @@ export default async function SettingsPage() {
     <Container>
       <PageTitle>Réglages</PageTitle>
 
-      <div className="mt-6">
+      <div className="mt-6 max-w-md">
         <MemberCard
           name={session.user.name}
           memberNumber={session.member.memberNumber}

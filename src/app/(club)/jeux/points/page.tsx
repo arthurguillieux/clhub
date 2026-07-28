@@ -1,19 +1,19 @@
 import Link from "next/link";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
-import { DiceRoller } from "./DiceRoller";
+import { PointCounter } from "./PointCounter";
 
-export default function DesPage() {
+export default function PointsPage() {
   return (
     <Container size="md">
       <Link href="/jeux" className="text-sm font-medium text-muted hover:text-ink">
         ← Jeux
       </Link>
       <div className="mt-2">
-        <PageTitle>Lancer de dés</PageTitle>
+        <PageTitle>Compteur de points</PageTitle>
       </div>
       <div className="mt-8">
-        <DiceRoller />
+        <PointCounter />
       </div>
     </Container>
   );

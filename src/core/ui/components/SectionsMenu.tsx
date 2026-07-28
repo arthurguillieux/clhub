@@ -31,7 +31,7 @@ export function SectionsMenu() {
       </button>
 
       {open && (
-        <div className="absolute left-0 z-20 mt-2 w-60 rounded-md border border-line bg-surface-raised p-1.5 shadow-lg">
+        <div className="absolute left-0 z-40 mt-2 w-60 rounded-md border border-line bg-surface-raised p-1.5 shadow-lg">
           {CLUB_SECTIONS.map((section) =>
             section.live && section.href ? (
               <Link

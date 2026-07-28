@@ -27,7 +27,7 @@ export function MemberCard({
 }) {
   return (
     <div
-      className="glow-box-primary relative overflow-hidden rounded-card border border-primary/40 p-6 text-ink"
+      className="glow-box-primary relative overflow-hidden rounded-card border border-primary/40 p-4 text-ink"
       style={{
         background: "linear-gradient(155deg, var(--surface-raised) 0%, var(--ground) 100%)",
       }}
@@ -53,19 +53,19 @@ export function MemberCard({
           <img
             src={image}
             alt=""
-            className="h-12 w-12 rounded-full border-2 border-primary/50 object-cover"
+            className="h-9 w-9 rounded-full border-2 border-primary/50 object-cover"
           />
         ) : (
-          <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-primary/50 bg-accent font-display text-lg font-extrabold text-accent-ink">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-primary/50 bg-accent font-display text-sm font-extrabold text-accent-ink">
             {name.charAt(0).toUpperCase()}
           </span>
         )}
       </div>
-      <h2 className="relative mt-4 font-display text-2xl font-extrabold text-ink">{name}</h2>
+      <h2 className="relative mt-3 font-display text-lg font-extrabold text-ink">{name}</h2>
       {bio && <p className="relative mt-1 text-sm text-muted">{bio}</p>}
 
       {gauge && (
-        <div className="relative mt-4">
+        <div className="relative mt-3">
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-line-soft">
             <div
               className="glow-box-primary h-full rounded-full bg-primary"
@@ -83,12 +83,12 @@ export function MemberCard({
       )}
 
       {badges && badges.length > 0 && (
-        <div className="relative mt-4 flex flex-wrap gap-1.5">
+        <div className="relative mt-3 flex flex-wrap gap-1.5">
           {badges.map((b) => (
             <span
               key={b.key}
               title={`${b.name} — ${b.description}`}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/30 bg-surface text-base"
+              className="flex h-6 w-6 items-center justify-center rounded-full border border-primary/30 bg-surface text-sm"
             >
               {b.icon}
             </span>

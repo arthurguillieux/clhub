@@ -32,7 +32,7 @@ export default async function MemberProfilePage({
         ← Membres
       </Link>
 
-      <div className="mt-4">
+      <div className="mt-4 max-w-md">
         <MemberCard
           name={profile.name || "Membre"}
           memberNumber={profile.memberNumber}
