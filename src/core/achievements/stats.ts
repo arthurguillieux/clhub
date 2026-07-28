@@ -151,6 +151,9 @@ export async function computeMemberStats(memberId: string): Promise<MemberStats>
     hadLateNightPickup,
     hasUnbreakableItem,
     isPureLender,
+    foundKonamiCode: memberRow?.foundKonamiCode ?? false,
+    rolledNaturalTwenty: memberRow?.rolledNaturalTwenty ?? false,
+    rolledNaturalOne: memberRow?.rolledNaturalOne ?? false,
   };
 }
 

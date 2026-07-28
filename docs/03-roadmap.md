@@ -219,6 +219,14 @@ effectuée pour de vrai au moins une fois.
       ajoute une recette (titre, ingrédients, préparation), le carnet est commun et lu par
       tous. Pas de notation ni de commentaires pour l'instant
 - **Prêt de livres et de jeux** — le même moteur, une catégorie de plus
+- [x] **Sixième section : jeux** (`/jeux`) — deux outils indépendants pour les soirées du
+      club : un compteur de points (joueurs, couleurs, +/-, persistant en local) et un
+      lanceur de dés (d4 à d100, plusieurs dés, animation) — première version, aucune donnée
+      persistée en base
+- [x] **Easter eggs** — code Konami (bannière + écusson secret « L'œuf caché », référence
+      Ready Player One), page 404 sur le thème Star Wars, message caché dans la console
+      (ASCII), bannière du 4 mai, et deux écussons secrets liés au lanceur de dés (20 et 1
+      naturels sur un d20)
 
 ---
 

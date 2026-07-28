@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { ServiceWorkerRegister } from "./ServiceWorkerRegister";
+import { KonamiListener } from "@/core/ui/components/KonamiListener";
+import { ConsoleEasterEgg } from "@/core/ui/components/ConsoleEasterEgg";
 
 const bricolage = localFont({
   src: [
@@ -32,6 +34,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-full flex flex-col bg-ground text-ink">
         {children}
         <ServiceWorkerRegister />
+        <KonamiListener />
+        <ConsoleEasterEgg />
       </body>
     </html>
   );

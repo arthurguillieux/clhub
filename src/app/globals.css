@@ -95,3 +95,62 @@ body {
 .glow-box-accent {
   box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
 }
+
+@keyframes egg-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(-8px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.03) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.egg-pop {
+  animation: egg-pop 0.4s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .egg-pop {
+    animation: none;
+  }
+}
+
+@keyframes dice-roll {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-8deg) scale(1.05);
+  }
+  50% {
+    transform: rotate(6deg) scale(0.95);
+  }
+  75% {
+    transform: rotate(-4deg) scale(1.03);
+  }
+}
+.dice-rolling {
+  animation: dice-roll 0.25s ease-in-out infinite;
+}
+@keyframes dice-settle {
+  0% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.dice-settle {
+  animation: dice-settle 0.25s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dice-rolling,
+  .dice-settle {
+    animation: none;
+  }
+}

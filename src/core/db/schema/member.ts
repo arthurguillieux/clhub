@@ -1,5 +1,5 @@
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import { pgTable, uuid, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 
 /**
@@ -33,6 +33,12 @@ export const member = pgTable("member", {
   // ever reduced to busy/free days (see core/ical/parse.ts). Never shown to
   // other members, never re-exposed through any API.
   personalCalendarUrl: text("personal_calendar_url"),
+  // Flags for the three trigger-based secret achievements (src/core/achievements/catalog.ts)
+  // that can't be computed from existing activity data — set once by the
+  // easter-egg record actions in src/core/easterEggs/actions.ts, never reset.
+  foundKonamiCode: boolean("found_konami_code").notNull().default(false),
+  rolledNaturalTwenty: boolean("rolled_natural_twenty").notNull().default(false),
+  rolledNaturalOne: boolean("rolled_natural_one").notNull().default(false),
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

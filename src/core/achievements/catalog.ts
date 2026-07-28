@@ -26,6 +26,12 @@ export interface MemberStats {
   hasUnbreakableItem: boolean;
   /** Has listed items but never once borrowed anything. */
   isPureLender: boolean;
+  /** Entered the Konami code anywhere on the site. */
+  foundKonamiCode: boolean;
+  /** Rolled a natural 20 on a d20 in the Jeux dice roller. */
+  rolledNaturalTwenty: boolean;
+  /** Rolled a natural 1 on a d20 in the Jeux dice roller. */
+  rolledNaturalOne: boolean;
 }
 
 export interface AchievementDefinition {
@@ -159,5 +165,35 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     secret: true,
     sort: 110,
     evaluate: (s) => s.isPureLender && s.itemsListedCount >= PURE_LENDER_MIN_ITEMS,
+  },
+  {
+    key: "oeuf-cache",
+    name: "L'œuf caché",
+    description: "A trouvé l'œuf caché dans le code du site — comme dans Ready Player One.",
+    hint: "Certains raccourcis clavier remontent aux années 80.",
+    icon: "🥚",
+    secret: true,
+    sort: 120,
+    evaluate: (s) => s.foundKonamiCode,
+  },
+  {
+    key: "vingt-naturel",
+    name: "Vingt naturel",
+    description: "A décroché un 20 naturel sur un d20 dans le lanceur de dés (section Jeux).",
+    hint: "Le meilleur jet qui soit.",
+    icon: "🎲",
+    secret: true,
+    sort: 130,
+    evaluate: (s) => s.rolledNaturalTwenty,
+  },
+  {
+    key: "echec-critique",
+    name: "Échec critique",
+    description: "A lancé un 1 naturel sur un d20 — ça fait une bonne histoire à raconter.",
+    hint: "Le pire jet qui soit. Ça arrive aux meilleurs aventuriers.",
+    icon: "💀",
+    secret: true,
+    sort: 140,
+    evaluate: (s) => s.rolledNaturalOne,
   },
 ];

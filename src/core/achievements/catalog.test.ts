@@ -13,6 +13,9 @@ const BASE_STATS: MemberStats = {
   hadLateNightPickup: false,
   hasUnbreakableItem: false,
   isPureLender: false,
+  foundKonamiCode: false,
+  rolledNaturalTwenty: false,
+  rolledNaturalOne: false,
 };
 
 function find(key: string) {
@@ -131,6 +134,33 @@ describe("achievement catalog", () => {
       expect(def.evaluate({ ...BASE_STATS, isPureLender: true, itemsListedCount: 3 })).toBe(true);
       expect(def.evaluate({ ...BASE_STATS, isPureLender: true, itemsListedCount: 2 })).toBe(false);
       expect(def.evaluate({ ...BASE_STATS, isPureLender: false, itemsListedCount: 5 })).toBe(false);
+    });
+  });
+
+  describe("oeuf-cache", () => {
+    const def = find("oeuf-cache");
+    it("is marked secret and unlocks on the flag", () => {
+      expect(def.secret).toBe(true);
+      expect(def.evaluate({ ...BASE_STATS, foundKonamiCode: true })).toBe(true);
+      expect(def.evaluate({ ...BASE_STATS, foundKonamiCode: false })).toBe(false);
+    });
+  });
+
+  describe("vingt-naturel", () => {
+    const def = find("vingt-naturel");
+    it("is marked secret and unlocks on the flag", () => {
+      expect(def.secret).toBe(true);
+      expect(def.evaluate({ ...BASE_STATS, rolledNaturalTwenty: true })).toBe(true);
+      expect(def.evaluate({ ...BASE_STATS, rolledNaturalTwenty: false })).toBe(false);
+    });
+  });
+
+  describe("echec-critique", () => {
+    const def = find("echec-critique");
+    it("is marked secret and unlocks on the flag", () => {
+      expect(def.secret).toBe(true);
+      expect(def.evaluate({ ...BASE_STATS, rolledNaturalOne: true })).toBe(true);
+      expect(def.evaluate({ ...BASE_STATS, rolledNaturalOne: false })).toBe(false);
     });
   });
 });
