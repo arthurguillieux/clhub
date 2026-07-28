@@ -15,6 +15,11 @@ const bricolage = localFont({
 export const metadata: Metadata = {
   title: "LE CLHUB",
   description: "Le club, en ligne.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "CLHUB",
+  },
 };
 
 export const viewport: Viewport = {
