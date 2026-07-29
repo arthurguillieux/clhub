@@ -20,7 +20,7 @@ export function SignInForm({ defaultEmail = "" }: { defaultEmail?: string }) {
       // Only used if this email is signing up for the first time — a
       // starting point, editable later from the member's own profile.
       name: email.split("@")[0] ?? email,
-      callbackURL: "/invite",
+      callbackURL: "/bienvenue",
     });
     setPending(false);
     setState(error ? { status: "error", message: error.message } : { status: "sent" });

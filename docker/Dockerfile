@@ -1,6 +1,12 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-alpine AS base
+# Debian-based (glibc), not -alpine (musl): `sharp`'s musl prebuilds dlopen a
+# specific libvips-cpp.so that isn't reliably present on Alpine, breaking
+# every request that touches item/avatar photos. Slim's glibc build is the
+# well-trodden path for sharp in Docker; worth the larger image on a NAS
+# with plenty of disk but tight RAM (image size doesn't cost RAM, sharp's
+# own runtime footprint is the same either way).
+FROM node:24-slim AS base
 RUN corepack enable
 
 # --- deps: install dependencies only, so this layer caches across source changes

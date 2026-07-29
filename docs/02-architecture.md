@@ -378,11 +378,16 @@ max_connections = 20       wal_compression = on
 ```
 
 **Construction de l'image** : GitHub Actions, `linux/amd64`, multi-étapes sur
-`node:22-alpine`, `output: 'standalone'`, utilisateur non-root, `HEALTHCHECK`. Le NAS ne
-compile jamais — un build Next.js dans 2 Go de RAM se fait tuer par l'OOM killer.
+`node:24-slim`, `output: 'standalone'`, utilisateur non-root, `HEALTHCHECK`. Le NAS ne
+compile jamais — un build Next.js dans 2 Go de RAM se fait tuer par l'OOM killer. Debian
+(glibc), pas Alpine (musl) : le prébuild musl de `sharp` cherche un `libvips-cpp.so` précis
+introuvable sur Alpine, ce qui casse toute page touchant aux photos — découvert en
+production au premier vrai passage sur le NAS.
 
-**Migrations** : `drizzle-kit migrate` s'exécute au démarrage du conteneur `web`, avant le
-serveur. Instance unique, donc aucune course possible.
+**Migrations** : `docker/migrate.mjs` s'exécute au démarrage du conteneur `web`, avant le
+serveur — pas `drizzle-kit migrate` (CLI absente de l'image de prod, c'est une
+devDependency), mais le migrateur de `drizzle-orm` directement, avec `pg`, déjà présents en
+prod. Instance unique, donc aucune course possible.
 
 **Secrets** : un fichier `/volume1/docker/clhub/.env` en `chmod 600`, hors du dépôt.
 `.env.example` versionné.
