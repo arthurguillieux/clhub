@@ -34,14 +34,19 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=clhub:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=clhub:nodejs /app/.next/static ./.next/static
 
-# A self-contained migration runner, separate from the standalone server
-# above. drizzle-kit (the usual migrate CLI) is a devDependency and isn't
-# part of the standalone output, so this uses drizzle-orm's own migrator
-# instead — it and `pg` are already production dependencies, just not
-# necessarily the full unpruned package Next's tracing would keep, hence
-# the explicit copy of `deps`' full node_modules here rather than reusing
-# the standalone server's own trimmed-down one.
-COPY --from=deps --chown=clhub:nodejs /app/node_modules ./migrate/node_modules
+# Overwrite standalone's own pruned node_modules with deps' full, ordinary
+# `pnpm install` one. Two rounds of `serverExternalPackages` + relying on
+# Next's file tracer to pick up sharp's native binding *and* its separate
+# libvips-cpp.so still weren't enough — confirmed live on the NAS both
+# times, not just in theory. A complete, normally-resolved node_modules
+# sidesteps the question of what the tracer does or doesn't catch entirely.
+# Costs disk, which this NAS has plenty of; costs nothing at runtime.
+COPY --from=deps --chown=clhub:nodejs /app/node_modules ./node_modules
+
+# Migration runner, run from its own folder before the server starts (see
+# CMD) — Node module resolution walks up from migrate.mjs to the
+# node_modules above, so drizzle-orm/pg resolve from there without a
+# separate copy.
 COPY --from=builder --chown=clhub:nodejs /app/drizzle ./migrate/drizzle
 COPY --chown=clhub:nodejs docker/migrate.mjs ./migrate/migrate.mjs
 
