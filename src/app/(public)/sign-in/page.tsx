@@ -4,9 +4,10 @@ import { SignInForm } from "./SignInForm";
 export default function SignInPage() {
   return (
     <Card className="p-6">
-      <h1 className="font-display text-xl font-extrabold text-ink">Oh, tu veux rejoindre le CLHUB ?</h1>
+      <h1 className="font-display text-xl font-extrabold text-ink">Halte. Qui va là ?</h1>
       <p className="mt-1.5 mb-6 text-sm text-muted">
-        Donne-moi ton adresse mail, on va vérifier si tu peux y prétendre. Sinon, circule.
+        File ton adresse mail — t&apos;as intérêt à être sur la liste. Le CLHUB n&apos;est pas ouvert à
+        n&apos;importe qui.
       </p>
       <SignInForm />
     </Card>
