@@ -18,7 +18,7 @@ setup("bootstrap first member and save session", async ({ page }) => {
 
   const magicLink = await waitForLoggedUrl(`Magic link for ${MEMBER1_EMAIL}:`);
   await page.goto(magicLink);
-  await expect(page).toHaveURL(/\/invite/);
+  await expect(page).toHaveURL(/\/bienvenue/);
 
   await page.context().storageState({ path: AUTH_FILE });
 });

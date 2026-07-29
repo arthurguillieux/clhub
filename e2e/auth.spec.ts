@@ -36,8 +36,8 @@ test("an existing member invites a friend, who signs in through that invitation"
   const magicLink = await waitForLoggedUrl(`Magic link for ${friendEmail}:`);
   await friendPage.goto(magicLink);
 
-  await expect(friendPage).toHaveURL(/\/invite/);
-  await expect(friendPage.getByText("membre #2")).toBeVisible();
+  await expect(friendPage).toHaveURL(/\/bienvenue/);
+  await expect(friendPage.getByText("Bienvenue au CLHUB")).toBeVisible();
 
   await friendContext.close();
 });
