@@ -103,9 +103,14 @@ export interface CatalogEntry {
   unlocked: boolean;
 }
 
-/** For a "mes écussons" view: the full catalog, secret badges' descriptions withheld until unlocked. */
+/**
+ * For a "mes écussons" view: the full catalog, secret badges' descriptions
+ * withheld until unlocked. Doesn't seed the catalog itself — its one caller
+ * (Settings) always runs syncMemberAchievements first in the same request,
+ * which already does. Re-seeding here too was 14 redundant upsert queries
+ * on every single page view for no effect.
+ */
 export async function listCatalogForMember(memberId: string): Promise<CatalogEntry[]> {
-  await seedAchievementCatalog();
   const all = await db.select().from(achievement).orderBy(achievement.sort);
   const unlockedRows = await db
     .select({ key: memberAchievement.achievementKey })
