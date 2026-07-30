@@ -19,16 +19,19 @@ test("an existing member invites a friend, who signs in through that invitation"
 
   await page.getByLabel("Adresse mail à inviter").fill(friendEmail);
   await page.getByRole("button", { name: "Inviter", exact: true }).click();
-  await expect(page.getByText("Invitation envoyée.")).toBeVisible();
-  const invitationUrl = await page.locator("code").textContent();
-  expect(invitationUrl).toMatch(/^https?:\/\//);
+  await expect(page.getByText("invitation envoyée.")).toBeVisible();
+
+  // The invite form no longer surfaces the raw link in the page (see
+  // InviteForm.tsx) — read it the same way auth.setup.ts reads magic
+  // links, from sendMail's devFallbackMessage log line.
+  const invitationUrl = await waitForLoggedUrl(`Invitation link for ${friendEmail}:`);
 
   // A genuinely separate person: a fresh context with no cookies, ignoring
   // the project's pre-authenticated storageState.
   const friendContext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
   const friendPage = await friendContext.newPage();
 
-  await friendPage.goto(invitationUrl!);
+  await friendPage.goto(invitationUrl);
   await expect(friendPage.getByLabel("Ton adresse mail")).toHaveValue(friendEmail);
   await friendPage.getByRole("button", { name: "Recevoir mon lien de connexion" }).click();
   await expect(friendPage.getByText("Vérifie ta boîte mail")).toBeVisible();
