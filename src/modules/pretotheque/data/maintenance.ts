@@ -61,25 +61,26 @@ export type ResolveMaintenanceResult =
   | { ok: false; reason: "item-not-found" }
   | { ok: false; reason: "forbidden" };
 
-/** Only the owner can declare an item fixed again. */
+/** Only the owner — or an admin standing in for them — can declare an item fixed again. */
 export async function resolveMaintenance(
   itemId: string,
-  ownerId: string,
+  actorId: string,
   note: string,
+  isAdmin: boolean = false,
 ): Promise<ResolveMaintenanceResult> {
   const targetItem = await db.query.item.findFirst({ where: (i, { eq }) => eq(i.id, itemId) });
   if (!targetItem) return { ok: false, reason: "item-not-found" };
-  if (targetItem.ownerId !== ownerId) return { ok: false, reason: "forbidden" };
+  if (!isAdmin && targetItem.ownerId !== actorId) return { ok: false, reason: "forbidden" };
 
   await db
     .insert(maintenanceLog)
-    .values({ itemId, authorId: ownerId, kind: "maintenance", note });
+    .values({ itemId, authorId: actorId, kind: "maintenance", note });
   await db.update(item).set({ status: "available", updatedAt: new Date() }).where(eq(item.id, itemId));
 
   await logActivity({
     section: "pretotheque",
     kind: "item.repaired",
-    actorId: ownerId,
+    actorId,
     subjectRef: `item:${itemId}`,
     payload: { itemName: targetItem.name },
   });

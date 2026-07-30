@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getSession } from "@/core/auth/session";
+import { isAdminModeActive } from "@/core/auth/admin";
 import { getItemWithOwnerBySlug } from "@/modules/pretotheque/data/items";
 import { listBookingsWithBorrowerForItem } from "@/modules/pretotheque/data/bookings";
 import { listCommentsForItem } from "@/modules/pretotheque/data/comments";
@@ -15,9 +16,11 @@ import { SectionTitle } from "@/core/ui/components/Heading";
 import { CATEGORY_BG, categoryLabel, itemStatusLabel } from "@/core/ui/categories";
 import { BookingWidget } from "./BookingWidget";
 import { CommentForm } from "./CommentForm";
+import { DeleteCommentButton } from "./DeleteCommentButton";
 import { MaintenanceForm } from "./MaintenanceForm";
 import { PhotoGallery } from "./PhotoGallery";
 import { UnitsManager } from "./UnitsManager";
+import { DeleteItemButton } from "@/app/(club)/admin/objets/DeleteItemButton";
 
 const MAINTENANCE_KIND_LABELS: Record<string, string> = {
   issue: "Signalement",
@@ -63,6 +66,8 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
   ]);
 
   const isOwner = session.member.id === item.ownerId;
+  const isAdmin = await isAdminModeActive();
+  const canManage = isOwner || isAdmin;
   const isAvailable = item.status === "available";
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
   const qrSvg = await itemQrSvg(`${appUrl}/pretotheque/${item.slug}`);
@@ -79,15 +84,28 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           itemSlug={item.slug}
           categoryBg={CATEGORY_BG[item.category] ?? "bg-cat-autre"}
           photos={photos.map((p) => ({ id: p.id, path: p.path, isPrimary: p.isPrimary }))}
-          isOwner={isOwner}
+          canManage={canManage}
         />
         <div className="p-6">
-          <div className="flex flex-wrap gap-2">
-            <Badge>{categoryLabel(item.category)}</Badge>
-            {!isAvailable && (
-              <span className="inline-flex items-center rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-medium text-white dark:bg-red-500">
-                {itemStatusLabel(item.status)}
-              </span>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Badge>{categoryLabel(item.category)}</Badge>
+              {!isAvailable && (
+                <span className="inline-flex items-center rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-medium text-white dark:bg-red-500">
+                  {itemStatusLabel(item.status)}
+                </span>
+              )}
+            </div>
+            {canManage && (
+              <div className="flex items-center gap-3">
+                <Link
+                  href={`/pretotheque/${item.slug}/edit`}
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  Modifier
+                </Link>
+                {isAdmin && <DeleteItemButton itemId={item.id} name={item.name} redirectTo="/pretotheque" />}
+              </div>
             )}
           </div>
           <h1 className="mt-3 font-display text-2xl font-extrabold text-ink text-balance">
@@ -212,7 +230,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
         </Card>
       </div>
 
-      {isOwner && (
+      {canManage && (
         <div className="mt-8">
           <SectionTitle>Exemplaires</SectionTitle>
           <Card className="mt-3 p-5">
@@ -248,7 +266,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
           <MaintenanceForm
             itemId={item.id}
             itemSlug={item.slug}
-            isOwner={isOwner}
+            canManage={canManage}
             isBroken={!isAvailable}
           />
         </Card>
@@ -264,9 +282,14 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
               {comments.map((c) => (
                 <li key={c.id} className="border-b border-line-soft pb-4 last:border-0 last:pb-0">
                   <p className="text-sm text-ink whitespace-pre-wrap">{c.body}</p>
-                  <p className="mt-1 text-xs text-muted">
-                    {c.authorName} — {c.createdAt.toLocaleDateString("fr-FR")}
-                  </p>
+                  <div className="mt-1 flex items-center gap-3">
+                    <p className="text-xs text-muted">
+                      {c.authorName} — {c.createdAt.toLocaleDateString("fr-FR")}
+                    </p>
+                    {isAdmin && (
+                      <DeleteCommentButton itemId={item.id} itemSlug={item.slug} commentId={c.id} />
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

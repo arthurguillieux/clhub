@@ -21,10 +21,10 @@ export type GalleryResult<T = undefined> =
   | ({ ok: true } & (T extends undefined ? object : { data: T }))
   | { ok: false; reason: "not-found" | "forbidden" };
 
-async function requireOwnedItem(itemId: string, requesterId: string) {
+async function requireOwnedItem(itemId: string, requesterId: string, isAdmin: boolean = false) {
   const targetItem = await db.query.item.findFirst({ where: (i, { eq }) => eq(i.id, itemId) });
   if (!targetItem) return { ok: false as const, reason: "not-found" as const };
-  if (targetItem.ownerId !== requesterId) return { ok: false as const, reason: "forbidden" as const };
+  if (!isAdmin && targetItem.ownerId !== requesterId) return { ok: false as const, reason: "forbidden" as const };
   return { ok: true as const, item: targetItem };
 }
 
@@ -33,8 +33,9 @@ export async function addItemPhotos(
   itemId: string,
   requesterId: string,
   fileBuffers: Buffer[],
+  isAdmin: boolean = false,
 ): Promise<GalleryResult<ItemPhoto[]>> {
-  const check = await requireOwnedItem(itemId, requesterId);
+  const check = await requireOwnedItem(itemId, requesterId, isAdmin);
   if (!check.ok) return check;
   if (fileBuffers.length === 0) return { ok: true, data: [] };
 
@@ -73,8 +74,9 @@ export async function setPrimaryItemPhoto(
   itemId: string,
   requesterId: string,
   photoId: string,
+  isAdmin: boolean = false,
 ): Promise<GalleryResult> {
-  const check = await requireOwnedItem(itemId, requesterId);
+  const check = await requireOwnedItem(itemId, requesterId, isAdmin);
   if (!check.ok) return check;
 
   await db
@@ -90,8 +92,9 @@ export async function deleteItemPhoto(
   itemId: string,
   requesterId: string,
   photoId: string,
+  isAdmin: boolean = false,
 ): Promise<GalleryResult> {
-  const check = await requireOwnedItem(itemId, requesterId);
+  const check = await requireOwnedItem(itemId, requesterId, isAdmin);
   if (!check.ok) return check;
 
   const existing = await db.query.itemPhoto.findFirst({ where: (p, { eq }) => eq(p.id, photoId) });
@@ -118,8 +121,9 @@ export async function moveItemPhoto(
   requesterId: string,
   photoId: string,
   direction: "up" | "down",
+  isAdmin: boolean = false,
 ): Promise<GalleryResult> {
-  const check = await requireOwnedItem(itemId, requesterId);
+  const check = await requireOwnedItem(itemId, requesterId, isAdmin);
   if (!check.ok) return check;
 
   const photos = await listItemPhotos(itemId);

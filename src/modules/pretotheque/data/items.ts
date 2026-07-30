@@ -66,6 +66,19 @@ export async function setItemPhoto(itemId: string, photoPath: string): Promise<v
   await db.update(item).set({ photoPath, updatedAt: new Date() }).where(eq(item.id, itemId));
 }
 
+/** Never touches the slug — existing links and printed QR labels (see itemQrSvg) must keep working after a rename. */
+export async function updateItem(itemId: string, input: ItemInput): Promise<Item> {
+  const [updated] = await db
+    .update(item)
+    .set({ ...input, updatedAt: new Date() })
+    .where(eq(item.id, itemId))
+    .returning();
+  if (!updated) {
+    throw new Error("Failed to update item");
+  }
+  return updated;
+}
+
 export async function getItemBySlug(slug: string): Promise<Item | undefined> {
   return db.query.item.findFirst({ where: (i, { eq }) => eq(i.slug, slug) });
 }

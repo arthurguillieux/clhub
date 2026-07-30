@@ -23,13 +23,13 @@ export function PhotoGallery({
   itemSlug,
   categoryBg,
   photos,
-  isOwner,
+  canManage,
 }: {
   itemId: string;
   itemSlug: string;
   categoryBg: string;
   photos: Photo[];
-  isOwner: boolean;
+  canManage: boolean;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(photos[0]?.id ?? null);
   const uploadAction = uploadItemPhotosAction.bind(null, itemId, itemSlug);
@@ -46,7 +46,7 @@ export function PhotoGallery({
         )}
       </div>
 
-      {(photos.length > 1 || isOwner) && (
+      {(photos.length > 1 || canManage) && (
         <div className="flex flex-wrap items-center gap-3 border-b border-line-soft bg-surface p-3">
           {photos.map((photo, index) => (
             <div key={photo.id} className="flex flex-col items-center gap-1">
@@ -65,7 +65,7 @@ export function PhotoGallery({
                   </span>
                 )}
               </button>
-              {isOwner && (
+              {canManage && (
                 <div className="flex gap-1.5 text-[11px] text-muted">
                   {!photo.isPrimary && (
                     <button
@@ -112,7 +112,7 @@ export function PhotoGallery({
         </div>
       )}
 
-      {isOwner && (
+      {canManage && (
         <form
           action={uploadFormAction}
           className="flex flex-wrap items-center gap-3 border-b border-line-soft p-3"

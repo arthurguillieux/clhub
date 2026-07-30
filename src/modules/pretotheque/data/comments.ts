@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/core/db/client";
 import { itemComment, member, user, type ItemComment } from "@/core/db/schema";
 
@@ -29,4 +29,9 @@ export async function addComment(
     throw new Error("Failed to create comment");
   }
   return created;
+}
+
+/** Moderation only — see deleteCommentAction, which is admin-gated; there's no author-delete path (yet). */
+export async function deleteComment(commentId: string, itemId: string): Promise<void> {
+  await db.delete(itemComment).where(and(eq(itemComment.id, commentId), eq(itemComment.itemId, itemId)));
 }

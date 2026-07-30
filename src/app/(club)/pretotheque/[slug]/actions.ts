@@ -1,15 +1,17 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession } from "@/core/auth/session";
+import { isAdminModeActive } from "@/core/auth/admin";
 import {
   createBookingRequest,
   updateBookingDates,
   type BookingRequestResult,
 } from "@/modules/pretotheque/data/bookings";
 import { joinWaitlist } from "@/modules/pretotheque/data/waitlist";
-import { addComment } from "@/modules/pretotheque/data/comments";
+import { addComment, deleteComment } from "@/modules/pretotheque/data/comments";
 import { reportIssue, resolveMaintenance } from "@/modules/pretotheque/data/maintenance";
 import {
   addItemPhotos,
@@ -24,6 +26,8 @@ import {
   unarchiveItemUnit,
   type UnitResult,
 } from "@/modules/pretotheque/data/itemUnits";
+import { getItemBySlug, updateItem } from "@/modules/pretotheque/data/items";
+import { itemFormSchema, itemFormDataToInput } from "@/modules/pretotheque/itemFormSchema";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide");
 
@@ -178,6 +182,19 @@ export async function postComment(
   return { status: "success" };
 }
 
+/** Admin-mode only — moderation, not a self-delete for the comment's own author. */
+export async function deleteCommentAction(
+  itemId: string,
+  itemSlug: string,
+  commentId: string,
+): Promise<void> {
+  const isAdmin = await isAdminModeActive();
+  if (!isAdmin) return;
+
+  await deleteComment(commentId, itemId);
+  revalidatePath(`/pretotheque/${itemSlug}`);
+}
+
 export type PhotoGalleryState =
   | { status: "idle" }
   | { status: "success" }
@@ -204,7 +221,8 @@ export async function uploadItemPhotosAction(
   }
 
   const buffers = await Promise.all(files.map(async (f) => Buffer.from(await f.arrayBuffer())));
-  const result = await addItemPhotos(itemId, session.member.id, buffers);
+  const isAdmin = await isAdminModeActive();
+  const result = await addItemPhotos(itemId, session.member.id, buffers, isAdmin);
   if (!result.ok) {
     return { status: "error", message: describeGalleryError(result.reason) };
   }
@@ -220,7 +238,8 @@ export async function setPrimaryPhotoAction(
 ): Promise<void> {
   const session = await getSession();
   if (!session) return;
-  await setPrimaryItemPhoto(itemId, session.member.id, photoId);
+  const isAdmin = await isAdminModeActive();
+  await setPrimaryItemPhoto(itemId, session.member.id, photoId, isAdmin);
   revalidatePath(`/pretotheque/${itemSlug}`);
 }
 
@@ -231,7 +250,8 @@ export async function deleteItemPhotoAction(
 ): Promise<void> {
   const session = await getSession();
   if (!session) return;
-  await deleteItemPhoto(itemId, session.member.id, photoId);
+  const isAdmin = await isAdminModeActive();
+  await deleteItemPhoto(itemId, session.member.id, photoId, isAdmin);
   revalidatePath(`/pretotheque/${itemSlug}`);
 }
 
@@ -243,7 +263,8 @@ export async function moveItemPhotoAction(
 ): Promise<void> {
   const session = await getSession();
   if (!session) return;
-  await moveItemPhoto(itemId, session.member.id, photoId, direction);
+  const isAdmin = await isAdminModeActive();
+  await moveItemPhoto(itemId, session.member.id, photoId, direction, isAdmin);
   revalidatePath(`/pretotheque/${itemSlug}`);
 }
 
@@ -289,7 +310,8 @@ export async function resolveMaintenanceAction(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
-  const result = await resolveMaintenance(itemId, session.member.id, parsed.data.note);
+  const isAdmin = await isAdminModeActive();
+  const result = await resolveMaintenance(itemId, session.member.id, parsed.data.note, isAdmin);
   if (!result.ok) {
     return {
       status: "error",
@@ -322,7 +344,8 @@ export async function addItemUnitAction(
   const session = await getSession();
   if (!session) return { ok: false, message: "Tu dois être connecté." };
 
-  const result = await addItemUnit(itemId, session.member.id, label);
+  const isAdmin = await isAdminModeActive();
+  const result = await addItemUnit(itemId, session.member.id, label, isAdmin);
   if (!result.ok) return { ok: false, message: describeUnitError(result.reason) };
 
   revalidatePath(`/pretotheque/${itemSlug}`);
@@ -338,7 +361,8 @@ export async function renameItemUnitAction(
   const session = await getSession();
   if (!session) return { ok: false, message: "Tu dois être connecté." };
 
-  const result = await renameItemUnit(itemId, session.member.id, unitId, label);
+  const isAdmin = await isAdminModeActive();
+  const result = await renameItemUnit(itemId, session.member.id, unitId, label, isAdmin);
   if (!result.ok) return { ok: false, message: describeUnitError(result.reason) };
 
   revalidatePath(`/pretotheque/${itemSlug}`);
@@ -353,7 +377,8 @@ export async function archiveItemUnitAction(
   const session = await getSession();
   if (!session) return { ok: false, message: "Tu dois être connecté." };
 
-  const result = await archiveItemUnit(itemId, session.member.id, unitId);
+  const isAdmin = await isAdminModeActive();
+  const result = await archiveItemUnit(itemId, session.member.id, unitId, isAdmin);
   if (!result.ok) return { ok: false, message: describeUnitError(result.reason) };
 
   revalidatePath(`/pretotheque/${itemSlug}`);
@@ -368,9 +393,44 @@ export async function unarchiveItemUnitAction(
   const session = await getSession();
   if (!session) return { ok: false, message: "Tu dois être connecté." };
 
-  const result = await unarchiveItemUnit(itemId, session.member.id, unitId);
+  const isAdmin = await isAdminModeActive();
+  const result = await unarchiveItemUnit(itemId, session.member.id, unitId, isAdmin);
   if (!result.ok) return { ok: false, message: describeUnitError(result.reason) };
 
   revalidatePath(`/pretotheque/${itemSlug}`);
   return { ok: true };
+}
+
+export type UpdateItemFormState = { status: "idle" } | { status: "error"; message: string };
+
+/** Owner or admin — unlike delete, editing your own listing is a reasonable thing for any owner to do. */
+export async function updateItemAction(
+  itemId: string,
+  itemSlug: string,
+  _prevState: UpdateItemFormState,
+  formData: FormData,
+): Promise<UpdateItemFormState> {
+  const session = await getSession();
+  if (!session) {
+    return { status: "error", message: "Tu dois être connecté." };
+  }
+
+  const targetItem = await getItemBySlug(itemSlug);
+  if (!targetItem) {
+    return { status: "error", message: "Cet objet n'existe plus." };
+  }
+
+  const isAdmin = await isAdminModeActive();
+  if (targetItem.ownerId !== session.member.id && !isAdmin) {
+    return { status: "error", message: "Tu n'as pas le droit de modifier cet objet." };
+  }
+
+  const parsed = itemFormSchema.safeParse(itemFormDataToInput(formData));
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  await updateItem(itemId, parsed.data);
+  revalidatePath(`/pretotheque/${itemSlug}`);
+  redirect(`/pretotheque/${itemSlug}`);
 }

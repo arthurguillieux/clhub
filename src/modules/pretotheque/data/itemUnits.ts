@@ -2,10 +2,10 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/core/db/client";
 import { itemUnit, type ItemUnit } from "@/core/db/schema";
 
-async function requireOwnedItem(itemId: string, requesterId: string) {
+async function requireOwnedItem(itemId: string, requesterId: string, isAdmin: boolean = false) {
   const targetItem = await db.query.item.findFirst({ where: (i, { eq }) => eq(i.id, itemId) });
   if (!targetItem) return { ok: false as const, reason: "not-found" as const };
-  if (targetItem.ownerId !== requesterId) return { ok: false as const, reason: "forbidden" as const };
+  if (!isAdmin && targetItem.ownerId !== requesterId) return { ok: false as const, reason: "forbidden" as const };
   return { ok: true as const, item: targetItem };
 }
 
@@ -38,8 +38,9 @@ export async function addItemUnit(
   itemId: string,
   requesterId: string,
   label: string | null,
+  isAdmin: boolean = false,
 ): Promise<UnitResult<ItemUnit>> {
-  const check = await requireOwnedItem(itemId, requesterId);
+  const check = await requireOwnedItem(itemId, requesterId, isAdmin);
   if (!check.ok) return check;
 
   const [created] = await db.insert(itemUnit).values({ itemId, label }).returning();
@@ -52,8 +53,9 @@ export async function renameItemUnit(
   requesterId: string,
   unitId: string,
   label: string | null,
+  isAdmin: boolean = false,
 ): Promise<UnitResult> {
-  const check = await requireOwnedItem(itemId, requesterId);
+  const check = await requireOwnedItem(itemId, requesterId, isAdmin);
   if (!check.ok) return check;
 
   await db.update(itemUnit).set({ label }).where(and(eq(itemUnit.id, unitId), eq(itemUnit.itemId, itemId)));
@@ -69,8 +71,9 @@ export async function archiveItemUnit(
   itemId: string,
   requesterId: string,
   unitId: string,
+  isAdmin: boolean = false,
 ): Promise<UnitResult> {
-  const check = await requireOwnedItem(itemId, requesterId);
+  const check = await requireOwnedItem(itemId, requesterId, isAdmin);
   if (!check.ok) return check;
 
   const activeUnits = await listActiveUnitsForItem(itemId);
@@ -90,8 +93,9 @@ export async function unarchiveItemUnit(
   itemId: string,
   requesterId: string,
   unitId: string,
+  isAdmin: boolean = false,
 ): Promise<UnitResult> {
-  const check = await requireOwnedItem(itemId, requesterId);
+  const check = await requireOwnedItem(itemId, requesterId, isAdmin);
   if (!check.ok) return check;
 
   await db

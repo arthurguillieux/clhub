@@ -10,12 +10,12 @@ const initialState: ReportIssueState = { status: "idle" };
 export function MaintenanceForm({
   itemId,
   itemSlug,
-  isOwner,
+  canManage,
   isBroken,
 }: {
   itemId: string;
   itemSlug: string;
-  isOwner: boolean;
+  canManage: boolean;
   isBroken: boolean;
 }) {
   const reportAction = reportIssueAction.bind(null, itemId, itemSlug);
@@ -34,7 +34,7 @@ export function MaintenanceForm({
   }, [reportState, resolveState]);
 
   if (isBroken) {
-    if (!isOwner) {
+    if (!canManage) {
       return (
         <p className="mt-4 text-sm text-muted">
           Le propriétaire a été prévenu — l&apos;objet redeviendra disponible une fois réparé.
