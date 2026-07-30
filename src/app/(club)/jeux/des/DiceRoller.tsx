@@ -11,16 +11,42 @@ const DIE_SIDES: Record<DieType, number> = { d4: 4, d6: 6, d8: 8, d10: 10, d12: 
 
 const MIN_COUNT = 1;
 const MAX_COUNT = 8;
-// Must match the `dice-spin` keyframe duration in globals.css — the cube's
-// spin animation and the moment we reveal the real result are one and the
+// Must match the `dice-roll` keyframe duration in globals.css — the cube's
+// toss animation and the moment we reveal the real result are one and the
 // same beat, not two things that happen to be close.
-const ROLL_DURATION_MS = 700;
+const ROLL_DURATION_MS = 900;
 
 function rollOnce(sides: number): number {
   return 1 + Math.floor(Math.random() * sides);
 }
 
-function Die({ value, rolling, tone }: { value: number; rolling: boolean; tone: "accent" | "muted" | "primary" }) {
+interface Spin {
+  rx: number;
+  ry: number;
+  rz: number;
+}
+
+/** A fresh, random tumble per die per roll — so a set of dice doesn't spin in lockstep like one shared prop. */
+function randomSpin(): Spin {
+  const turns = (min: number, max: number) => (min + Math.floor(Math.random() * (max - min + 1))) * 360;
+  return {
+    rx: turns(3, 5),
+    ry: turns(2, 4),
+    rz: Math.floor(Math.random() * 17) - 8,
+  };
+}
+
+function Die({
+  value,
+  rolling,
+  tone,
+  spin,
+}: {
+  value: number;
+  rolling: boolean;
+  tone: "accent" | "muted" | "primary";
+  spin: Spin;
+}) {
   const faceTone =
     tone === "accent"
       ? "glow-box-accent border-accent text-accent"
@@ -30,7 +56,16 @@ function Die({ value, rolling, tone }: { value: number; rolling: boolean; tone: 
 
   return (
     <div className="dice-scene h-16 w-16">
-      <div className={`dice-cube ${rolling ? "dice-spinning" : ""}`}>
+      <div
+        className={`dice-cube ${rolling ? "dice-spinning" : ""}`}
+        style={
+          {
+            "--dice-rx": `${spin.rx}deg`,
+            "--dice-ry": `${spin.ry}deg`,
+            "--dice-rz": `${spin.rz}deg`,
+          } as React.CSSProperties
+        }
+      >
         <div className={`dice-face dice-face-front bg-surface-raised ${faceTone}`}>{value}</div>
         <div className="dice-face dice-face-back border-line-soft bg-surface-raised text-muted">•</div>
         <div className="dice-face dice-face-right border-line-soft bg-surface-raised text-muted">•</div>
@@ -46,6 +81,7 @@ export function DiceRoller() {
   const [dieType, setDieType] = useState<DieType>("d6");
   const [count, setCount] = useState(2);
   const [display, setDisplay] = useState<number[]>([]);
+  const [spins, setSpins] = useState<Spin[]>([]);
   const [rolling, setRolling] = useState(false);
   const [settled, setSettled] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,6 +100,7 @@ export function DiceRoller() {
     // Placeholder faces while the cube tumbles — the real result only
     // appears once it stops, same as a physical die.
     setDisplay(Array.from({ length: count }, () => 1));
+    setSpins(Array.from({ length: count }, randomSpin));
 
     timerRef.current = setTimeout(() => {
       const finalValues = Array.from({ length: count }, () => rollOnce(sides));
@@ -141,7 +178,8 @@ export function DiceRoller() {
               const isNat20 = settled && dieType === "d20" && value === 20;
               const isNat1 = settled && dieType === "d20" && value === 1;
               const tone = isNat20 ? "accent" : isNat1 ? "muted" : "primary";
-              return <Die key={i} value={value} rolling={rolling} tone={tone} />;
+              const spin = spins[i] ?? { rx: 1080, ry: 1080, rz: 0 };
+              return <Die key={i} value={value} rolling={rolling} tone={tone} spin={spin} />;
             })}
           </div>
 

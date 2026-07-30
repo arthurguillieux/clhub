@@ -27,8 +27,11 @@ function safeEqual(a: string, b: string): boolean {
 
 /** Verifies the code typed after the 3-click gesture; sets the unlock cookie on success. */
 export async function unlockAdmin(code: string): Promise<boolean> {
-  const expected = process.env.ADMIN_ACCESS_CODE;
-  if (!expected || !safeEqual(code, expected)) return false;
+  // .trim() on both sides: env files edited on Windows (CRLF line endings)
+  // can leave a trailing \r on the value, which timingSafeEqual then fails
+  // on for every input, pasted or not, since the lengths never match.
+  const expected = process.env.ADMIN_ACCESS_CODE?.trim();
+  if (!expected || !safeEqual(code.trim(), expected)) return false;
 
   const expiresAt = Date.now() + UNLOCK_DURATION_MS;
   const payload = String(expiresAt);

@@ -20,12 +20,9 @@ export function InviteForm() {
       </Button>
 
       {state.status === "success" && (
-        <div className="rounded-md border border-line-soft bg-surface p-3 text-sm">
-          <p className="text-green-700 dark:text-green-400">
-            Invitation envoyée. Lien (utile tant que Resend n&apos;est pas configuré) :
-          </p>
-          <code className="mt-1 block break-all font-mono text-xs text-muted">{state.url}</code>
-        </div>
+        <p className="text-sm text-green-700 dark:text-green-400">
+          J&apos;espère qu&apos;il sera à la hauteur. Mais d&apos;accord, invitation envoyée.
+        </p>
       )}
       {state.status === "error" && (
         <p className="text-sm text-red-600 dark:text-red-400">{state.message}</p>

@@ -62,7 +62,9 @@ export function MemberCard({
         )}
       </div>
       <h2 className="relative mt-3 font-display text-lg font-extrabold text-ink">{name}</h2>
-      {bio && <p className="relative mt-1 text-sm text-muted">{bio}</p>}
+      <p className="relative mt-1 text-sm text-muted">
+        {bio || <span className="italic">Pas encore de bio.</span>}
+      </p>
 
       {gauge && (
         <div className="relative mt-3">

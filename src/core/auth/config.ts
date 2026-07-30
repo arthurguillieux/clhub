@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins";
 import { logActivity } from "@/core/activity";
@@ -42,7 +43,11 @@ export const auth = betterAuth({
           const invited = await findValidInvitationByEmail(normalizedEmail);
           const isBootstrap = await clubHasNoMembersYet();
           if (!invited && !isBootstrap) {
-            throw new Error("Cette adresse n'a pas d'invitation en cours pour LE CLHUB.");
+            // A plain Error thrown here gets swallowed by better-call's router
+            // into a bodyless 500 (see better-call/dist/router.mjs) — the
+            // client's `error.message` ends up undefined and nothing shows.
+            // APIError's body survives the trip.
+            throw new APIError("FORBIDDEN", { message: "T'es pas sur la liste." });
           }
         }
 

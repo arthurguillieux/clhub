@@ -6,6 +6,8 @@ import { computeGaugeDays } from "@/core/achievements/stats";
 import { gaugePosition } from "@/core/achievements/gauge";
 import { listUnlockedBadges } from "@/core/achievements/engine";
 import { Container } from "@/core/ui/components/Container";
+import { SectionTitle } from "@/core/ui/components/Heading";
+import { Card } from "@/core/ui/components/Card";
 import { MemberCard } from "@/core/ui/components/MemberCard";
 
 export default async function MemberProfilePage({
@@ -43,6 +45,30 @@ export default async function MemberProfilePage({
           badges={badges}
         />
       </div>
+
+      <section className="mt-8">
+        <SectionTitle>Succès</SectionTitle>
+        <Card className="mt-3 p-5">
+          {badges.length > 0 ? (
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {badges.map((b) => (
+                <li
+                  key={b.key}
+                  className="flex items-start gap-3 rounded-md border border-line bg-surface p-3"
+                >
+                  <span className="text-2xl">{b.icon}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-ink">{b.name}</p>
+                    <p className="mt-0.5 text-xs text-muted">{b.description}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted">Aucun écusson débloqué pour l&apos;instant.</p>
+          )}
+        </Card>
+      </section>
     </Container>
   );
 }

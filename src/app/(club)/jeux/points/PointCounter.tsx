@@ -22,6 +22,7 @@ function nextColorKey(players: Player[]): string {
 export function PointCounter() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
 
   useEffect(() => {
     // Reading localStorage only after mount (never during the lazy useState
@@ -62,6 +63,7 @@ export function PointCounter() {
 
   function setColor(id: string, colorKey: string) {
     setPlayers((prev) => prev.map((p) => (p.id === id ? { ...p, colorKey } : p)));
+    setColorPickerFor(null);
   }
 
   function addPoint(id: string, delta: number) {
@@ -95,14 +97,25 @@ export function PointCounter() {
           const color = playerColorByKey(player.colorKey);
           return (
             <Card key={player.id} className="flex flex-col gap-3 p-4">
-              <div className="flex items-center gap-3">
-                <span aria-hidden="true" className={`h-3 w-3 shrink-0 rounded-full ${color.bg}`} />
-                <Input
-                  aria-label="Nom du joueur"
-                  value={player.name}
-                  onChange={(e) => renamePlayer(player.id, e.target.value)}
-                  className="flex-1"
-                />
+              <div className="flex items-center gap-2">
+                <div
+                  className={`flex flex-1 items-center gap-2 rounded-full border px-3 py-1 transition-colors ${color.border} ${color.soft}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setColorPickerFor((prev) => (prev === player.id ? null : player.id))}
+                    aria-label="Changer de couleur"
+                    aria-expanded={colorPickerFor === player.id}
+                    title="Changer de couleur"
+                    className={`h-4 w-4 shrink-0 rounded-full ${color.bg} ring-1 ring-inset ring-black/10 transition-transform hover:scale-110 hover:ring-2 hover:ring-ink/40`}
+                  />
+                  <Input
+                    aria-label="Nom du joueur"
+                    value={player.name}
+                    onChange={(e) => renamePlayer(player.id, e.target.value)}
+                    className="flex-1 !border-0 !bg-transparent px-0 py-0 font-semibold"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => removePlayer(player.id)}
@@ -113,9 +126,8 @@ export function PointCounter() {
                 </button>
               </div>
 
-              <div>
-                <p className="mb-1.5 text-xs font-medium text-muted">Couleur</p>
-                <div className="flex flex-wrap gap-2">
+              {colorPickerFor === player.id && (
+                <div className="flex flex-wrap gap-2 pl-1">
                   {PLAYER_COLORS.map((c) => (
                     <button
                       key={c.key}
@@ -131,7 +143,7 @@ export function PointCounter() {
                     />
                   ))}
                 </div>
-              </div>
+              )}
 
               <div className="flex items-center justify-center gap-5">
                 <button

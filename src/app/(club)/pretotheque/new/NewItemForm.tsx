@@ -78,7 +78,7 @@ export function NewItemForm() {
             name="photo"
             type="file"
             accept="image/*"
-            className="text-sm text-ink file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-ink"
+            className="text-sm text-ink file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-ink file:transition-colors hover:file:bg-primary/90"
           />
         </FormField>
       </Fieldset>
