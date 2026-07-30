@@ -27,6 +27,12 @@ export default async function AdminPage() {
             </p>
           </Card>
         </Link>
+        <Link href="/admin/dons">
+          <Card className="h-full p-5 transition-colors hover:border-primary">
+            <h2 className="font-display text-base font-extrabold text-ink">Dons</h2>
+            <p className="mt-1 text-sm text-muted">Gérer les catégories des Cabanes à dons.</p>
+          </Card>
+        </Link>
       </div>
     </Container>
   );

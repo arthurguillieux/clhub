@@ -69,6 +69,10 @@ function describeActivity(a: ActivityEntry): string {
       const p = a.payload as { title?: string };
       return `Une nouvelle recette a rejoint le carnet : « ${p.title ?? "?"} ».`;
     }
+    case "don.posted": {
+      const p = a.payload as { title?: string };
+      return `Une nouvelle annonce dans les Cabanes à dons : « ${p.title ?? "?"} ».`;
+    }
     default:
       return a.kind;
   }
@@ -148,6 +152,14 @@ function describeNotification(n: Notification): string {
     case "menu.response": {
       const p = n.payload as { memberName?: string };
       return `${p.memberName ?? "Quelqu'un"} vient à ton repas.`;
+    }
+    case "don.interest": {
+      const p = n.payload as { memberName?: string; title?: string };
+      return `${p.memberName ?? "Quelqu'un"} est intéressé·e par ton annonce « ${p.title ?? "?"} ».`;
+    }
+    case "don.reserved": {
+      const p = n.payload as { title?: string };
+      return `« ${p.title ?? "?"} » a été réservé pour toi — contacte le donateur pour récupérer !`;
     }
     default:
       return n.kind;

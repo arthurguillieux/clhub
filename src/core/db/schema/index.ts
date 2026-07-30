@@ -18,4 +18,6 @@ export * from "./menuEvent";
 export * from "./caisseEvent";
 export * from "./recipe";
 export * from "./clubEvent";
+export * from "./donCategory";
+export * from "./donListing";
 export * from "./serverErrorLog";

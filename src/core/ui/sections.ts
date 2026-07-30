@@ -47,4 +47,10 @@ export const CLUB_SECTIONS: ClubSection[] = [
     href: "/jeux",
     live: true,
   },
+  {
+    name: "Cabanes à dons",
+    description: "Dons, troc et petites ventes entre membres.",
+    href: "/dons",
+    live: true,
+  },
 ];
