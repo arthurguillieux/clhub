@@ -17,4 +17,5 @@ export * from "./achievement";
 export * from "./menuEvent";
 export * from "./caisseEvent";
 export * from "./recipe";
+export * from "./clubEvent";
 export * from "./serverErrorLog";
