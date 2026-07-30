@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/core/ui/components/Button";
 import { FormField, Input, Textarea } from "@/core/ui/components/Field";
+import { DIETARY_TAGS, DIETARY_TAG_LABELS } from "@/core/dietaryTags";
 import { createRecipeAction, type CreateRecipeState } from "../actions";
 
 const initialState: CreateRecipeState = { status: "idle" };
@@ -31,6 +32,27 @@ export function NewRecipeForm() {
           <Input id="cookMinutes" name="cookMinutes" type="number" min={1} max={1440} placeholder="30" />
         </FormField>
       </div>
+
+      <FormField label="Convient à (optionnel)" htmlFor="dietaryTags">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {DIETARY_TAGS.map((tag) => (
+            <label
+              key={tag}
+              htmlFor={`diet-${tag}`}
+              className="flex items-center gap-2 rounded-md border border-line p-2 text-sm text-ink"
+            >
+              <input
+                id={`diet-${tag}`}
+                type="checkbox"
+                name="dietaryTags"
+                value={tag}
+                className="h-4 w-4 accent-primary"
+              />
+              {DIETARY_TAG_LABELS[tag]}
+            </label>
+          ))}
+        </div>
+      </FormField>
 
       <FormField label="Ingrédients *" htmlFor="ingredients">
         <Textarea

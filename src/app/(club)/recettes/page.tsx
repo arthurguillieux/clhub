@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { getSession } from "@/core/auth/session";
 import { listRecipes, type RecipeSort } from "@/modules/recipes/data/recipes";
+import { DIETARY_TAGS, dietaryTagLabel, parseDietaryTags, type DietaryTag } from "@/core/dietaryTags";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
+import { Badge } from "@/core/ui/components/Badge";
 import { LinkButton } from "@/core/ui/components/Button";
 import { StarRating } from "@/core/ui/components/StarRating";
 
@@ -13,18 +15,27 @@ const SORTS: { value: RecipeSort; label: string }[] = [
   { value: "reviews", label: "Plus commentées" },
 ];
 
+function buildHref(sort: RecipeSort, diet?: DietaryTag): string {
+  const params = new URLSearchParams();
+  if (sort !== "date") params.set("sort", sort);
+  if (diet) params.set("diet", diet);
+  const qs = params.toString();
+  return qs ? `/recettes?${qs}` : "/recettes";
+}
+
 export default async function RecettesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string }>;
+  searchParams: Promise<{ sort?: string; diet?: string }>;
 }) {
   const session = await getSession();
   if (!session) return null; // guarded by (club)/layout.tsx
 
-  const { sort: sortParam } = await searchParams;
+  const { sort: sortParam, diet: dietParam } = await searchParams;
   const sort: RecipeSort = sortParam === "rating" || sortParam === "reviews" ? sortParam : "date";
+  const diet = DIETARY_TAGS.find((t) => t === dietParam);
 
-  const recipes = await listRecipes(sort);
+  const recipes = await listRecipes(sort, diet);
 
   return (
     <Container size="lg">
@@ -39,7 +50,7 @@ export default async function RecettesPage({
         {SORTS.map((s) => (
           <Link
             key={s.value}
-            href={s.value === "date" ? "/recettes" : `/recettes?sort=${s.value}`}
+            href={buildHref(s.value, diet)}
             className={sort === s.value ? "text-primary" : "text-muted hover:text-ink"}
           >
             {s.label}
@@ -47,27 +58,54 @@ export default async function RecettesPage({
         ))}
       </div>
 
+      <div className="mt-2 flex flex-wrap gap-3 text-xs">
+        <Link href={buildHref(sort)} className={!diet ? "text-primary" : "text-muted hover:text-ink"}>
+          Tous régimes
+        </Link>
+        {DIETARY_TAGS.map((tag) => (
+          <Link
+            key={tag}
+            href={buildHref(sort, tag)}
+            className={diet === tag ? "text-primary" : "text-muted hover:text-ink"}
+          >
+            {dietaryTagLabel(tag)}
+          </Link>
+        ))}
+      </div>
+
       {recipes.length === 0 ? (
-        <p className="mt-8 text-sm text-muted">Le carnet est encore vide.</p>
+        <p className="mt-8 text-sm text-muted">
+          {diet ? `Rien en "${dietaryTagLabel(diet)}" pour l'instant.` : "Le carnet est encore vide."}
+        </p>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {recipes.map((r) => (
-            <Link key={r.id} href={`/recettes/${r.id}`}>
-              <Card className="h-full p-5 transition-shadow hover:shadow-md">
-                <h3 className="font-display text-base font-extrabold text-ink">{r.title}</h3>
-                <p className="mt-1 text-xs text-muted">Par {r.authorName}</p>
-                {r.reviewCount > 0 ? (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-muted">
-                    <StarRating value={r.averageRating ?? 0} />
-                    <span>({r.reviewCount})</span>
-                  </div>
-                ) : (
-                  <p className="mt-2 text-xs text-muted">Pas encore d&apos;avis</p>
-                )}
-                <p className="mt-3 line-clamp-3 text-sm text-muted">{r.ingredients}</p>
-              </Card>
-            </Link>
-          ))}
+          {recipes.map((r) => {
+            const tags = parseDietaryTags(r.dietaryTags);
+            return (
+              <Link key={r.id} href={`/recettes/${r.id}`}>
+                <Card className="h-full p-5 transition-shadow hover:shadow-md">
+                  <h3 className="font-display text-base font-extrabold text-ink">{r.title}</h3>
+                  <p className="mt-1 text-xs text-muted">Par {r.authorName}</p>
+                  {r.reviewCount > 0 ? (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-muted">
+                      <StarRating value={r.averageRating ?? 0} />
+                      <span>({r.reviewCount})</span>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs text-muted">Pas encore d&apos;avis</p>
+                  )}
+                  <p className="mt-3 line-clamp-3 text-sm text-muted">{r.ingredients}</p>
+                  {tags.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {tags.map((tag) => (
+                        <Badge key={tag}>{dietaryTagLabel(tag)}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       )}
     </Container>

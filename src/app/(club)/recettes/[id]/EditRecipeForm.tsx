@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/core/ui/components/Button";
 import { FormField, Input, Textarea } from "@/core/ui/components/Field";
+import { DIETARY_TAGS, DIETARY_TAG_LABELS, parseDietaryTags } from "@/core/dietaryTags";
 import { updateRecipeAction, type UpdateRecipeState } from "../actions";
 
 const initialState: UpdateRecipeState = { status: "idle" };
@@ -15,12 +16,14 @@ export interface EditableRecipe {
   cookMinutes: number | null;
   ingredients: string;
   instructions: string;
+  dietaryTags: unknown;
 }
 
 /** Same fields as NewRecipeForm, pre-filled. */
 export function EditRecipeForm({ recipeId, recipe }: { recipeId: string; recipe: EditableRecipe }) {
   const action = updateRecipeAction.bind(null, recipeId);
   const [state, formAction, pending] = useActionState(action, initialState);
+  const currentTags = parseDietaryTags(recipe.dietaryTags);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -57,6 +60,28 @@ export function EditRecipeForm({ recipeId, recipe }: { recipeId: string; recipe:
           />
         </FormField>
       </div>
+
+      <FormField label="Convient à (optionnel)" htmlFor="dietaryTags">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {DIETARY_TAGS.map((tag) => (
+            <label
+              key={tag}
+              htmlFor={`diet-${tag}`}
+              className="flex items-center gap-2 rounded-md border border-line p-2 text-sm text-ink"
+            >
+              <input
+                id={`diet-${tag}`}
+                type="checkbox"
+                name="dietaryTags"
+                value={tag}
+                defaultChecked={currentTags.includes(tag)}
+                className="h-4 w-4 accent-primary"
+              />
+              {DIETARY_TAG_LABELS[tag]}
+            </label>
+          ))}
+        </div>
+      </FormField>
 
       <FormField label="Ingrédients *" htmlFor="ingredients">
         <Textarea id="ingredients" name="ingredients" rows={5} defaultValue={recipe.ingredients} required />

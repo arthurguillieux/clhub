@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, primaryKey, smallint } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, primaryKey, smallint, jsonb } from "drizzle-orm/pg-core";
 import { member } from "./member";
 
 /**
@@ -15,6 +15,9 @@ export const recipe = pgTable("recipe", {
   title: text("title").notNull(),
   equipment: text("equipment"),
   servings: integer("servings"),
+  // What this recipe is suitable for/free of (see core/dietaryTags.ts) — lets
+  // "j'ai besoin d'une recette sans gluten" be an actual filter, not just text.
+  dietaryTags: jsonb("dietary_tags").notNull().default([]),
   prepMinutes: integer("prep_minutes"),
   cookMinutes: integer("cook_minutes"),
   ingredients: text("ingredients").notNull(),

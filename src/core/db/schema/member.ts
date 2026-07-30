@@ -19,6 +19,11 @@ export const member = pgTable("member", {
   bio: text("bio"),
   phone: text("phone"),
   role: text("role").notNull().default("member"), // 'member' | 'admin'
+  // Structured, exact-match tags (see core/dietaryTags.ts) — what makes
+  // "recettes sans gluten" and the menu attendee summary possible.
+  // dietaryNotes is free text for anything the fixed list doesn't cover.
+  dietaryTags: jsonb("dietary_tags").notNull().default([]),
+  dietaryNotes: text("dietary_notes"),
   // How many people this profile actually represents — "Marine et Arthur"
   // share one account since they lend/borrow as a pair. Pre-fills a new
   // caisse event's default share count for this member; adjustable per

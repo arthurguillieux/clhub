@@ -3,9 +3,11 @@ import Link from "next/link";
 import { getSession } from "@/core/auth/session";
 import { isAdminModeActive } from "@/core/auth/admin";
 import { getRecipeDetail, getMyReview } from "@/modules/recipes/data/recipes";
+import { parseDietaryTags, dietaryTagLabel } from "@/core/dietaryTags";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
+import { Badge } from "@/core/ui/components/Badge";
 import { StarRating } from "@/core/ui/components/StarRating";
 import { ReviewForm } from "./ReviewForm";
 import { DeleteRecipeButton } from "./DeleteRecipeButton";
@@ -32,6 +34,7 @@ export default async function RecipeDetailPage({
     r.prepMinutes ? `Prépa ${r.prepMinutes} min` : null,
     r.cookMinutes ? `Cuisson ${r.cookMinutes} min` : null,
   ].filter(Boolean);
+  const dietaryTags = parseDietaryTags(r.dietaryTags);
 
   return (
     <Container>
@@ -74,6 +77,13 @@ export default async function RecipeDetailPage({
             {meta.length > 0 && r.equipment ? " · " : ""}
             {r.equipment ? `Matériel : ${r.equipment}` : ""}
           </p>
+        )}
+        {dietaryTags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {dietaryTags.map((tag) => (
+              <Badge key={tag}>{dietaryTagLabel(tag)}</Badge>
+            ))}
+          </div>
         )}
       </div>
 

@@ -69,6 +69,8 @@ export interface MenuResponseWithMember {
   attending: boolean;
   bringing: string | null;
   allergies: string | null;
+  dietaryTags: unknown;
+  dietaryNotes: string | null;
 }
 
 export interface MenuEventDetail extends MenuEvent {
@@ -88,7 +90,12 @@ export async function getMenuEventDetail(eventId: string): Promise<MenuEventDeta
     : null;
 
   const responseRows = await db
-    .select({ menuResponse, memberName: user.name })
+    .select({
+      menuResponse,
+      memberName: user.name,
+      dietaryTags: member.dietaryTags,
+      dietaryNotes: member.dietaryNotes,
+    })
     .from(menuResponse)
     .innerJoin(member, eq(member.id, menuResponse.memberId))
     .innerJoin(user, eq(user.id, member.userId))
@@ -104,6 +111,8 @@ export async function getMenuEventDetail(eventId: string): Promise<MenuEventDeta
       attending: r.menuResponse.attending,
       bringing: r.menuResponse.bringing,
       allergies: r.menuResponse.allergies,
+      dietaryTags: r.dietaryTags,
+      dietaryNotes: r.dietaryNotes,
     })),
   };
 }

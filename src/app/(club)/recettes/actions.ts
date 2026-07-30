@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getSession } from "@/core/auth/session";
 import { isAdminModeActive } from "@/core/auth/admin";
 import { logActivity } from "@/core/activity";
+import { DIETARY_TAGS, type DietaryTag } from "@/core/dietaryTags";
 import {
   createRecipe,
   deleteRecipe,
@@ -14,6 +15,14 @@ import {
   updateRecipe,
   upsertReview,
 } from "@/modules/recipes/data/recipes";
+
+const KNOWN_DIETARY_TAGS = new Set<string>(DIETARY_TAGS);
+
+function readDietaryTags(formData: FormData): DietaryTag[] {
+  return formData
+    .getAll("dietaryTags")
+    .filter((v): v is DietaryTag => typeof v === "string" && KNOWN_DIETARY_TAGS.has(v));
+}
 
 const optionalMinutes = z.coerce
   .number()
@@ -68,7 +77,7 @@ export async function createRecipeAction(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
-  const created = await createRecipe(session.member.id, parsed.data);
+  const created = await createRecipe(session.member.id, { ...parsed.data, dietaryTags: readDietaryTags(formData) });
 
   await logActivity({
     section: "recettes",
@@ -113,7 +122,7 @@ export async function updateRecipeAction(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
-  await updateRecipe(recipeId, parsed.data);
+  await updateRecipe(recipeId, { ...parsed.data, dietaryTags: readDietaryTags(formData) });
   revalidatePath(`/recettes/${recipeId}`);
   revalidatePath("/recettes");
   redirect(`/recettes/${recipeId}`);

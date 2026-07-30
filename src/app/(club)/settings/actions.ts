@@ -11,6 +11,7 @@ import { saveAvatar } from "@/core/storage/avatar";
 import { fetchBusyDays } from "@/core/ical/fetch";
 import { addDays, today } from "@/core/date";
 import { NOTIFICATION_CATEGORIES } from "@/core/notifications/preferences";
+import { DIETARY_TAGS } from "@/core/dietaryTags";
 
 export async function uploadAvatar(formData: FormData): Promise<void> {
   const session = await getSession();
@@ -151,5 +152,30 @@ export async function updateNotifPrefsAction(
   await db.update(member).set({ notifPrefs, updatedAt: new Date() }).where(eq(member.id, session.member.id));
 
   revalidatePath("/settings");
+  return { status: "success" };
+}
+
+export type DietaryPrefsState = { status: "idle" } | { status: "success" } | { status: "error"; message: string };
+
+export async function updateDietaryPrefsAction(
+  _prevState: DietaryPrefsState,
+  formData: FormData,
+): Promise<DietaryPrefsState> {
+  const session = await getSession();
+  if (!session) return { status: "error", message: "Tu dois être connecté." };
+
+  const known = new Set<string>(DIETARY_TAGS);
+  const dietaryTags = formData.getAll("dietaryTags").filter((v): v is string => typeof v === "string" && known.has(v));
+
+  const notesRaw = formData.get("dietaryNotes");
+  const dietaryNotes = typeof notesRaw === "string" && notesRaw.trim() !== "" ? notesRaw.trim() : null;
+
+  await db
+    .update(member)
+    .set({ dietaryTags, dietaryNotes, updatedAt: new Date() })
+    .where(eq(member.id, session.member.id));
+
+  revalidatePath("/settings");
+  revalidatePath("/menus");
   return { status: "success" };
 }

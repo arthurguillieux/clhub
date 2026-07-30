@@ -12,6 +12,7 @@ import { ProfileForm } from "./ProfileForm";
 import { CalendarFeedUrl } from "./CalendarFeedUrl";
 import { PersonalCalendarForm } from "./PersonalCalendarForm";
 import { NotificationPrefsForm } from "./NotificationPrefsForm";
+import { DietaryPrefsForm } from "./DietaryPrefsForm";
 
 export default async function SettingsPage() {
   const session = await getSession();
@@ -82,6 +83,13 @@ export default async function SettingsPage() {
             phone={session.member.phone}
             householdSize={session.member.householdSize}
           />
+        </Card>
+      </section>
+
+      <section className="mt-10">
+        <SectionTitle>Régime alimentaire</SectionTitle>
+        <Card className="mt-3 p-5">
+          <DietaryPrefsForm dietaryTags={session.member.dietaryTags} dietaryNotes={session.member.dietaryNotes} />
         </Card>
       </section>
 

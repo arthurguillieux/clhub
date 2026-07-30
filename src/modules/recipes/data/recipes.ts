@@ -1,6 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/core/db/client";
 import { member, recipe, recipeReview, user, type Recipe } from "@/core/db/schema";
+import { parseDietaryTags, type DietaryTag } from "@/core/dietaryTags";
 
 export interface CreateRecipeInput {
   title: string;
@@ -10,6 +11,7 @@ export interface CreateRecipeInput {
   cookMinutes: number | null;
   ingredients: string;
   instructions: string;
+  dietaryTags: DietaryTag[];
 }
 
 export async function createRecipe(createdById: string, input: CreateRecipeInput): Promise<Recipe> {
@@ -52,14 +54,21 @@ export interface RecipeSummary extends Recipe {
 
 export type RecipeSort = "date" | "rating" | "reviews";
 
-export async function listRecipes(sort: RecipeSort = "date"): Promise<RecipeSummary[]> {
+/**
+ * Filtered in JS rather than a jsonb `@>` query at the DB level — the
+ * recipe table is club-scale (dozens, not thousands), and every other
+ * cross-cutting computation in this module (rating stats, sorting)
+ * already works this way once the rows are in memory.
+ */
+export async function listRecipes(sort: RecipeSort = "date", diet?: DietaryTag): Promise<RecipeSummary[]> {
   const rows = await db
     .select({ recipe, authorName: user.name })
     .from(recipe)
     .innerJoin(member, eq(member.id, recipe.createdById))
     .innerJoin(user, eq(user.id, member.userId))
     .orderBy(desc(recipe.createdAt));
-  if (rows.length === 0) return [];
+  const filteredRows = diet ? rows.filter((r) => parseDietaryTags(r.recipe.dietaryTags).includes(diet)) : rows;
+  if (filteredRows.length === 0) return [];
 
   const reviews = await db.select({ recipeId: recipeReview.recipeId, rating: recipeReview.rating }).from(recipeReview);
   const statsByRecipe = new Map<string, { sum: number; count: number }>();
@@ -70,7 +79,7 @@ export async function listRecipes(sort: RecipeSort = "date"): Promise<RecipeSumm
     statsByRecipe.set(r.recipeId, current);
   }
 
-  const summaries: RecipeSummary[] = rows.map((r) => {
+  const summaries: RecipeSummary[] = filteredRows.map((r) => {
     const stats = statsByRecipe.get(r.recipe.id);
     return {
       ...r.recipe,
