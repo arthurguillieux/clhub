@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { unlockAdmin, requireAdmin } from "@/core/auth/admin";
+import { unlockAdmin, requireAdmin, lockAdmin } from "@/core/auth/admin";
 import { getSession } from "@/core/auth/session";
 import {
   deleteMemberCascade,
@@ -83,4 +83,9 @@ export async function adminReassignItemAction(itemId: string, newOwnerId: string
   await reassignItemOwner(itemId, newOwnerId);
   revalidatePath("/admin/objets");
   revalidatePath("/pretotheque");
+}
+
+/** Ends admin mode early, from the site-wide banner — see AdminModeBanner.tsx. */
+export async function lockAdminAction(): Promise<void> {
+  await lockAdmin();
 }

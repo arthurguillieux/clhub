@@ -67,3 +67,20 @@ export async function requireAdmin() {
   }
   return session;
 }
+
+/**
+ * Same two-factor check as requireAdmin (admin role + live unlock cookie),
+ * but returning a boolean instead of redirecting — for UI (the site-wide
+ * admin-mode banner) that needs to know without gating the page itself.
+ */
+export async function isAdminModeActive(): Promise<boolean> {
+  const session = await getSession();
+  if (!session || session.member.role !== "admin") return false;
+  return hasValidUnlockCookie();
+}
+
+/** Ends the current unlock early, without waiting out the 4h expiry. */
+export async function lockAdmin(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete(COOKIE_NAME);
+}
