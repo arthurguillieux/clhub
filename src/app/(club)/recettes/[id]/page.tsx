@@ -1,12 +1,15 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/core/auth/session";
+import { isAdminModeActive } from "@/core/auth/admin";
 import { getRecipeDetail, getMyReview } from "@/modules/recipes/data/recipes";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { StarRating } from "@/core/ui/components/StarRating";
 import { ReviewForm } from "./ReviewForm";
+import { DeleteRecipeButton } from "./DeleteRecipeButton";
+import { DeleteReviewButton } from "./DeleteReviewButton";
 
 export default async function RecipeDetailPage({
   params,
@@ -20,6 +23,10 @@ export default async function RecipeDetailPage({
   const [r, myReview] = await Promise.all([getRecipeDetail(id), getMyReview(id, session.member.id)]);
   if (!r) notFound();
 
+  const isOwner = session.member.id === r.createdById;
+  const isAdmin = await isAdminModeActive();
+  const canManage = isOwner || isAdmin;
+
   const meta = [
     r.prepMinutes ? `Prépa ${r.prepMinutes} min` : null,
     r.cookMinutes ? `Cuisson ${r.cookMinutes} min` : null,
@@ -32,7 +39,20 @@ export default async function RecipeDetailPage({
       </Link>
 
       <div className="mt-4">
-        <PageTitle>{r.title}</PageTitle>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <PageTitle>{r.title}</PageTitle>
+          {canManage && (
+            <div className="flex shrink-0 items-center gap-3 pt-1">
+              <Link
+                href={`/recettes/${r.id}/edit`}
+                className="text-xs font-semibold text-primary hover:underline"
+              >
+                Modifier
+              </Link>
+              {isAdmin && <DeleteRecipeButton recipeId={r.id} title={r.title} />}
+            </div>
+          )}
+        </div>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
           <span>
             Par {r.authorName} ·{" "}
@@ -86,7 +106,12 @@ export default async function RecipeDetailPage({
               <Card key={rev.memberId} className="p-4">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-ink">{rev.memberName}</p>
-                  <StarRating value={rev.rating} />
+                  <div className="flex items-center gap-3">
+                    <StarRating value={rev.rating} />
+                    {isAdmin && (
+                      <DeleteReviewButton recipeId={r.id} memberId={rev.memberId} />
+                    )}
+                  </div>
                 </div>
                 {rev.comment && <p className="mt-1.5 text-sm text-muted">{rev.comment}</p>}
               </Card>

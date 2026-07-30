@@ -20,6 +20,29 @@ export async function createRecipe(createdById: string, input: CreateRecipeInput
   return created;
 }
 
+export async function getRecipeById(id: string): Promise<Recipe | null> {
+  const row = await db.query.recipe.findFirst({ where: (r, { eq }) => eq(r.id, id) });
+  return row ?? null;
+}
+
+/** Ownership is checked by the caller (see updateRecipeAction) — same shape as pretotheque's updateItem. */
+export async function updateRecipe(id: string, input: CreateRecipeInput): Promise<void> {
+  await db.update(recipe).set(input).where(eq(recipe.id, id));
+}
+
+/** Admin-only at the action layer — no ownership param here, same as pretotheque's item deletion. */
+export async function deleteRecipe(id: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.delete(recipeReview).where(eq(recipeReview.recipeId, id));
+    await tx.delete(recipe).where(eq(recipe.id, id));
+  });
+}
+
+/** Moderation only — admin-gated at the action layer, not a self-delete for the review's own author. */
+export async function deleteReview(recipeId: string, memberId: string): Promise<void> {
+  await db.delete(recipeReview).where(and(eq(recipeReview.recipeId, recipeId), eq(recipeReview.memberId, memberId)));
+}
+
 export interface RecipeSummary extends Recipe {
   authorName: string;
   averageRating: number | null;

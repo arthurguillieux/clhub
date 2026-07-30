@@ -41,3 +41,48 @@ export async function getMemberProfile(memberId: string): Promise<MemberProfile 
 
   return row ?? null;
 }
+
+export interface MemberProfileEditable {
+  id: string;
+  name: string;
+  bio: string | null;
+  phone: string | null;
+  householdSize: number;
+}
+
+/** Admin-only surface (see /membres/[id] and adminUpdateMemberProfileAction) — phone/householdSize deliberately never reach the plain getMemberProfile above. */
+export async function getMemberProfileForEdit(memberId: string): Promise<MemberProfileEditable | null> {
+  const [row] = await db
+    .select({
+      id: member.id,
+      name: user.name,
+      bio: member.bio,
+      phone: member.phone,
+      householdSize: member.householdSize,
+    })
+    .from(member)
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(eq(member.id, memberId))
+    .limit(1);
+
+  return row ?? null;
+}
+
+export interface AdminMemberProfileInput {
+  name: string;
+  bio: string | null;
+  phone: string | null;
+  householdSize: number;
+}
+
+/** Unlike updateProfile (settings/actions.ts), this targets an arbitrary member — auth.api.updateUser is session-bound, so name goes through a direct update instead. */
+export async function adminUpdateMemberProfile(memberId: string, input: AdminMemberProfileInput): Promise<void> {
+  const target = await db.query.member.findFirst({ where: (m, { eq }) => eq(m.id, memberId) });
+  if (!target) throw new Error("Member not found");
+
+  await db.update(user).set({ name: input.name }).where(eq(user.id, target.userId));
+  await db
+    .update(member)
+    .set({ bio: input.bio, phone: input.phone, householdSize: input.householdSize, updatedAt: new Date() })
+    .where(eq(member.id, memberId));
+}

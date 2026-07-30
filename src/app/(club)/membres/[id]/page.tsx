@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/core/auth/session";
-import { getMemberProfile } from "@/modules/members/data/members";
+import { isAdminModeActive } from "@/core/auth/admin";
+import { getMemberProfile, getMemberProfileForEdit } from "@/modules/members/data/members";
 import { computeGaugeDays } from "@/core/achievements/stats";
 import { gaugePosition } from "@/core/achievements/gauge";
 import { listUnlockedBadges } from "@/core/achievements/engine";
@@ -9,6 +10,7 @@ import { Container } from "@/core/ui/components/Container";
 import { SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { MemberCard } from "@/core/ui/components/MemberCard";
+import { AdminProfileEditor } from "./AdminProfileEditor";
 
 export default async function MemberProfilePage({
   params,
@@ -22,9 +24,11 @@ export default async function MemberProfilePage({
   const profile = await getMemberProfile(id);
   if (!profile) notFound();
 
-  const [gaugeDays, badges] = await Promise.all([
+  const isAdmin = await isAdminModeActive();
+  const [gaugeDays, badges, editable] = await Promise.all([
     computeGaugeDays(profile.id),
     listUnlockedBadges(profile.id),
+    isAdmin ? getMemberProfileForEdit(profile.id) : Promise.resolve(null),
   ]);
   const hasActivity = gaugeDays.lentDays > 0 || gaugeDays.borrowedDays > 0;
 
@@ -44,6 +48,17 @@ export default async function MemberProfilePage({
           gauge={hasActivity ? gaugePosition(gaugeDays.lentDays, gaugeDays.borrowedDays) : undefined}
           badges={badges}
         />
+        {isAdmin && editable && (
+          <div className="mt-3">
+            <AdminProfileEditor
+              memberId={editable.id}
+              name={editable.name}
+              bio={editable.bio}
+              phone={editable.phone}
+              householdSize={editable.householdSize}
+            />
+          </div>
+        )}
       </div>
 
       <section className="mt-8">
