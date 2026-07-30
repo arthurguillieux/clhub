@@ -14,6 +14,7 @@ export const recipe = pgTable("recipe", {
     .references(() => member.id),
   title: text("title").notNull(),
   equipment: text("equipment"),
+  servings: integer("servings"),
   prepMinutes: integer("prep_minutes"),
   cookMinutes: integer("cook_minutes"),
   ingredients: text("ingredients").notNull(),

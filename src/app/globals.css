@@ -37,6 +37,7 @@
   --cat-jardinage: #baff29;
   --cat-menage: #29e0ff;
   --cat-festif: #c04dff;
+  --cat-jeux: #ffcc29;
   --cat-autre: #9a9ab0;
 }
 
@@ -58,6 +59,7 @@
   --color-cat-jardinage: var(--cat-jardinage);
   --color-cat-menage: var(--cat-menage);
   --color-cat-festif: var(--cat-festif);
+  --color-cat-jeux: var(--cat-jeux);
   --color-cat-autre: var(--cat-autre);
 
   --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;

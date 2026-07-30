@@ -63,6 +63,7 @@ export function EditItemForm({
             <option value="jardinage">Jardinage</option>
             <option value="menage">Ménage</option>
             <option value="festif">Festif</option>
+            <option value="jeux">Jeux de société</option>
             <option value="autre">Autre</option>
           </Select>
         </FormField>

@@ -20,7 +20,10 @@ export function NewRecipeForm() {
         <Input id="equipment" name="equipment" placeholder="Moule à tarte, mixeur..." />
       </FormField>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
+        <FormField label="Personnes" htmlFor="servings">
+          <Input id="servings" name="servings" type="number" min={1} max={50} placeholder="4" />
+        </FormField>
         <FormField label="Préparation (min)" htmlFor="prepMinutes">
           <Input id="prepMinutes" name="prepMinutes" type="number" min={1} max={1440} placeholder="15" />
         </FormField>

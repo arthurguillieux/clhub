@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const CATEGORIES = ["bricolage", "jardinage", "menage", "festif", "autre"] as const;
+export const CATEGORIES = ["bricolage", "jardinage", "menage", "festif", "jeux", "autre"] as const;
 export const CONDITIONS = ["neuf", "bon", "usage", "fragile"] as const;
 
 /** Empty strings from optional form fields should read as "not provided", not "invalid". */

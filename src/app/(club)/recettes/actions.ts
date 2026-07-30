@@ -23,6 +23,14 @@ const optionalMinutes = z.coerce
   .optional()
   .transform((v) => v ?? null);
 
+const optionalServings = z.coerce
+  .number()
+  .int()
+  .positive()
+  .max(50)
+  .optional()
+  .transform((v) => v ?? null);
+
 const createSchema = z.object({
   title: z.string().trim().min(1, "Donne un nom à cette recette.").max(150),
   equipment: z
@@ -31,6 +39,7 @@ const createSchema = z.object({
     .max(500)
     .optional()
     .transform((v) => (v ? v : null)),
+  servings: optionalServings,
   prepMinutes: optionalMinutes,
   cookMinutes: optionalMinutes,
   ingredients: z.string().trim().min(1, "Liste au moins un ingrédient.").max(3000),
@@ -49,6 +58,7 @@ export async function createRecipeAction(
   const parsed = createSchema.safeParse({
     title: formData.get("title"),
     equipment: formData.get("equipment"),
+    servings: formData.get("servings") || undefined,
     prepMinutes: formData.get("prepMinutes") || undefined,
     cookMinutes: formData.get("cookMinutes") || undefined,
     ingredients: formData.get("ingredients"),
@@ -93,6 +103,7 @@ export async function updateRecipeAction(
   const parsed = createSchema.safeParse({
     title: formData.get("title"),
     equipment: formData.get("equipment"),
+    servings: formData.get("servings") || undefined,
     prepMinutes: formData.get("prepMinutes") || undefined,
     cookMinutes: formData.get("cookMinutes") || undefined,
     ingredients: formData.get("ingredients"),

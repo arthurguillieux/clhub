@@ -3,6 +3,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   jardinage: "Jardinage",
   menage: "Ménage",
   festif: "Festif",
+  jeux: "Jeux de société",
   autre: "Autre",
 };
 
@@ -16,6 +17,7 @@ export const CATEGORY_BG: Record<string, string> = {
   jardinage: "bg-cat-jardinage",
   menage: "bg-cat-menage",
   festif: "bg-cat-festif",
+  jeux: "bg-cat-jeux",
   autre: "bg-cat-autre",
 };
 
@@ -24,6 +26,7 @@ export const CATEGORY_TEXT: Record<string, string> = {
   jardinage: "text-cat-jardinage",
   menage: "text-cat-menage",
   festif: "text-cat-festif",
+  jeux: "text-cat-jeux",
   autre: "text-cat-autre",
 };
 

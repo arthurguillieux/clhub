@@ -10,6 +10,7 @@ const initialState: UpdateRecipeState = { status: "idle" };
 export interface EditableRecipe {
   title: string;
   equipment: string | null;
+  servings: number | null;
   prepMinutes: number | null;
   cookMinutes: number | null;
   ingredients: string;
@@ -31,7 +32,10 @@ export function EditRecipeForm({ recipeId, recipe }: { recipeId: string; recipe:
         <Input id="equipment" name="equipment" defaultValue={recipe.equipment ?? ""} />
       </FormField>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
+        <FormField label="Personnes" htmlFor="servings">
+          <Input id="servings" name="servings" type="number" min={1} max={50} defaultValue={recipe.servings ?? ""} />
+        </FormField>
         <FormField label="Préparation (min)" htmlFor="prepMinutes">
           <Input
             id="prepMinutes"

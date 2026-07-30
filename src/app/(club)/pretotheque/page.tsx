@@ -1,17 +1,25 @@
 import Link from "next/link";
 import { getSession } from "@/core/auth/session";
 import { listItems } from "@/modules/pretotheque/data/items";
+import { CATEGORIES } from "@/modules/pretotheque/itemFormSchema";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { LinkButton } from "@/core/ui/components/Button";
 import { CATEGORY_BG, categoryLabel } from "@/core/ui/categories";
 
-export default async function PretothequePage() {
+export default async function PretothequePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>;
+}) {
   const session = await getSession();
   if (!session) return null; // guarded by (club)/layout.tsx
 
-  const items = await listItems();
+  const { category: categoryParam } = await searchParams;
+  const category = CATEGORIES.find((c) => c === categoryParam);
+
+  const items = await listItems(category ? { category } : undefined);
 
   return (
     <Container size="lg">
@@ -30,8 +38,27 @@ export default async function PretothequePage() {
         </div>
       </div>
 
+      <div className="mt-4 flex flex-wrap gap-4 text-sm font-medium">
+        <Link href="/pretotheque" className={!category ? "text-primary" : "text-muted hover:text-ink"}>
+          Tout
+        </Link>
+        {CATEGORIES.map((c) => (
+          <Link
+            key={c}
+            href={`/pretotheque?category=${c}`}
+            className={category === c ? "text-primary" : "text-muted hover:text-ink"}
+          >
+            {categoryLabel(c)}
+          </Link>
+        ))}
+      </div>
+
       {items.length === 0 ? (
-        <p className="mt-8 text-sm text-muted">Rien dans le catalogue pour l&apos;instant.</p>
+        <p className="mt-8 text-sm text-muted">
+          {category
+            ? `Rien dans "${categoryLabel(category)}" pour l'instant.`
+            : "Rien dans le catalogue pour l'instant."}
+        </p>
       ) : (
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((it) => (

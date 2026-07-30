@@ -5,6 +5,7 @@ import { member, recipe, recipeReview, user, type Recipe } from "@/core/db/schem
 export interface CreateRecipeInput {
   title: string;
   equipment: string | null;
+  servings: number | null;
   prepMinutes: number | null;
   cookMinutes: number | null;
   ingredients: string;

@@ -28,6 +28,7 @@ export default async function RecipeDetailPage({
   const canManage = isOwner || isAdmin;
 
   const meta = [
+    r.servings ? `${r.servings} personne${r.servings > 1 ? "s" : ""}` : null,
     r.prepMinutes ? `Prépa ${r.prepMinutes} min` : null,
     r.cookMinutes ? `Cuisson ${r.cookMinutes} min` : null,
   ].filter(Boolean);
