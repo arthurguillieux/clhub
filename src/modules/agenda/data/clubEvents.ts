@@ -43,6 +43,21 @@ export async function getClubEventOwnerId(id: string): Promise<string | null> {
   return row?.createdById ?? null;
 }
 
+export async function getClubEventById(id: string): Promise<ClubEvent | null> {
+  const row = await db.query.clubEvent.findFirst({ where: (e, { eq: eqFn }) => eqFn(e.id, id) });
+  return row ?? null;
+}
+
+export interface UpdateClubEventInput {
+  title: string;
+  eventDate: string;
+  description: string | null;
+}
+
+export async function updateClubEvent(id: string, input: UpdateClubEventInput): Promise<void> {
+  await db.update(clubEvent).set(input).where(eq(clubEvent.id, id));
+}
+
 export async function deleteClubEvent(id: string): Promise<void> {
   await db.delete(clubEvent).where(eq(clubEvent.id, id));
 }

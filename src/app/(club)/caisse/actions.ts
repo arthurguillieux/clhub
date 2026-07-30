@@ -4,8 +4,20 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession } from "@/core/auth/session";
+import { isAdminModeActive } from "@/core/auth/admin";
 import { logActivity } from "@/core/activity";
-import { createExpenseEvent, addExpense, recordSettlement } from "@/modules/caisse/data/events";
+import {
+  createExpenseEvent,
+  addExpense,
+  recordSettlement,
+  getEventOwnerId,
+  updateExpenseEvent,
+  deleteExpenseEvent,
+  getExpenseById,
+  updateExpense,
+  deleteExpense,
+  deleteSettlement,
+} from "@/modules/caisse/data/events";
 
 const nameSchema = z.string().trim().min(1, "Donne un nom à cet évènement.").max(150);
 
@@ -48,6 +60,47 @@ export async function createEventAction(
   redirect(`/caisse/${created.id}`);
 }
 
+export type UpdateEventState = { status: "idle" } | { status: "error"; message: string };
+
+/** Owner or admin — same split as recipe/item/don/menu editing. */
+export async function updateEventAction(
+  eventId: string,
+  _prevState: UpdateEventState,
+  formData: FormData,
+): Promise<UpdateEventState> {
+  const session = await getSession();
+  if (!session) return { status: "error", message: "Tu dois être connecté." };
+
+  const ownerId = await getEventOwnerId(eventId);
+  if (!ownerId) return { status: "error", message: "Cet évènement n'existe plus." };
+
+  const isAdmin = await isAdminModeActive();
+  if (ownerId !== session.member.id && !isAdmin) {
+    return { status: "error", message: "Tu n'as pas le droit de modifier cet évènement." };
+  }
+
+  const nameParsed = nameSchema.safeParse(formData.get("name"));
+  if (!nameParsed.success) {
+    return { status: "error", message: nameParsed.error.issues[0]?.message ?? "Nom invalide." };
+  }
+
+  await updateExpenseEvent(eventId, nameParsed.data);
+
+  revalidatePath(`/caisse/${eventId}`);
+  revalidatePath("/caisse");
+  redirect(`/caisse/${eventId}`);
+}
+
+/** Admin-mode only — same split as recipe/item/don/menu deletion. */
+export async function deleteEventAction(eventId: string): Promise<void> {
+  const isAdmin = await isAdminModeActive();
+  if (!isAdmin) return;
+
+  await deleteExpenseEvent(eventId);
+  revalidatePath("/caisse");
+  redirect("/caisse");
+}
+
 const expenseSchema = z.object({
   amount: z.coerce.number().positive("Le montant doit être supérieur à 0.").max(1000000),
   description: z.string().trim().min(1, "Précise à quoi correspond cette dépense.").max(300),
@@ -82,6 +135,54 @@ export async function addExpenseAction(
 
   revalidatePath(`/caisse/${eventId}`);
   return { status: "idle" };
+}
+
+export type UpdateExpenseState = { status: "idle" } | { status: "success" } | { status: "error"; message: string };
+
+/** Owner (whoever logged it) or admin — same split as everywhere else. */
+export async function updateExpenseAction(
+  expenseId: string,
+  eventId: string,
+  _prevState: UpdateExpenseState,
+  formData: FormData,
+): Promise<UpdateExpenseState> {
+  const session = await getSession();
+  if (!session) return { status: "error", message: "Tu dois être connecté." };
+
+  const target = await getExpenseById(expenseId);
+  if (!target) return { status: "error", message: "Cette dépense n'existe plus." };
+
+  const isAdmin = await isAdminModeActive();
+  if (target.createdById !== session.member.id && !isAdmin) {
+    return { status: "error", message: "Tu n'as pas le droit de modifier cette dépense." };
+  }
+
+  const parsed = expenseSchema.safeParse({
+    amount: formData.get("amount"),
+    description: formData.get("description"),
+    paidByMemberId: formData.get("paidByMemberId"),
+  });
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  await updateExpense(expenseId, {
+    amountCents: Math.round(parsed.data.amount * 100),
+    description: parsed.data.description,
+    paidByMemberId: parsed.data.paidByMemberId,
+  });
+
+  revalidatePath(`/caisse/${eventId}`);
+  return { status: "success" };
+}
+
+/** Admin-mode only — same split as everywhere else. */
+export async function deleteExpenseAction(expenseId: string, eventId: string): Promise<void> {
+  const isAdmin = await isAdminModeActive();
+  if (!isAdmin) return;
+
+  await deleteExpense(expenseId);
+  revalidatePath(`/caisse/${eventId}`);
 }
 
 const settlementSchema = z.object({
@@ -120,4 +221,17 @@ export async function recordSettlementAction(
 
   revalidatePath(`/caisse/${eventId}`);
   return { status: "idle" };
+}
+
+/**
+ * Admin-mode only — settlements have no "who recorded this" field (unlike
+ * expenses), so there's no owner to check against; edit is skipped entirely
+ * (correcting a mis-typed amount is delete-and-re-record).
+ */
+export async function deleteSettlementAction(settlementId: string, eventId: string): Promise<void> {
+  const isAdmin = await isAdminModeActive();
+  if (!isAdmin) return;
+
+  await deleteSettlement(settlementId);
+  revalidatePath(`/caisse/${eventId}`);
 }

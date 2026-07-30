@@ -150,7 +150,7 @@ export default async function AgendaPage({
           <Card className="mt-3 p-5">
             <ul className="flex flex-col gap-3">
               {monthEvents.map((event) => {
-                const canDelete = isAdmin || event.createdById === session.member.id;
+                const canManage = isAdmin || event.createdById === session.member.id;
                 return (
                   <li key={event.id} className="flex items-start justify-between gap-3 text-sm">
                     <div>
@@ -166,7 +166,17 @@ export default async function AgendaPage({
                       {event.description && <p className="mt-0.5 text-muted">{event.description}</p>}
                       <p className="mt-0.5 text-xs text-muted">Ajouté par {event.authorName}</p>
                     </div>
-                    {canDelete && <DeleteClubEventButton eventId={event.id} title={event.title} />}
+                    {canManage && (
+                      <div className="flex shrink-0 items-center gap-3">
+                        <Link
+                          href={`/agenda/${event.id}/edit`}
+                          className="text-xs font-semibold text-primary hover:underline"
+                        >
+                          Modifier
+                        </Link>
+                        <DeleteClubEventButton eventId={event.id} title={event.title} />
+                      </div>
+                    )}
                   </li>
                 );
               })}

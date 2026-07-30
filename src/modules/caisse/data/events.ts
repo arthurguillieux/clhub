@@ -85,6 +85,7 @@ export interface ExpenseWithNames {
   description: string;
   paidByMemberId: string;
   paidByName: string;
+  createdById: string;
   createdAt: Date;
 }
 
@@ -124,6 +125,7 @@ export async function getEventDetail(eventId: string): Promise<EventDetail | nul
         amountCents: expense.amountCents,
         description: expense.description,
         paidByMemberId: expense.paidByMemberId,
+        createdById: expense.createdById,
         createdAt: expense.createdAt,
         paidByName: user.name,
       })
@@ -170,6 +172,25 @@ export async function getEventDetail(eventId: string): Promise<EventDetail | nul
   };
 }
 
+export async function getEventOwnerId(eventId: string): Promise<string | null> {
+  const [row] = await db.select({ createdById: expenseEvent.createdById }).from(expenseEvent).where(eq(expenseEvent.id, eventId)).limit(1);
+  return row?.createdById ?? null;
+}
+
+export async function updateExpenseEvent(eventId: string, name: string): Promise<void> {
+  await db.update(expenseEvent).set({ name }).where(eq(expenseEvent.id, eventId));
+}
+
+/** No cascade on the FKs into expense_event — clear children before the event itself. */
+export async function deleteExpenseEvent(eventId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.delete(settlementPayment).where(eq(settlementPayment.eventId, eventId));
+    await tx.delete(expense).where(eq(expense.eventId, eventId));
+    await tx.delete(eventParticipant).where(eq(eventParticipant.eventId, eventId));
+    await tx.delete(expenseEvent).where(eq(expenseEvent.id, eventId));
+  });
+}
+
 export interface AddExpenseInput {
   amountCents: number;
   description: string;
@@ -179,6 +200,35 @@ export interface AddExpenseInput {
 
 export async function addExpense(eventId: string, input: AddExpenseInput): Promise<void> {
   await db.insert(expense).values({ eventId, ...input });
+}
+
+export async function getExpenseById(
+  expenseId: string,
+): Promise<{ id: string; eventId: string; createdById: string } | null> {
+  const [row] = await db
+    .select({ id: expense.id, eventId: expense.eventId, createdById: expense.createdById })
+    .from(expense)
+    .where(eq(expense.id, expenseId))
+    .limit(1);
+  return row ?? null;
+}
+
+export interface UpdateExpenseInput {
+  amountCents: number;
+  description: string;
+  paidByMemberId: string;
+}
+
+export async function updateExpense(expenseId: string, input: UpdateExpenseInput): Promise<void> {
+  await db.update(expense).set(input).where(eq(expense.id, expenseId));
+}
+
+export async function deleteExpense(expenseId: string): Promise<void> {
+  await db.delete(expense).where(eq(expense.id, expenseId));
+}
+
+export async function deleteSettlement(settlementId: string): Promise<void> {
+  await db.delete(settlementPayment).where(eq(settlementPayment.id, settlementId));
 }
 
 export async function recordSettlement(

@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getSession } from "@/core/auth/session";
+import { isAdminModeActive } from "@/core/auth/admin";
 import { getMenuEventDetail, getMyResponse } from "@/modules/menus/data/menuEvents";
 import { parseDietaryTags, dietaryTagLabel } from "@/core/dietaryTags";
 import { Container } from "@/core/ui/components/Container";
@@ -7,6 +9,7 @@ import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { formatFrench, type CalendarDate } from "@/core/date";
 import { ResponseForm } from "./ResponseForm";
+import { DeleteMenuEventButton } from "./DeleteMenuEventButton";
 
 export default async function MenuEventPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -20,6 +23,10 @@ export default async function MenuEventPage({ params }: { params: Promise<{ id: 
   if (!event) {
     notFound();
   }
+
+  const isOwner = session.member.id === event.createdById;
+  const isAdmin = await isAdminModeActive();
+  const canManage = isOwner || isAdmin;
 
   const attending = event.responses.filter((r) => r.attending);
   const notAttending = event.responses.filter((r) => !r.attending);
@@ -40,7 +47,17 @@ export default async function MenuEventPage({ params }: { params: Promise<{ id: 
 
   return (
     <Container>
-      <PageTitle>{event.title}</PageTitle>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <PageTitle>{event.title}</PageTitle>
+        {canManage && (
+          <div className="flex shrink-0 items-center gap-3 pt-1">
+            <Link href={`/menus/${event.id}/edit`} className="text-xs font-semibold text-primary hover:underline">
+              Modifier
+            </Link>
+            {isAdmin && <DeleteMenuEventButton eventId={event.id} title={event.title} />}
+          </div>
+        )}
+      </div>
       <p className="mt-1 text-sm text-muted">
         {formatFrench(event.eventDate as CalendarDate)} — proposé par {event.creatorName}
       </p>

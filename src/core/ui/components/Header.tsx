@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isAdminModeActive } from "@/core/auth/admin";
 import { ProfileMenu } from "./ProfileMenu";
 import { SectionsMenu } from "./SectionsMenu";
 import { AdminGateLogo } from "./AdminGateLogo";
@@ -18,7 +19,9 @@ interface HeaderUser {
  * `SectionSubNav` (see e.g. pretotheque/layout.tsx) rather than cramming
  * every section's sub-pages into this one bar.
  */
-export function Header({ user }: { user: HeaderUser }) {
+export async function Header({ user }: { user: HeaderUser }) {
+  const isAdmin = await isAdminModeActive();
+
   return (
     <header className="border-b border-line-soft bg-surface print:hidden">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
@@ -29,6 +32,14 @@ export function Header({ user }: { user: HeaderUser }) {
             Membres
           </Link>
           <SectionsMenu />
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="glow-box-admin rounded-full border border-admin/60 bg-admin/15 px-3 py-1 text-xs font-bold tracking-wide text-admin uppercase hover:bg-admin/25"
+            >
+              Admin
+            </Link>
+          )}
         </nav>
 
         <ProfileMenu user={user} />

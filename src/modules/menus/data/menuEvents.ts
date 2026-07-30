@@ -147,3 +147,21 @@ export async function getMenuEventOwnerId(eventId: string): Promise<string | nul
   const row = await db.query.menuEvent.findFirst({ where: (e, { eq: eqFn }) => eqFn(e.id, eventId) });
   return row?.createdById ?? null;
 }
+
+export interface UpdateMenuEventInput {
+  title: string;
+  description: string | null;
+  eventDate: string;
+}
+
+export async function updateMenuEvent(eventId: string, input: UpdateMenuEventInput): Promise<void> {
+  await db.update(menuEvent).set(input).where(eq(menuEvent.id, eventId));
+}
+
+/** No cascade on menu_response.event_id — clear responses before the event itself. */
+export async function deleteMenuEvent(eventId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.delete(menuResponse).where(eq(menuResponse.eventId, eventId));
+    await tx.delete(menuEvent).where(eq(menuEvent.id, eventId));
+  });
+}

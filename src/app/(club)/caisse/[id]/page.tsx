@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/core/auth/session";
+import { isAdminModeActive } from "@/core/auth/admin";
 import { getEventDetail } from "@/modules/caisse/data/events";
 import { applySettlements, suggestTransfers } from "@/modules/caisse/domain/settlement";
 import { Container } from "@/core/ui/components/Container";
@@ -9,6 +10,9 @@ import { Card } from "@/core/ui/components/Card";
 import { AddExpenseForm } from "./AddExpenseForm";
 import { RecordSettlementForm } from "./RecordSettlementForm";
 import { QuickSettleButton } from "./QuickSettleButton";
+import { ExpenseRow } from "./ExpenseRow";
+import { DeleteEventButton } from "./DeleteEventButton";
+import { DeleteSettlementButton } from "./DeleteSettlementButton";
 
 function euros(cents: number): string {
   const sign = cents < 0 ? "−" : "";
@@ -22,6 +26,10 @@ export default async function ExpenseEventPage({ params }: { params: Promise<{ i
   const { id } = await params;
   const detail = await getEventDetail(id);
   if (!detail) notFound();
+
+  const isOwner = session.member.id === detail.event.createdById;
+  const isAdmin = await isAdminModeActive();
+  const canManage = isOwner || isAdmin;
 
   const nameByMemberId = new Map(detail.participants.map((p) => [p.memberId, p.name]));
   const netBalances = applySettlements(
@@ -42,7 +50,17 @@ export default async function ExpenseEventPage({ params }: { params: Promise<{ i
       </Link>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <PageTitle>{detail.event.name}</PageTitle>
+        <div className="flex flex-wrap items-center gap-3">
+          <PageTitle>{detail.event.name}</PageTitle>
+          {canManage && (
+            <div className="flex items-center gap-3">
+              <Link href={`/caisse/${id}/edit`} className="text-xs font-semibold text-primary hover:underline">
+                Modifier
+              </Link>
+              {isAdmin && <DeleteEventButton eventId={id} name={detail.event.name} />}
+            </div>
+          )}
+        </div>
         <p className="font-mono text-lg font-semibold tabular-nums text-ink">{euros(totalCents)}</p>
       </div>
 
@@ -116,13 +134,14 @@ export default async function ExpenseEventPage({ params }: { params: Promise<{ i
         ) : (
           <div className="mt-3 flex flex-col gap-2">
             {detail.expenses.map((e) => (
-              <Card key={e.id} className="flex items-center justify-between gap-3 p-3">
-                <div>
-                  <p className="text-sm font-semibold text-ink">{e.description}</p>
-                  <p className="text-xs text-muted">Payé par {e.paidByName}</p>
-                </div>
-                <p className="font-mono text-sm font-semibold tabular-nums text-ink">{euros(e.amountCents)}</p>
-              </Card>
+              <ExpenseRow
+                key={e.id}
+                eventId={id}
+                expense={e}
+                participants={detail.participants}
+                canManage={isAdmin || session.member.id === e.createdById}
+                isAdmin={isAdmin}
+              />
             ))}
           </div>
         )}
@@ -143,7 +162,10 @@ export default async function ExpenseEventPage({ params }: { params: Promise<{ i
                 <p className="text-ink">
                   {s.fromName} → {s.toName}
                 </p>
-                <p className="font-mono font-semibold tabular-nums text-ink">{euros(s.amountCents)}</p>
+                <div className="flex items-center gap-3">
+                  <p className="font-mono font-semibold tabular-nums text-ink">{euros(s.amountCents)}</p>
+                  {isAdmin && <DeleteSettlementButton settlementId={s.id} eventId={id} />}
+                </div>
               </Card>
             ))}
           </div>

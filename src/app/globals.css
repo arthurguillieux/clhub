@@ -32,6 +32,9 @@
   /* Les appels à l'action — volontairement une deuxième teinte, pas une nuance de la première. */
   --accent: #ff3ec9;
   --accent-ink: #1a0512;
+  /* Réservé au mode admin (bandeau + bouton de retour) — jaune néon, à part des deux teintes ci-dessus. */
+  --admin: #ffe019;
+  --admin-ink: #1a1400;
 
   --cat-bricolage: #ff7a29;
   --cat-jardinage: #baff29;
@@ -54,6 +57,8 @@
   --color-primary-ink: var(--primary-ink);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-admin: var(--admin);
+  --color-admin-ink: var(--admin-ink);
 
   --color-cat-bricolage: var(--cat-bricolage);
   --color-cat-jardinage: var(--cat-jardinage);
@@ -96,6 +101,9 @@ body {
 }
 .glow-box-accent {
   box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.glow-box-admin {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--admin) 45%, transparent);
 }
 
 @keyframes egg-pop {

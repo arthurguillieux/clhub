@@ -4,12 +4,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession } from "@/core/auth/session";
+import { isAdminModeActive } from "@/core/auth/admin";
 import { logActivity } from "@/core/activity";
 import { createNotification } from "@/core/notifications";
 import {
   createMenuEvent,
+  deleteMenuEvent,
   getMenuEventOwnerId,
   submitResponse,
+  updateMenuEvent,
 } from "@/modules/menus/data/menuEvents";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide");
@@ -110,4 +113,49 @@ export async function submitResponseAction(
 
   revalidatePath(`/menus/${eventId}`);
   return { status: "success" };
+}
+
+export type UpdateMenuEventState = { status: "idle" } | { status: "error"; message: string };
+
+/** Owner or admin — same split as recipe/item/don editing. */
+export async function updateMenuEventAction(
+  eventId: string,
+  _prevState: UpdateMenuEventState,
+  formData: FormData,
+): Promise<UpdateMenuEventState> {
+  const session = await getSession();
+  if (!session) return { status: "error", message: "Tu dois être connecté." };
+
+  const ownerId = await getMenuEventOwnerId(eventId);
+  if (!ownerId) return { status: "error", message: "Ce repas n'existe plus." };
+
+  const isAdmin = await isAdminModeActive();
+  if (ownerId !== session.member.id && !isAdmin) {
+    return { status: "error", message: "Tu n'as pas le droit de modifier ce repas." };
+  }
+
+  const parsed = createSchema.safeParse({
+    title: formData.get("title"),
+    eventDate: formData.get("eventDate"),
+    description: formData.get("description"),
+  });
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  await updateMenuEvent(eventId, parsed.data);
+
+  revalidatePath(`/menus/${eventId}`);
+  revalidatePath("/menus");
+  redirect(`/menus/${eventId}`);
+}
+
+/** Admin-mode only — same split as recipe/item/don deletion. */
+export async function deleteMenuEventAction(eventId: string): Promise<void> {
+  const isAdmin = await isAdminModeActive();
+  if (!isAdmin) return;
+
+  await deleteMenuEvent(eventId);
+  revalidatePath("/menus");
+  redirect("/menus");
 }
