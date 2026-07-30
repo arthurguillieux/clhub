@@ -9,6 +9,7 @@ import { Card } from "@/core/ui/components/Card";
 import { categoryLabel } from "@/core/ui/categories";
 import { CLUB_SECTIONS } from "@/core/ui/sections";
 import { formatFrench, type CalendarDate } from "@/core/date";
+import { getLatestChangelogDay } from "@/modules/changelog/data/entries";
 
 function describeActivity(a: ActivityEntry): string {
   switch (a.kind) {
@@ -170,9 +171,10 @@ export default async function HomePage() {
   const session = await getSession();
   if (!session) return null; // guarded by (club)/layout.tsx
 
-  const [activityEntries, notifications] = await Promise.all([
+  const [activityEntries, notifications, latestChangelogDay] = await Promise.all([
     listRecentActivity(20),
     listNotifications(session.member.id, 20),
+    getLatestChangelogDay(),
   ]);
 
   return (
@@ -204,6 +206,31 @@ export default async function HomePage() {
           )}
         </div>
       </section>
+
+      {latestChangelogDay && (
+        <section className="mt-10">
+          <SectionTitle>Nouveautés</SectionTitle>
+          <Card className="mt-3 p-5">
+            <p className="text-xs font-semibold tracking-wide text-muted uppercase">
+              {formatFrench(latestChangelogDay.date as CalendarDate)}
+            </p>
+            <ul className="mt-2 flex flex-col gap-1.5 text-sm text-ink">
+              {latestChangelogDay.entries.map((entry) => (
+                <li key={entry} className="flex gap-2">
+                  <span className="text-primary">•</span>
+                  {entry}
+                </li>
+              ))}
+            </ul>
+          </Card>
+          <Link
+            href="/nouveautes"
+            className="mt-2 inline-block text-sm font-medium text-muted hover:text-ink"
+          >
+            Voir les anciennes mises à jour →
+          </Link>
+        </section>
+      )}
 
       <section className="mt-10">
         <SectionTitle>Notifications</SectionTitle>

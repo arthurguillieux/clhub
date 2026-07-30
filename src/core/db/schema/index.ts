@@ -21,3 +21,4 @@ export * from "./clubEvent";
 export * from "./donCategory";
 export * from "./donListing";
 export * from "./serverErrorLog";
+export * from "./changelog";
