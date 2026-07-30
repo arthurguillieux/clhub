@@ -5,8 +5,20 @@ import { createNotification } from "@/core/notifications";
 import { ACHIEVEMENTS } from "./catalog";
 import { computeMemberStats } from "./stats";
 
-/** Idempotent — safe to run against a fresh DB or re-run any time (drizzle-kit generate can't express seed data). */
+/**
+ * Idempotent — safe to run against a fresh DB or re-run any time
+ * (drizzle-kit generate can't express seed data). Runs on every
+ * syncMemberAchievements call (i.e. every Settings page view), so the
+ * common case — nothing changed since last request — is a single cheap
+ * SELECT rather than 14 sequential upserts. Only actually reseeds when a
+ * key is missing (the real recurring case: a new achievement shipped in
+ * catalog.ts). Editing an *existing* key's name/description/icon without
+ * changing the key itself won't be picked up by this fast path.
+ */
 export async function seedAchievementCatalog(): Promise<void> {
+  const existingKeys = new Set((await db.select({ key: achievement.key }).from(achievement)).map((r) => r.key));
+  if (ACHIEVEMENTS.every((def) => existingKeys.has(def.key))) return;
+
   for (const def of ACHIEVEMENTS) {
     await db
       .insert(achievement)
@@ -111,11 +123,13 @@ export interface CatalogEntry {
  * on every single page view for no effect.
  */
 export async function listCatalogForMember(memberId: string): Promise<CatalogEntry[]> {
-  const all = await db.select().from(achievement).orderBy(achievement.sort);
-  const unlockedRows = await db
-    .select({ key: memberAchievement.achievementKey })
-    .from(memberAchievement)
-    .where(eq(memberAchievement.memberId, memberId));
+  const [all, unlockedRows] = await Promise.all([
+    db.select().from(achievement).orderBy(achievement.sort),
+    db
+      .select({ key: memberAchievement.achievementKey })
+      .from(memberAchievement)
+      .where(eq(memberAchievement.memberId, memberId)),
+  ]);
   const unlockedKeys = new Set(unlockedRows.map((r) => r.key));
 
   return all.map((a) => {

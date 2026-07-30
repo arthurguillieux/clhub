@@ -17,14 +17,18 @@ export default async function SettingsPage() {
   const session = await getSession();
   if (!session) return null; // guarded by (club)/layout.tsx
 
-  const calendarToken = await getOrCreateCalendarToken(session.member.id);
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
-  const calendarUrl = `${appUrl}/api/ical/${calendarToken}`;
 
   // Syncing on every page view (rather than only via the nightly cron) keeps
-  // a freshly-earned badge from feeling delayed — this page is low-traffic
-  // enough that recomputing on each visit costs nothing.
-  await syncMemberAchievements(session.member.id);
+  // a freshly-earned badge from feeling delayed. calendarToken doesn't
+  // depend on achievement state, so it runs alongside the sync rather than
+  // after it.
+  const [calendarToken] = await Promise.all([
+    getOrCreateCalendarToken(session.member.id),
+    syncMemberAchievements(session.member.id),
+  ]);
+  const calendarUrl = `${appUrl}/api/ical/${calendarToken}`;
+
   const [gaugeDays, badges, catalog] = await Promise.all([
     computeGaugeDays(session.member.id),
     listUnlockedBadges(session.member.id),
