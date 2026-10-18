@@ -9,6 +9,7 @@ import { FormField, Input } from "@/core/ui/components/Field";
 import { hasKillerAccess } from "@/modules/killer/access";
 import { listGamesByHost } from "@/modules/killer/data/games";
 import { createKillerDemoAction, createKillerGameAction } from "@/app/(killer)/killer/actions";
+import { DeleteGameButton } from "./DeleteGameButton";
 import { UnlockForm } from "./UnlockForm";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
@@ -62,7 +63,7 @@ export default async function KillerHomePage() {
         <form action={createKillerDemoAction} className="mt-4 border-t border-line pt-4">
           <p className="text-sm text-muted">
             Pour voir à quoi ça ressemble : une partie « Test » avec 12 agents inventés et leurs missions, dont 2 places
-            libres pour essayer depuis ton téléphone.
+            libres pour essayer depuis ton téléphone. Elle remplace la partie Test précédente.
           </p>
           <Button type="submit" variant="ghost" className="mt-2">
             Créer une partie Test
@@ -75,16 +76,21 @@ export default async function KillerHomePage() {
           <SectionTitle>Tes parties</SectionTitle>
           <div className="mt-3 flex flex-col gap-2">
             {games.map((g) => (
-              <Card key={g.id} className="flex items-center justify-between gap-3 p-4">
-                <div>
-                  <p className="font-display font-bold text-ink">{g.title}</p>
-                  <p className="text-xs text-muted">
-                    Code {g.code} · {STATUS_LABELS[g.status] ?? g.status}
-                  </p>
+              <Card key={g.id} className="flex flex-col gap-3 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-display font-bold text-ink">{g.title}</p>
+                    <p className="text-xs text-muted">
+                      Code {g.code} · {STATUS_LABELS[g.status] ?? g.status}
+                    </p>
+                  </div>
+                  <Link href={`/killer/${g.code}/panneau`} className="-my-2.5 py-2.5 text-sm font-semibold text-primary hover:underline">
+                    Ouvrir le panneau
+                  </Link>
                 </div>
-                <Link href={`/killer/${g.code}/panneau`} className="-my-2.5 py-2.5 text-sm font-semibold text-primary hover:underline">
-                  Ouvrir le panneau
-                </Link>
+                <div>
+                  <DeleteGameButton code={g.code} title={g.title} />
+                </div>
               </Card>
             ))}
           </div>

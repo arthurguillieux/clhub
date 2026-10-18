@@ -45,7 +45,7 @@ export function PlayerScreen({ code }: { code: string }) {
     setToken(null);
   }
 
-  if (gone) return <Shell><Centered title="Partie introuvable" text="Cette partie n'existe plus." /></Shell>;
+  if (gone) return <Shell><Centered title="Partie supprimée" text="Cette partie n'existe plus." /></Shell>;
   if (!data) return <Shell><Centered title="" text="Connexion…" /></Shell>;
 
   const me = token && "me" in data ? data.me : null;

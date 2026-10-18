@@ -118,10 +118,23 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
       onConfirm: () => void send({ type: "reset" }),
     });
 
+  const askDelete = () =>
+    setDialog({
+      title: "Supprimer la partie ?",
+      detail:
+        view.status === "running"
+          ? "La partie en cours s'arrête : la TV et les téléphones affichent « Partie supprimée ». Les agents, leurs photos et l'historique sont effacés définitivement."
+          : "Les agents, leurs photos et l'historique sont effacés définitivement.",
+      confirmLabel: "Supprimer la partie et les photos",
+      cancelLabel: "Garder la partie",
+      danger: true,
+      onConfirm: () => void deleteKillerGameAction(code),
+    });
+
   const askRemovePhoto = (t: HostTribute) =>
     setDialog({
       title: `Supprimer la photo de ${t.name} ?`,
-      detail: "Son téléphone lui proposera aussitôt d'en prendre une nouvelle. En attendant, la TV affiche l'initiale de son prénom.",
+      detail: "Son téléphone lui proposera aussitôt d'en prendre une nouvelle. En attendant, la TV affiche un androïde à la visière éteinte.",
       confirmLabel: `Supprimer la photo de ${t.name}`,
       cancelLabel: "Garder la photo",
       danger: true,
@@ -168,6 +181,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
             await send({ type: "shuffle" });
           }}
           onRemovePhoto={askRemovePhoto}
+          onDelete={askDelete}
           onRelease={(t) =>
             setDialog({
               title: `Libérer la place de ${t.name} ?`,
@@ -233,6 +247,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
           onRemovePhoto={askRemovePhoto}
           onAdd={(name, mission, afterId) => send({ type: "add", name, mission, afterId })}
           onReset={askReset}
+          onDelete={askDelete}
           onEnd={() =>
             setDialog({
               title: "Terminer la partie maintenant ?",
@@ -279,22 +294,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
           <button type="button" className="killer-btn-ghost min-h-12 px-4" onClick={askReset}>
             ✎ Revenir à la préparation (modifier, rejouer)
           </button>
-          <button
-            type="button"
-            className="killer-btn-ghost min-h-12 px-4 text-[var(--k-muted)]"
-            onClick={() =>
-              setDialog({
-                title: "Supprimer la partie ?",
-                detail: "Les agents, leurs photos et l'historique sont effacés définitivement.",
-                confirmLabel: "Supprimer la partie et les photos",
-                cancelLabel: "Garder la partie",
-                danger: true,
-                onConfirm: () => void deleteKillerGameAction(code),
-              })
-            }
-          >
-            Supprimer la partie (photos comprises)
-          </button>
+          <DeleteGameButton onClick={askDelete} />
         </section>
       )}
 
@@ -308,6 +308,14 @@ function Shell({ children }: { children: React.ReactNode }) {
     <main className="killer min-h-dvh px-4 pt-5 pb-28">
       <div className="mx-auto flex max-w-xl flex-col">{children}</div>
     </main>
+  );
+}
+
+function DeleteGameButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="killer-btn-ghost min-h-12 px-4 text-[var(--k-alert)]" onClick={onClick}>
+      Supprimer la partie (photos comprises)
+    </button>
   );
 }
 
@@ -332,6 +340,7 @@ function LobbyEditor({
   onShuffle,
   onRelease,
   onRemovePhoto,
+  onDelete,
   onStart,
 }: {
   code: string;
@@ -347,6 +356,7 @@ function LobbyEditor({
   onShuffle: () => void;
   onRelease: (t: HostTribute) => void;
   onRemovePhoto: (t: HostTribute) => void;
+  onDelete: () => void;
   onStart: () => void;
 }) {
   const move = (i: number, delta: number) => {
@@ -463,6 +473,8 @@ function LobbyEditor({
         </div>
       )}
 
+      <DeleteGameButton onClick={onDelete} />
+
       <div className="fixed inset-x-0 bottom-0 z-40 killer-bar px-4 py-3">
         <div className="mx-auto flex max-w-xl flex-col gap-2">
           {dirty ? (
@@ -495,6 +507,7 @@ function RunningPanel({
   onRemovePhoto,
   onAdd,
   onReset,
+  onDelete,
   onEnd,
 }: {
   code: string;
@@ -508,6 +521,7 @@ function RunningPanel({
   onRemovePhoto: (t: HostTribute) => void;
   onAdd: (name: string, mission: string, afterId: string | null) => Promise<HostGameView | null>;
   onReset: () => void;
+  onDelete: () => void;
   onEnd: () => void;
 }) {
   const alive = view.tributes.filter((t) => t.alive);
@@ -634,6 +648,7 @@ function RunningPanel({
       <button type="button" disabled={busy} className="killer-btn-ghost min-h-12 px-4 text-[var(--k-muted)]" onClick={onEnd}>
         Terminer la partie
       </button>
+      <DeleteGameButton onClick={onDelete} />
     </section>
   );
 }

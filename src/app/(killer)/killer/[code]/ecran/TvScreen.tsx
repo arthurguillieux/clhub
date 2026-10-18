@@ -36,7 +36,7 @@ function useWindowSize() {
 }
 
 export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; initialView: PublicGameView; qrSvg: string; joinUrl: string }) {
-  const { data } = useLongPoll<PublicGameView>(`/api/killer/${code}/poll`, initialView);
+  const { data, gone } = useLongPoll<PublicGameView>(`/api/killer/${code}/poll`, initialView);
   const view = data ?? initialView;
   const audio = useRef<AudioContext | null>(null);
   const [soundOn, setSoundOn] = useState(false);
@@ -72,9 +72,19 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
       <LabRoom />
       <Particles density={50} variant="motes" />
       <div className="relative flex h-full flex-col px-[3vw] py-[3vh]">
-        {view.status === "lobby" && <Lobby code={code} view={view} qrSvg={qrSvg} joinUrl={joinUrl} />}
-        {view.status === "running" && <Arena code={code} view={view} />}
-        {view.status === "ended" && <Wrapped code={code} view={view} />}
+        {gone && (
+          <div className="m-auto text-center">
+            <p className="killer-label" style={{ fontSize: "min(1.6vw, 2.8vh)" }}>
+              Fin de transmission
+            </p>
+            <p className="killer-title mt-[2vh]" style={{ fontSize: "min(4.4vw, 8vh)" }}>
+              Partie supprimée
+            </p>
+          </div>
+        )}
+        {!gone && view.status === "lobby" && <Lobby code={code} view={view} qrSvg={qrSvg} joinUrl={joinUrl} />}
+        {!gone && view.status === "running" && <Arena code={code} view={view} />}
+        {!gone && view.status === "ended" && <Wrapped code={code} view={view} />}
       </div>
 
       {fall && <FallOverlay key={fall.at} code={code} fall={fall} remaining={view.aliveCount} />}
