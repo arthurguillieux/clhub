@@ -106,6 +106,51 @@ body {
   box-shadow: 0 0 18px color-mix(in srgb, var(--admin) 45%, transparent);
 }
 
+/*
+ * Buzzer (jeux/buzzer): the pad pulses a halo in its team's colour while it's
+ * live — `currentColor` is set inline to that colour — and team chips /
+ * the buzzing team's animal pop in.
+ */
+@keyframes buzzer-pulse {
+  50% {
+    box-shadow: 0 0 0 6px #2e2e3d, 0 0 50px 14px currentColor;
+  }
+}
+.buzzer-live {
+  animation: buzzer-pulse 1.4s ease-in-out infinite;
+}
+@keyframes buzzer-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.buzzer-pop {
+  animation: buzzer-pop 0.35s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes buzzer-bounce {
+  from {
+    transform: scale(0.3) rotate(-14deg);
+  }
+  to {
+    transform: scale(1) rotate(0);
+  }
+}
+.buzzer-bounce {
+  animation: buzzer-bounce 0.5s cubic-bezier(0.3, 1.7, 0.5, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .buzzer-live,
+  .buzzer-pop,
+  .buzzer-bounce {
+    animation: none;
+  }
+}
+
 @keyframes egg-pop {
   0% {
     opacity: 0;

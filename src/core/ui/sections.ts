@@ -43,7 +43,7 @@ export const CLUB_SECTIONS: ClubSection[] = [
   },
   {
     name: "Jeux",
-    description: "Compteur de points et lancer de dés pour vos soirées jeux.",
+    description: "Compteur de points, dés et buzzer pour vos soirées jeux.",
     href: "/jeux",
     live: true,
   },

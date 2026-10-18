@@ -16,6 +16,12 @@ const TOOLS = [
     name: "Lancer de dés",
     description: "d4 à d100, un ou plusieurs à la fois.",
   },
+  {
+    href: "/jeux/buzzer",
+    icon: "🔔",
+    name: "Buzzer",
+    description: "Un QR code à scanner, et chaque téléphone devient un buzzer pour vos quizz.",
+  },
 ];
 
 export default function JeuxPage() {
