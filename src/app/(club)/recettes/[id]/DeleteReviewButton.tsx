@@ -1,41 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { ConfirmDeleteButton } from "@/core/ui/components/ConfirmDeleteButton";
 import { deleteReviewAction } from "../actions";
 
 export function DeleteReviewButton({ recipeId, memberId }: { recipeId: string; memberId: string }) {
-  const [confirming, setConfirming] = useState(false);
-  const [pending, startTransition] = useTransition();
-
-  if (!confirming) {
-    return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className="text-xs text-muted underline underline-offset-2 hover:text-red-600 dark:hover:text-red-400"
-      >
-        Supprimer
-      </button>
-    );
-  }
-
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs">
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => startTransition(() => deleteReviewAction(recipeId, memberId))}
-        className="font-semibold text-red-600 hover:underline dark:text-red-400"
-      >
-        {pending ? "..." : "Confirmer"}
-      </button>
-      <button
-        type="button"
-        onClick={() => setConfirming(false)}
-        className="text-muted underline underline-offset-2 hover:text-ink"
-      >
-        Annuler
-      </button>
-    </span>
+    <ConfirmDeleteButton
+      quiet
+      question="Supprimer cet avis ?"
+      confirmLabel="Supprimer l'avis"
+      keepLabel="Garder l'avis"
+      onConfirm={() => deleteReviewAction(recipeId, memberId)}
+    />
   );
 }

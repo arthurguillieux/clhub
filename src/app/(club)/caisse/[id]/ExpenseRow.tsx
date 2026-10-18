@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/core/ui/components/Button";
+import { ConfirmDeleteButton } from "@/core/ui/components/ConfirmDeleteButton";
 import { FormField, Input, Select } from "@/core/ui/components/Field";
 import { Card } from "@/core/ui/components/Card";
 import { updateExpenseAction, deleteExpenseAction, type UpdateExpenseState } from "../actions";
@@ -37,7 +38,6 @@ export function ExpenseRow({
   const [editing, setEditing] = useState(false);
   const action = updateExpenseAction.bind(null, expense.id, eventId);
   const [state, formAction, pending] = useActionState(action, initialState);
-  const [deletePending, startDeleteTransition] = useTransition();
 
   // Close the edit form once the action reports success — an update, not a
   // subscription, so it happens during render rather than in an effect.
@@ -95,31 +95,29 @@ export function ExpenseRow({
   }
 
   return (
-    <Card className="flex items-center justify-between gap-3 p-3">
+    <Card className="flex flex-wrap items-center justify-between gap-3 p-3">
       <div>
         <p className="text-sm font-semibold text-ink">{expense.description}</p>
         <p className="text-xs text-muted">Payé par {expense.paidByName}</p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <p className="font-mono text-sm font-semibold tabular-nums text-ink">{euros(expense.amountCents)}</p>
         {canManage && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="text-xs font-semibold text-primary hover:underline"
+              className="-mx-1.5 -my-2.5 px-1.5 py-2.5 text-xs font-semibold text-primary hover:underline"
             >
               Modifier
             </button>
             {isAdmin && (
-              <button
-                type="button"
-                disabled={deletePending}
-                onClick={() => startDeleteTransition(() => deleteExpenseAction(expense.id, eventId))}
-                className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
-              >
-                {deletePending ? "..." : "Supprimer"}
-              </button>
+              <ConfirmDeleteButton
+                question={`Supprimer la dépense « ${expense.description} » ?`}
+                confirmLabel="Supprimer la dépense"
+                keepLabel="Garder la dépense"
+                onConfirm={() => deleteExpenseAction(expense.id, eventId)}
+              />
             )}
           </div>
         )}

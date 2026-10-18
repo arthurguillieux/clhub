@@ -24,7 +24,7 @@ export function SectionsMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="true"
-        className="flex items-center gap-1 text-sm font-medium text-muted hover:text-ink"
+        className="-mx-1 -my-2.5 flex items-center gap-1 px-1 py-2.5 text-sm font-medium text-muted hover:text-ink"
       >
         Sections
         <span aria-hidden="true" className="text-xs">▾</span>
@@ -38,7 +38,7 @@ export function SectionsMenu() {
                 key={section.name}
                 href={section.href}
                 onClick={() => setOpen(false)}
-                className="block rounded-md px-3 py-2 text-sm text-ink hover:bg-surface"
+                className="block rounded-md px-3 py-2.5 text-sm text-ink hover:bg-surface"
               >
                 {section.name}
               </Link>

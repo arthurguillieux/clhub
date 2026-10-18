@@ -40,15 +40,16 @@ export default async function DonsPage({
       </div>
 
       {categories.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-4 text-sm font-medium">
-          <Link href="/dons" className={!category ? "text-primary" : "text-muted hover:text-ink"}>
+        // Real vertical padding (not just a bigger invisible area): the links wrap onto several lines, and each needs its own thumb-sized row.
+        <div className="mt-1.5 flex flex-wrap gap-x-4 text-sm font-medium">
+          <Link href="/dons" className={`-mx-1 px-1 py-2.5 ${!category ? "text-primary" : "text-muted hover:text-ink"}`}>
             Tout
           </Link>
           {categories.map((c) => (
             <Link
               key={c.id}
               href={`/dons?category=${c.id}`}
-              className={category?.id === c.id ? "text-primary" : "text-muted hover:text-ink"}
+              className={`-mx-1 px-1 py-2.5 ${category?.id === c.id ? "text-primary" : "text-muted hover:text-ink"}`}
             >
               {c.name}
             </Link>
@@ -57,11 +58,11 @@ export default async function DonsPage({
       )}
 
       {listings.length === 0 ? (
-        <p className="mt-8 text-sm text-muted">
+        <p className="mt-6 text-sm text-muted">
           {category ? `Rien en "${category.name}" pour l'instant.` : "Rien à proposer pour l'instant."}
         </p>
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-3.5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {listings.map((l) => (
             <Link key={l.id} href={`/dons/${l.id}`}>
               <Card className="h-full overflow-hidden transition-shadow hover:shadow-md">

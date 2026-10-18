@@ -9,6 +9,7 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { LinkButton } from "@/core/ui/components/Button";
+import { ActionLink } from "@/core/ui/components/ActionLink";
 import { DeleteClubEventButton } from "./DeleteClubEventButton";
 
 const MONTH_NAMES = [
@@ -152,7 +153,7 @@ export default async function AgendaPage({
               {monthEvents.map((event) => {
                 const canManage = isAdmin || event.createdById === session.member.id;
                 return (
-                  <li key={event.id} className="flex items-start justify-between gap-3 text-sm">
+                  <li key={event.id} className="flex flex-wrap items-start justify-between gap-3 text-sm">
                     <div>
                       <p className="font-semibold text-ink">
                         {event.title}
@@ -167,13 +168,8 @@ export default async function AgendaPage({
                       <p className="mt-0.5 text-xs text-muted">Ajouté par {event.authorName}</p>
                     </div>
                     {canManage && (
-                      <div className="flex shrink-0 items-center gap-3">
-                        <Link
-                          href={`/agenda/${event.id}/edit`}
-                          className="text-xs font-semibold text-primary hover:underline"
-                        >
-                          Modifier
-                        </Link>
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-3">
+                        <ActionLink href={`/agenda/${event.id}/edit`}>Modifier</ActionLink>
                         <DeleteClubEventButton eventId={event.id} title={event.title} />
                       </div>
                     )}

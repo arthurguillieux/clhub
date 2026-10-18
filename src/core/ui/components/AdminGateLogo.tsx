@@ -40,7 +40,7 @@ export function AdminGateLogo() {
       <Link
         href="/"
         onClick={handleClick}
-        className="font-display text-lg font-extrabold tracking-tight text-ink"
+        className="-mx-2 -my-3 px-2 py-3 font-display text-lg font-extrabold tracking-tight whitespace-nowrap text-ink"
       >
         LE CL<span className="glow-text-primary text-primary">HUB</span>
       </Link>

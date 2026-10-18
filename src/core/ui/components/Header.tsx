@@ -28,14 +28,15 @@ export async function Header({ user }: { user: HeaderUser }) {
         <AdminGateLogo />
 
         <nav className="flex items-center gap-5">
-          <Link href="/membres" className="text-sm font-medium text-muted hover:text-ink">
+          <Link href="/membres" className="-mx-1 -my-2.5 px-1 py-2.5 text-sm font-medium text-muted hover:text-ink">
             Membres
           </Link>
           <SectionsMenu />
           {isAdmin && (
+            // The after: layer is an invisible, larger tap area — the pill itself keeps its look.
             <Link
               href="/admin"
-              className="glow-box-admin rounded-full border border-admin/60 bg-admin/15 px-3 py-1 text-xs font-bold tracking-wide text-admin uppercase hover:bg-admin/25"
+              className="glow-box-admin relative rounded-full border border-admin/60 bg-admin/15 px-3 py-1 text-xs font-bold tracking-wide text-admin uppercase after:absolute after:-inset-x-1 after:-inset-y-2.5 after:content-[''] hover:bg-admin/25"
             >
               Admin
             </Link>

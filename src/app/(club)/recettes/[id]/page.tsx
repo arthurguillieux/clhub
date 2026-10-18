@@ -9,6 +9,7 @@ import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { Badge } from "@/core/ui/components/Badge";
 import { StarRating } from "@/core/ui/components/StarRating";
+import { ActionLink } from "@/core/ui/components/ActionLink";
 import { ReviewForm } from "./ReviewForm";
 import { DeleteRecipeButton } from "./DeleteRecipeButton";
 import { DeleteReviewButton } from "./DeleteReviewButton";
@@ -46,13 +47,8 @@ export default async function RecipeDetailPage({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <PageTitle>{r.title}</PageTitle>
           {canManage && (
-            <div className="flex shrink-0 items-center gap-3 pt-1">
-              <Link
-                href={`/recettes/${r.id}/edit`}
-                className="text-xs font-semibold text-primary hover:underline"
-              >
-                Modifier
-              </Link>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 pt-1">
+              <ActionLink href={`/recettes/${r.id}/edit`}>Modifier</ActionLink>
               {isAdmin && <DeleteRecipeButton recipeId={r.id} title={r.title} />}
             </div>
           )}
@@ -115,9 +111,9 @@ export default async function RecipeDetailPage({
           <div className="mt-3 flex flex-col gap-2">
             {r.reviews.map((rev) => (
               <Card key={rev.memberId} className="p-4">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-ink">{rev.memberName}</p>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-x-3">
                     <StarRating value={rev.rating} />
                     {isAdmin && (
                       <DeleteReviewButton recipeId={r.id} memberId={rev.memberId} />

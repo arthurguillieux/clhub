@@ -46,27 +46,28 @@ export default async function RecettesPage({
         </LinkButton>
       </div>
 
-      <div className="mt-4 flex gap-4 text-sm font-medium">
+      {/* Real vertical padding rather than an invisible tap area: these rows sit right under each other and wrap, so each link needs its own thumb-sized row. */}
+      <div className="mt-1.5 flex gap-4 text-sm font-medium">
         {SORTS.map((s) => (
           <Link
             key={s.value}
             href={buildHref(s.value, diet)}
-            className={sort === s.value ? "text-primary" : "text-muted hover:text-ink"}
+            className={`-mx-1 px-1 py-2.5 ${sort === s.value ? "text-primary" : "text-muted hover:text-ink"}`}
           >
             {s.label}
           </Link>
         ))}
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-3 text-xs">
-        <Link href={buildHref(sort)} className={!diet ? "text-primary" : "text-muted hover:text-ink"}>
+      <div className="flex flex-wrap gap-x-3 text-xs">
+        <Link href={buildHref(sort)} className={`-mx-1 px-1 py-3 ${!diet ? "text-primary" : "text-muted hover:text-ink"}`}>
           Tous régimes
         </Link>
         {DIETARY_TAGS.map((tag) => (
           <Link
             key={tag}
             href={buildHref(sort, tag)}
-            className={diet === tag ? "text-primary" : "text-muted hover:text-ink"}
+            className={`-mx-1 px-1 py-3 ${diet === tag ? "text-primary" : "text-muted hover:text-ink"}`}
           >
             {dietaryTagLabel(tag)}
           </Link>
@@ -74,11 +75,11 @@ export default async function RecettesPage({
       </div>
 
       {recipes.length === 0 ? (
-        <p className="mt-8 text-sm text-muted">
+        <p className="mt-5 text-sm text-muted">
           {diet ? `Rien en "${dietaryTagLabel(diet)}" pour l'instant.` : "Le carnet est encore vide."}
         </p>
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {recipes.map((r) => {
             const tags = parseDietaryTags(r.dietaryTags);
             return (

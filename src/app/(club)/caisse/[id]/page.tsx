@@ -7,6 +7,7 @@ import { applySettlements, suggestTransfers } from "@/modules/caisse/domain/sett
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
+import { ActionLink } from "@/core/ui/components/ActionLink";
 import { AddExpenseForm } from "./AddExpenseForm";
 import { RecordSettlementForm } from "./RecordSettlementForm";
 import { QuickSettleButton } from "./QuickSettleButton";
@@ -53,10 +54,8 @@ export default async function ExpenseEventPage({ params }: { params: Promise<{ i
         <div className="flex flex-wrap items-center gap-3">
           <PageTitle>{detail.event.name}</PageTitle>
           {canManage && (
-            <div className="flex items-center gap-3">
-              <Link href={`/caisse/${id}/edit`} className="text-xs font-semibold text-primary hover:underline">
-                Modifier
-              </Link>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3">
+              <ActionLink href={`/caisse/${id}/edit`}>Modifier</ActionLink>
               {isAdmin && <DeleteEventButton eventId={id} name={detail.event.name} />}
             </div>
           )}
@@ -158,13 +157,15 @@ export default async function ExpenseEventPage({ params }: { params: Promise<{ i
         {detail.settlements.length > 0 && (
           <div className="mt-3 flex flex-col gap-2">
             {detail.settlements.map((s) => (
-              <Card key={s.id} className="flex items-center justify-between gap-3 p-3 text-sm">
+              <Card key={s.id} className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
                 <p className="text-ink">
                   {s.fromName} → {s.toName}
                 </p>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-x-3">
                   <p className="font-mono font-semibold tabular-nums text-ink">{euros(s.amountCents)}</p>
-                  {isAdmin && <DeleteSettlementButton settlementId={s.id} eventId={id} />}
+                  {isAdmin && (
+                    <DeleteSettlementButton settlementId={s.id} eventId={id} summary={`${s.fromName} → ${s.toName}`} />
+                  )}
                 </div>
               </Card>
             ))}

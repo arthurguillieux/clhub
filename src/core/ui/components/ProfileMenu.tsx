@@ -37,7 +37,7 @@ export function ProfileMenu({ user }: { user: HeaderUser }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="true"
-        className="flex items-center gap-2 rounded-full border border-line-soft py-1 pr-3 pl-1 text-sm text-ink transition-colors hover:border-primary/50 hover:bg-surface-raised"
+        className="relative flex items-center gap-2 rounded-full border border-line-soft py-1 pr-3 pl-1 text-sm text-ink transition-colors after:absolute after:-inset-y-1.5 after:inset-x-0 after:content-[''] hover:border-primary/50 hover:bg-surface-raised"
       >
         {user.image ? (
           // eslint-disable-next-line @next/next/no-img-element -- small avatar thumbnail
@@ -55,21 +55,21 @@ export function ProfileMenu({ user }: { user: HeaderUser }) {
           <Link
             href="/settings"
             onClick={() => setOpen(false)}
-            className="block rounded-md px-3 py-2 text-sm text-ink hover:bg-surface"
+            className="block rounded-md px-3 py-2.5 text-sm text-ink hover:bg-surface"
           >
             Réglages
           </Link>
           <Link
             href="/pretotheque/mine"
             onClick={() => setOpen(false)}
-            className="block rounded-md px-3 py-2 text-sm text-ink hover:bg-surface"
+            className="block rounded-md px-3 py-2.5 text-sm text-ink hover:bg-surface"
           >
             Mon activité
           </Link>
           <Link
             href="/invite"
             onClick={() => setOpen(false)}
-            className="block rounded-md px-3 py-2 text-sm text-ink hover:bg-surface"
+            className="block rounded-md px-3 py-2.5 text-sm text-ink hover:bg-surface"
           >
             Inviter
           </Link>
@@ -77,7 +77,7 @@ export function ProfileMenu({ user }: { user: HeaderUser }) {
           <button
             type="button"
             onClick={handleSignOut}
-            className="block w-full rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-surface dark:text-red-400"
+            className="block w-full rounded-md px-3 py-2.5 text-left text-sm text-red-600 hover:bg-surface dark:text-red-400"
           >
             Se déconnecter
           </button>

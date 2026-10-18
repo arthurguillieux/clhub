@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getSession } from "@/core/auth/session";
 import { isAdminModeActive } from "@/core/auth/admin";
 import { getMenuEventDetail, getMyResponse } from "@/modules/menus/data/menuEvents";
@@ -7,6 +6,7 @@ import { parseDietaryTags, dietaryTagLabel } from "@/core/dietaryTags";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
+import { ActionLink } from "@/core/ui/components/ActionLink";
 import { formatFrench, type CalendarDate } from "@/core/date";
 import { ResponseForm } from "./ResponseForm";
 import { DeleteMenuEventButton } from "./DeleteMenuEventButton";
@@ -50,10 +50,8 @@ export default async function MenuEventPage({ params }: { params: Promise<{ id: 
       <div className="flex flex-wrap items-start justify-between gap-2">
         <PageTitle>{event.title}</PageTitle>
         {canManage && (
-          <div className="flex shrink-0 items-center gap-3 pt-1">
-            <Link href={`/menus/${event.id}/edit`} className="text-xs font-semibold text-primary hover:underline">
-              Modifier
-            </Link>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 pt-1">
+            <ActionLink href={`/menus/${event.id}/edit`}>Modifier</ActionLink>
             {isAdmin && <DeleteMenuEventButton eventId={event.id} title={event.title} />}
           </div>
         )}

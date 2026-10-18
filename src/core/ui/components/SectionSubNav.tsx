@@ -21,7 +21,8 @@ export function SectionSubNav({ items }: { items: SectionSubNavItem[] }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`whitespace-nowrap ${active ? "text-primary" : "text-muted hover:text-ink"}`}
+              // -my/py cancel out: the bar keeps its height, the tap area fills it.
+              className={`-my-2.5 whitespace-nowrap py-2.5 ${active ? "text-primary" : "text-muted hover:text-ink"}`}
             >
               {item.label}
             </Link>

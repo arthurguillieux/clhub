@@ -10,6 +10,10 @@ import { categoryLabel } from "@/core/ui/categories";
 import { CLUB_SECTIONS } from "@/core/ui/sections";
 import { formatFrench, type CalendarDate } from "@/core/date";
 import { getLatestChangelogDay } from "@/modules/changelog/data/entries";
+import { RelativeTime } from "@/core/ui/components/RelativeTime";
+import { markAllNotificationsReadAction } from "./actions";
+
+const RECENT_ACTIVITY_SHOWN = 3;
 
 function describeActivity(a: ActivityEntry): string {
   switch (a.kind) {
@@ -181,6 +185,10 @@ export default async function HomePage() {
     listNotifications(session.member.id, 20),
     getLatestChangelogDay(),
   ]);
+  const unreadNotifications = notifications.filter((n) => !n.readAt);
+  const readNotifications = notifications.filter((n) => n.readAt);
+  const recentActivity = activityEntries.slice(0, RECENT_ACTIVITY_SHOWN);
+  const olderActivity = activityEntries.slice(RECENT_ACTIVITY_SHOWN);
 
   return (
     <Container>
@@ -230,49 +238,105 @@ export default async function HomePage() {
           </Card>
           <Link
             href="/nouveautes"
-            className="mt-2 inline-block text-sm font-medium text-muted hover:text-ink"
+            className="inline-block py-2.5 text-sm font-medium text-muted hover:text-ink"
           >
             Voir les anciennes mises à jour →
           </Link>
         </section>
       )}
 
+      {/* What needs you comes first: unread notifications, with a way to clear them. Already-read ones fold away. */}
       <section className="mt-10">
-        <SectionTitle>Notifications</SectionTitle>
-        {notifications.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">Rien pour l&apos;instant.</p>
+        <div className="flex items-center justify-between gap-3">
+          <SectionTitle>Notifications</SectionTitle>
+          {unreadNotifications.length > 0 && (
+            <form action={markAllNotificationsReadAction}>
+              <button type="submit" className="-my-2.5 py-2.5 text-xs font-semibold text-primary hover:underline">
+                Tout marquer comme lu
+              </button>
+            </form>
+          )}
+        </div>
+        {unreadNotifications.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">Rien de nouveau.</p>
         ) : (
           <Card className="mt-3 divide-y divide-line-soft">
-            {notifications.map((n) => (
-              <div key={n.id} className="flex items-start gap-3 px-4 py-3 text-sm">
-                {!n.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />}
-                <div className={!n.readAt ? "" : "pl-5"}>
-                  <p className="text-ink">{describeNotification(n)}</p>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {n.createdAt.toLocaleString("fr-FR")}
-                  </p>
-                </div>
-              </div>
+            {unreadNotifications.map((n) => (
+              <NotificationRow key={n.id} notification={n} />
             ))}
           </Card>
         )}
+        {readNotifications.length > 0 && (
+          <FoldedList label={`Déjà lues (${readNotifications.length})`}>
+            {readNotifications.map((n) => (
+              <NotificationRow key={n.id} notification={n} />
+            ))}
+          </FoldedList>
+        )}
       </section>
 
+      {/* The latest few stay visible so the club feels alive; the rest is one tap away. */}
       <section className="mt-10">
         <SectionTitle>Activité du club</SectionTitle>
-        <Card className="mt-3 divide-y divide-line-soft">
-          {activityEntries.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-muted">Rien pour l&apos;instant.</p>
-          ) : (
-            activityEntries.map((a) => (
-              <div key={a.id} className="px-4 py-3 text-sm">
-                <p className="text-ink">{describeActivity(a)}</p>
-                <p className="mt-0.5 text-xs text-muted">{a.createdAt.toLocaleString("fr-FR")}</p>
-              </div>
-            ))
-          )}
-        </Card>
+        {activityEntries.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">Rien pour l&apos;instant.</p>
+        ) : (
+          <>
+            <Card className="mt-3 divide-y divide-line-soft">
+              {recentActivity.map((a) => (
+                <ActivityRow key={a.id} entry={a} />
+              ))}
+            </Card>
+            {olderActivity.length > 0 && (
+              <FoldedList label={`Voir les ${olderActivity.length} autres`}>
+                {olderActivity.map((a) => (
+                  <ActivityRow key={a.id} entry={a} />
+                ))}
+              </FoldedList>
+            )}
+          </>
+        )}
       </section>
     </Container>
+  );
+}
+
+function NotificationRow({ notification: n }: { notification: Notification }) {
+  return (
+    <div className="flex items-start gap-3 px-4 py-3 text-sm">
+      {!n.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />}
+      <div className={n.readAt ? "pl-5" : ""}>
+        <p className={n.readAt ? "text-muted" : "text-ink"}>{describeNotification(n)}</p>
+        <p className="mt-0.5 text-xs text-muted">
+          <RelativeTime date={n.createdAt} />
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ActivityRow({ entry: a }: { entry: ActivityEntry }) {
+  return (
+    <div className="px-4 py-3 text-sm">
+      <p className="text-ink">{describeActivity(a)}</p>
+      <p className="mt-0.5 text-xs text-muted">
+        <RelativeTime date={a.createdAt} />
+      </p>
+    </div>
+  );
+}
+
+/** Native <details>: no script, keyboard-accessible, and the summary reads as one clear control. */
+function FoldedList({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <details className="group mt-1">
+      <summary className="-mx-1 flex cursor-pointer list-none items-center gap-2 px-1 py-2.5 text-sm font-medium text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
+        <span aria-hidden="true" className="text-xs transition-transform group-open:rotate-90">
+          ▸
+        </span>
+        {label}
+      </summary>
+      <Card className="divide-y divide-line-soft">{children}</Card>
+    </details>
   );
 }

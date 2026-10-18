@@ -44,3 +44,10 @@ export async function countUnreadNotifications(memberId: string): Promise<number
 export async function markNotificationRead(id: string): Promise<void> {
   await db.update(notification).set({ readAt: new Date() }).where(eq(notification.id, id));
 }
+
+export async function markAllNotificationsRead(memberId: string): Promise<void> {
+  await db
+    .update(notification)
+    .set({ readAt: new Date() })
+    .where(and(eq(notification.memberId, memberId), isNull(notification.readAt)));
+}

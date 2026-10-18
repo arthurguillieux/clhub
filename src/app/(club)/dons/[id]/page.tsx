@@ -6,6 +6,7 @@ import { getListingDetail } from "@/modules/dons/data/listings";
 import { Container } from "@/core/ui/components/Container";
 import { Card } from "@/core/ui/components/Card";
 import { Badge } from "@/core/ui/components/Badge";
+import { ActionLink } from "@/core/ui/components/ActionLink";
 import { DeleteListingButton } from "./DeleteListingButton";
 import { InterestButton } from "./InterestButton";
 import { OwnerControls } from "./OwnerControls";
@@ -55,13 +56,8 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
               )}
             </div>
             {canManage && listing.status !== "completed" && (
-              <div className="flex shrink-0 items-center gap-3">
-                <Link
-                  href={`/dons/${listing.id}/edit`}
-                  className="text-xs font-semibold text-primary hover:underline"
-                >
-                  Modifier
-                </Link>
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3">
+                <ActionLink href={`/dons/${listing.id}/edit`}>Modifier</ActionLink>
                 {isAdmin && <DeleteListingButton listingId={listing.id} title={listing.title} />}
               </div>
             )}

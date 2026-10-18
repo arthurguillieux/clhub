@@ -1,19 +1,24 @@
 "use client";
 
-import { useTransition } from "react";
+import { ConfirmDeleteButton } from "@/core/ui/components/ConfirmDeleteButton";
 import { deleteSettlementAction } from "../actions";
 
-export function DeleteSettlementButton({ settlementId, eventId }: { settlementId: string; eventId: string }) {
-  const [pending, startTransition] = useTransition();
-
+/** `summary` is the row's own wording (« Kazya → Arthur ») so the question names exactly what's at stake. */
+export function DeleteSettlementButton({
+  settlementId,
+  eventId,
+  summary,
+}: {
+  settlementId: string;
+  eventId: string;
+  summary: string;
+}) {
   return (
-    <button
-      type="button"
-      disabled={pending}
-      onClick={() => startTransition(() => deleteSettlementAction(settlementId, eventId))}
-      className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
-    >
-      {pending ? "..." : "Supprimer"}
-    </button>
+    <ConfirmDeleteButton
+      question={`Supprimer le remboursement ${summary} ? Les soldes seront recalculés.`}
+      confirmLabel="Supprimer le remboursement"
+      keepLabel="Garder le remboursement"
+      onConfirm={() => deleteSettlementAction(settlementId, eventId)}
+    />
   );
 }

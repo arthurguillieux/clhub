@@ -12,6 +12,7 @@ import Link from "next/link";
 import { Container } from "@/core/ui/components/Container";
 import { Card } from "@/core/ui/components/Card";
 import { Badge } from "@/core/ui/components/Badge";
+import { ActionLink } from "@/core/ui/components/ActionLink";
 import { SectionTitle } from "@/core/ui/components/Heading";
 import { CATEGORY_BG, categoryLabel, itemStatusLabel } from "@/core/ui/categories";
 import { BookingWidget } from "./BookingWidget";
@@ -97,13 +98,8 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
               )}
             </div>
             {canManage && (
-              <div className="flex items-center gap-3">
-                <Link
-                  href={`/pretotheque/${item.slug}/edit`}
-                  className="text-xs font-semibold text-primary hover:underline"
-                >
-                  Modifier
-                </Link>
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3">
+                <ActionLink href={`/pretotheque/${item.slug}/edit`}>Modifier</ActionLink>
                 {isAdmin && <DeleteItemButton itemId={item.id} name={item.name} redirectTo="/pretotheque" />}
               </div>
             )}
@@ -282,7 +278,7 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
               {comments.map((c) => (
                 <li key={c.id} className="border-b border-line-soft pb-4 last:border-0 last:pb-0">
                   <p className="text-sm text-ink whitespace-pre-wrap">{c.body}</p>
-                  <div className="mt-1 flex items-center gap-3">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3">
                     <p className="text-xs text-muted">
                       {c.authorName} — {c.createdAt.toLocaleDateString("fr-FR")}
                     </p>

@@ -28,7 +28,7 @@ export default async function PretothequePage({
         <div className="flex items-center gap-3">
           <Link
             href="/pretotheque/etiquettes"
-            className="text-sm font-semibold text-primary underline underline-offset-2"
+            className="-mx-1 -my-2.5 px-1 py-2.5 text-sm font-semibold text-primary underline underline-offset-2"
           >
             Étiquettes
           </Link>
@@ -38,15 +38,16 @@ export default async function PretothequePage({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-4 text-sm font-medium">
-        <Link href="/pretotheque" className={!category ? "text-primary" : "text-muted hover:text-ink"}>
+      {/* Real vertical padding: the links wrap onto several lines, and each needs its own thumb-sized row. */}
+      <div className="mt-1.5 flex flex-wrap gap-x-4 text-sm font-medium">
+        <Link href="/pretotheque" className={`-mx-1 px-1 py-2.5 ${!category ? "text-primary" : "text-muted hover:text-ink"}`}>
           Tout
         </Link>
         {CATEGORIES.map((c) => (
           <Link
             key={c}
             href={`/pretotheque?category=${c}`}
-            className={category === c ? "text-primary" : "text-muted hover:text-ink"}
+            className={`-mx-1 px-1 py-2.5 ${category === c ? "text-primary" : "text-muted hover:text-ink"}`}
           >
             {categoryLabel(c)}
           </Link>
@@ -54,13 +55,13 @@ export default async function PretothequePage({
       </div>
 
       {items.length === 0 ? (
-        <p className="mt-8 text-sm text-muted">
+        <p className="mt-6 text-sm text-muted">
           {category
             ? `Rien dans "${categoryLabel(category)}" pour l'instant.`
             : "Rien dans le catalogue pour l'instant."}
         </p>
       ) : (
-        <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((it) => (
             <Link key={it.id} href={`/pretotheque/${it.slug}`}>
               <Card className="h-full overflow-hidden transition-shadow hover:shadow-md">
