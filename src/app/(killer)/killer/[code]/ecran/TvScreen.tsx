@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PublicGameView, PublicTribute } from "@/modules/killer/views";
-import { ELIMINATION_SAMPLE, loadSample, playChime, playElimination } from "../../sounds";
+import { loadSample, playChime, playElimination } from "../../sounds";
 import { Bubbles } from "../../Bubbles";
 import { LabRoom } from "../../LabRoom";
 import { TributePhoto } from "../../TributePhoto";
@@ -60,11 +60,28 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
     return () => clearTimeout(timer);
   }, [fall]);
 
+  // The organizer's own sound, if they chose one: (re)loaded once the sound is on, and whenever they change it.
+  const soundVersion = view.soundVersion;
+  useEffect(() => {
+    const ctx = audio.current;
+    if (!soundOn || !ctx) return;
+    if (soundVersion === null) {
+      sample.current = null;
+      return;
+    }
+    let current = true;
+    void loadSample(ctx, `/api/killer/${code}/sound?v=${soundVersion}`).then((buffer) => {
+      if (current) sample.current = buffer;
+    });
+    return () => {
+      current = false;
+    };
+  }, [soundOn, soundVersion, code]);
+
   const enableSound = async () => {
     audio.current ??= new AudioContext();
     await audio.current.resume();
     playChime(audio.current); // proof that the sound works, before the first fall
-    if (ELIMINATION_SAMPLE && !sample.current) sample.current = await loadSample(audio.current, ELIMINATION_SAMPLE);
     setSoundOn(true);
     document.documentElement.requestFullscreen?.().catch(() => {});
   };

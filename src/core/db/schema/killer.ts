@@ -25,6 +25,14 @@ export const killerGame = pgTable("killer_game", {
   version: integer("version").notNull().default(0),
   startedAt: timestamp("started_at", { withTimezone: true }),
   endedAt: timestamp("ended_at", { withTimezone: true }),
+  /**
+   * The organizer's own elimination sound (an mp3 they chose), played by their TV instead of the
+   * synthesised cannon. Kept in the database rather than the repository: the repo is public, and a
+   * sound found online is rarely ours to publish. Served only to the organizer.
+   */
+  sound: bytea("sound"),
+  soundType: text("sound_type"),
+  soundVersion: integer("sound_version").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -70,6 +78,7 @@ export const killerKill = pgTable("killer_kill", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export type KillerGame = typeof killerGame.$inferSelect;
+/** A game as the app reads it — without its sound file, which only the sound route loads. */
+export type KillerGame = Omit<typeof killerGame.$inferSelect, "sound">;
 export type KillerPlayer = typeof killerPlayer.$inferSelect;
 export type KillerKill = typeof killerKill.$inferSelect;

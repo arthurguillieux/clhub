@@ -2,14 +2,11 @@
  * The TV's sounds. Browsers only allow sound after a click on the page, hence the TV's "Activer le
  * son" button, which creates the AudioContext passed here.
  *
- * The elimination is a cannon shot: a recorded one when ELIMINATION_SAMPLE points to a file in
- * public/, otherwise synthesised on the spot — a bright crack, a distorted body, a sub-bass thump
+ * The elimination is a cannon shot: the organizer's own file when they chose one (stored with the
+ * game, see api/killer/[code]/sound), otherwise synthesised on the spot — a bright crack, a distorted body, a sub-bass thump
  * and a rumble with an echo. Most of the synthesised energy sits between 150 Hz and 3 kHz: the
  * very first version was nearly all sub-bass, which a laptop's speakers can't play.
  */
-
-/** A recorded shot to play instead of the synthesised one (a file under public/), or null. */
-export const ELIMINATION_SAMPLE: string | null = null;
 
 /** Fetches and decodes a recorded sound; null if it can't be had (the synthesised shot then plays). */
 export async function loadSample(audio: AudioContext, url: string): Promise<AudioBuffer | null> {

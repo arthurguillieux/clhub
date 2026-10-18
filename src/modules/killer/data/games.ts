@@ -1,5 +1,5 @@
 import { randomBytes, randomInt } from "node:crypto";
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, isNull, sql } from "drizzle-orm";
 import { db } from "@/core/db/client";
 import { killerGame, killerKill, killerPlayer, type KillerGame } from "@/core/db/schema";
 import {
@@ -26,6 +26,10 @@ export type Result<T = void> = ({ ok: true } & (T extends void ? object : { valu
 const fail = (error: string) => ({ ok: false as const, error });
 
 // ───────── Reading ─────────
+
+// Every poll reads the game: leave the sound file (up to a few hundred KB) out of it.
+const allGameColumns = getTableColumns(killerGame);
+const gameColumns = Object.fromEntries(Object.entries(allGameColumns).filter(([key]) => key !== "sound")) as Omit<typeof allGameColumns, "sound">;
 
 const playerColumns = {
   id: killerPlayer.id,
@@ -59,12 +63,12 @@ const asTributes = (rows: PlayerRow[]): Tribute[] =>
   }));
 
 export async function getGameByCode(code: string): Promise<KillerGame | null> {
-  const [game] = await db.select().from(killerGame).where(eq(killerGame.code, code.trim().toUpperCase())).limit(1);
+  const [game] = await db.select(gameColumns).from(killerGame).where(eq(killerGame.code, code.trim().toUpperCase())).limit(1);
   return game ?? null;
 }
 
 export async function listGamesByHost(memberId: string): Promise<KillerGame[]> {
-  return db.select().from(killerGame).where(eq(killerGame.hostMemberId, memberId)).orderBy(desc(killerGame.createdAt));
+  return db.select(gameColumns).from(killerGame).where(eq(killerGame.hostMemberId, memberId)).orderBy(desc(killerGame.createdAt));
 }
 
 function publicTribute(r: PlayerRow): PublicTribute {
@@ -94,6 +98,7 @@ function publicView(game: KillerGame, rows: PlayerRow[]): PublicGameView {
       ? { id: last.id, name: last.name, at: last.killedAt!.toISOString(), photoVersion: last.hasPhoto ? last.photoVersion : null }
       : null,
     falls: fallen.length,
+    soundVersion: game.soundType ? game.soundVersion : null,
     stats: game.status === "ended" ? endStats(asTributes(rows), game.startedAt, game.endedAt) : null,
   };
 }
@@ -131,6 +136,11 @@ export async function getHostView(game: KillerGame): Promise<HostGameView> {
     circle: game.status === "lobby" ? [...rows.map((r) => r.name), ...(rows[0] ? [rows[0].name] : [])] : circleNames(asTributes(rows)),
     canUndo: !!lastKill && game.status !== "lobby",
   };
+}
+
+export async function getGameSound(game: KillerGame): Promise<{ data: Buffer; type: string } | null> {
+  const [row] = await db.select({ data: killerGame.sound, type: killerGame.soundType }).from(killerGame).where(eq(killerGame.id, game.id)).limit(1);
+  return row?.data && row.type ? { data: row.data, type: row.type } : null;
 }
 
 export async function getPhoto(game: KillerGame, playerId: string): Promise<Buffer | null> {
@@ -253,6 +263,17 @@ export async function setPhoto(game: KillerGame, token: string, photo: Buffer): 
 export async function releaseSeat(game: KillerGame, playerId: string): Promise<Result> {
   await mutate(game.id, (tx) =>
     tx.update(killerPlayer).set({ token: null }).where(and(eq(killerPlayer.gameId, game.id), eq(killerPlayer.id, playerId))),
+  );
+  return { ok: true };
+}
+
+/** The organizer's own elimination sound; null puts the synthesised cannon back. */
+export async function setGameSound(game: KillerGame, sound: { data: Buffer; type: string } | null): Promise<Result> {
+  await mutate(game.id, (tx) =>
+    tx
+      .update(killerGame)
+      .set({ sound: sound?.data ?? null, soundType: sound?.type ?? null, soundVersion: sql`${killerGame.soundVersion} + 1` })
+      .where(eq(killerGame.id, game.id)),
   );
   return { ok: true };
 }

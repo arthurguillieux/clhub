@@ -28,6 +28,8 @@ export interface PublicGameView {
   /** The most recent fall, so the TV can play the cannon once per death. */
   lastFall: { id: string; name: string; at: string; photoVersion: number | null } | null;
   falls: number;
+  /** Set when the organizer chose their own elimination sound (its version, to reload it on change). */
+  soundVersion: number | null;
   /** Only once the game is over — it names who killed whom. */
   stats: EndStats | null;
 }

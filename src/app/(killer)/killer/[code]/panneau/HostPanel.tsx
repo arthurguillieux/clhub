@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { HostGameView, HostTribute } from "@/modules/killer/views";
 import { deleteKillerGameAction, killerHostAction } from "../../actions";
 import { KillerDialog } from "../../KillerDialog";
@@ -311,6 +311,79 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** The TV's elimination sound: the synthesised cannon, or a file the organizer chose (kept on the NAS, played only by their TV). */
+function SoundSetting({ code, soundVersion }: { code: string; soundVersion: number | null }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const url = `/api/killer/${code}/sound`;
+
+  async function upload(file: File | undefined) {
+    if (!file) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(url, { method: "POST", body: file });
+      if (!response.ok) setError(((await response.json().catch(() => ({}))) as { error?: string }).error ?? "Le son n'est pas passé — réessaie.");
+    } catch {
+      setError("Pas de connexion — réessaie.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reset() {
+    setBusy(true);
+    setError("");
+    try {
+      await fetch(url, { method: "DELETE" });
+    } catch {
+      setError("Pas de connexion — réessaie.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <details className="killer-panel p-3">
+      <summary className="cursor-pointer py-1 font-bold">🔊 Son d&apos;élimination</summary>
+      <p className="mt-2 text-sm text-[var(--k-muted)]">
+        {soundVersion !== null
+          ? "La TV joue ton fichier à chaque élimination."
+          : "La TV joue un coup de canon de synthèse. Tu peux le remplacer par un fichier (mp3, 2 Mo au plus)."}{" "}
+        Il reste sur le CLHUB, seule ta TV le lit. Si la TV est déjà ouverte, elle le prend en compte toute seule.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {soundVersion !== null && (
+          <button type="button" className="killer-btn-ghost min-h-10 px-3 text-sm" onClick={() => void new Audio(`${url}?v=${soundVersion}`).play()}>
+            ▶ Écouter
+          </button>
+        )}
+        <button type="button" className="killer-btn-ghost min-h-10 px-3 text-sm" disabled={busy} onClick={() => input.current?.click()}>
+          {busy ? "Envoi…" : soundVersion !== null ? "Changer de fichier" : "Choisir un fichier audio"}
+        </button>
+        {soundVersion !== null && (
+          <button type="button" className="killer-btn-ghost min-h-10 px-3 text-sm" disabled={busy} onClick={() => void reset()}>
+            Revenir au canon de synthèse
+          </button>
+        )}
+      </div>
+      <input
+        ref={input}
+        type="file"
+        accept="audio/*,.mp3"
+        className="hidden"
+        aria-label="Fichier du son d'élimination"
+        onChange={(e) => {
+          void upload(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      {error && <p className="mt-2 text-sm text-[var(--k-alert)]">{error}</p>}
+    </details>
+  );
+}
+
 function DeleteGameButton({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" className="killer-btn-ghost min-h-12 px-4 text-[var(--k-alert)]" onClick={onClick}>
@@ -473,6 +546,7 @@ function LobbyEditor({
         </div>
       )}
 
+      <SoundSetting code={code} soundVersion={view.soundVersion} />
       <DeleteGameButton onClick={onDelete} />
 
       <div className="fixed inset-x-0 bottom-0 z-40 killer-bar px-4 py-3">
@@ -644,6 +718,8 @@ function RunningPanel({
           </button>
         </div>
       </details>
+
+      <SoundSetting code={code} soundVersion={view.soundVersion} />
 
       <button type="button" disabled={busy} className="killer-btn-ghost min-h-12 px-4 text-[var(--k-muted)]" onClick={onEnd}>
         Terminer la partie
