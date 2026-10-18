@@ -15,9 +15,16 @@ export function useLongPoll<T extends { version: number }>(path: string | null, 
   const [restartCount, setRestartCount] = useState(0);
   const lastAnswerAt = useRef(0);
   const versionRef = useRef(initial?.version ?? -1);
+  const pathRef = useRef(path);
 
   useEffect(() => {
     if (!path) return;
+    // A new address (a guest just claimed a seat, or lost it) answers with a different view: ask for
+    // it right away instead of waiting for the next change after the version we last saw elsewhere.
+    if (path !== pathRef.current) {
+      pathRef.current = path;
+      versionRef.current = -1;
+    }
     let alive = true;
     let controller: AbortController | null = null;
     lastAnswerAt.current = Date.now();
