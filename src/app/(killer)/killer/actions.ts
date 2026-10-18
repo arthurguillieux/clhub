@@ -21,6 +21,7 @@ import {
   undoLastKill,
   updateMission,
 } from "@/modules/killer/data/games";
+import { createDemoGame } from "@/modules/killer/data/demo";
 import { checkKillerHost } from "@/modules/killer/host";
 import type { HostGameView } from "@/modules/killer/views";
 
@@ -40,6 +41,13 @@ export async function createKillerGameAction(formData: FormData): Promise<void> 
   const title = String(formData.get("title") ?? "").trim().slice(0, 80) || "Les Jeux du Killer";
   const game = await createGame(session.member.id, title);
   redirect(`/killer/${game.code}/panneau`);
+}
+
+export async function createKillerDemoAction(): Promise<void> {
+  const session = await getSession();
+  if (!session || !(await hasKillerAccess(session.member.id))) redirect("/jeux/killer");
+  await createDemoGame(session.member.id);
+  redirect("/jeux/killer");
 }
 
 const name = z.string().trim().min(1, "Un prénom est vide.").max(MAX_NAME_LENGTH, "Prénom trop long.");

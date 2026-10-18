@@ -8,7 +8,7 @@ import { Button } from "@/core/ui/components/Button";
 import { FormField, Input } from "@/core/ui/components/Field";
 import { hasKillerAccess } from "@/modules/killer/access";
 import { listGamesByHost } from "@/modules/killer/data/games";
-import { createKillerGameAction } from "@/app/(killer)/killer/actions";
+import { createKillerDemoAction, createKillerGameAction } from "@/app/(killer)/killer/actions";
 import { UnlockForm } from "./UnlockForm";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
@@ -57,6 +57,15 @@ export default async function KillerHomePage() {
           </FormField>
           <Button type="submit" variant="accent" className="self-start">
             Préparer une nouvelle partie
+          </Button>
+        </form>
+        <form action={createKillerDemoAction} className="mt-4 border-t border-line pt-4">
+          <p className="text-sm text-muted">
+            Pour voir à quoi ça ressemble : une partie « Test » avec 12 tributs inventés et leurs missions, dont 2 places
+            libres pour essayer depuis ton téléphone.
+          </p>
+          <Button type="submit" variant="ghost" className="mt-2">
+            Créer une partie Test
           </Button>
         </form>
       </Card>
