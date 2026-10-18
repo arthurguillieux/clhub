@@ -51,8 +51,8 @@ test("a guest joins a buzzer game without an account and buzzes first", async ({
   const guestAgain = await guestContext.newPage();
   await guestAgain.goto(`/buzzer/${code}`);
   await expect(guestAgain.getByRole("button", { name: "ATTENDS" })).toBeVisible();
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "Terminer" }).click();
+  await page.getByRole("button", { name: "Terminer", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Terminer la partie" }).click();
   await expect(page).toHaveURL(/\/jeux\/buzzer$/);
   await expect(guestAgain.getByText("Partie terminée")).toBeVisible();
 

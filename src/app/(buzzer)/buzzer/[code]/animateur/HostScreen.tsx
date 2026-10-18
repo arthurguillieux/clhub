@@ -35,6 +35,7 @@ export function HostScreen({
   const [manage, setManage] = useState(false);
   const [points, setPoints] = useState("1");
   const [error, setError] = useState("");
+  const [dialog, setDialog] = useState<Dialog | null>(null);
   const [ending, startEnding] = useTransition();
   const versionRef = useRef(initialView.version);
   const lastSeqRef = useRef(initialView.buzzSeq);
@@ -256,7 +257,16 @@ export function HostScreen({
           <button
             type="button"
             className={btn}
-            onClick={() => confirm("Remettre tous les scores à 0 ?") && void send({ type: "resetAll" })}
+            onClick={() =>
+              setDialog({
+                kind: "confirm",
+                title: "Remettre les scores à 0 ?",
+                detail: "Les scores de toutes les équipes repartent de zéro.",
+                confirmLabel: "Remettre à 0",
+                cancelLabel: "Garder les scores",
+                onConfirm: () => void send({ type: "resetAll" }),
+              })
+            }
           >
             Scores à 0
           </button>
@@ -267,7 +277,17 @@ export function HostScreen({
             type="button"
             className={btn}
             disabled={ending}
-            onClick={() => confirm("Terminer la partie pour tout le monde ?") && startEnding(() => endGameAction(code))}
+            onClick={() =>
+              setDialog({
+                kind: "confirm",
+                title: "Terminer la partie ?",
+                detail: "Les téléphones afficheront « Partie terminée » et le QR code ne marchera plus.",
+                confirmLabel: "Terminer la partie",
+                cancelLabel: "Continuer à jouer",
+                danger: true,
+                onConfirm: () => startEnding(() => endGameAction(code)),
+              })
+            }
           >
             Terminer
           </button>
@@ -353,20 +373,23 @@ export function HostScreen({
               </button>
               {manage && (
                 <>
-                  <button
-                    type="button"
-                    className={btn}
-                    onClick={() => {
-                      const next = prompt("Nouveau nom", t.name);
-                      if (next) void send({ type: "rename", teamId: t.id, name: next });
-                    }}
-                  >
+                  <button type="button" className={btn} onClick={() => setDialog({ kind: "rename", teamId: t.id, name: t.name })}>
                     Renommer
                   </button>
                   <button
                     type="button"
                     className={btn}
-                    onClick={() => confirm(`Retirer ${t.name} ?`) && void send({ type: "remove", teamId: t.id })}
+                    onClick={() =>
+                      setDialog({
+                        kind: "confirm",
+                        title: `Retirer « ${t.name} » ?`,
+                        detail: "L'équipe sort de la partie, avec son score.",
+                        confirmLabel: "Retirer l'équipe",
+                        cancelLabel: "Garder l'équipe",
+                        danger: true,
+                        onConfirm: () => void send({ type: "remove", teamId: t.id }),
+                      })
+                    }
                   >
                     Retirer
                   </button>
@@ -380,7 +403,115 @@ export function HostScreen({
       <p className="shrink-0 text-center text-muted" style={{ fontSize: "min(1.1vw, 1.8vh)" }}>
         Retardataires : {joinUrl}
       </p>
+
+      {dialog && (
+        <HostDialog
+          dialog={dialog}
+          onClose={() => setDialog(null)}
+          onRename={(teamId, name) => {
+            void send({ type: "rename", teamId, name });
+            setDialog(null);
+          }}
+        />
+      )}
     </Screen>
+  );
+}
+
+/** Replaces the browser's confirm()/prompt(): every button says what it does, never just "OK / Annuler". */
+type Dialog =
+  | {
+      kind: "confirm";
+      title: string;
+      detail: string;
+      confirmLabel: string;
+      cancelLabel: string;
+      danger?: boolean;
+      onConfirm: () => void;
+    }
+  | { kind: "rename"; teamId: string; name: string };
+
+function HostDialog({
+  dialog,
+  onClose,
+  onRename,
+}: {
+  dialog: Dialog;
+  onClose: () => void;
+  onRename: (teamId: string, name: string) => void;
+}) {
+  const [draft, setDraft] = useState(dialog.kind === "rename" ? dialog.name : "");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={dialog.kind === "confirm" ? dialog.title : "Renommer l'équipe"}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 text-base"
+      onClick={onClose}
+    >
+      <div
+        className="glow-box-primary w-full max-w-md rounded-card border border-primary/40 bg-surface-raised p-6 text-ink"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {dialog.kind === "confirm" ? (
+          <>
+            <p className="font-display text-xl font-extrabold">{dialog.title}</p>
+            <p className="mt-2 text-muted">{dialog.detail}</p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                className={dialog.danger ? btnDanger : btnPrimary}
+                onClick={() => {
+                  dialog.onConfirm();
+                  onClose();
+                }}
+              >
+                {dialog.confirmLabel}
+              </button>
+              <button type="button" className={btn} onClick={onClose} autoFocus>
+                {dialog.cancelLabel}
+              </button>
+            </div>
+          </>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (draft.trim()) onRename(dialog.teamId, draft);
+            }}
+          >
+            <label htmlFor="rename-team" className="font-display text-xl font-extrabold">
+              Nouveau nom de l&apos;équipe
+            </label>
+            <input
+              id="rename-team"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              maxLength={24}
+              autoFocus
+              className="mt-3 w-full rounded-xl border border-line bg-surface px-4 py-3 text-lg text-ink focus:ring-2 focus:ring-primary focus:outline-none"
+            />
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button type="submit" className={btnPrimary} disabled={!draft.trim()}>
+                Renommer l&apos;équipe
+              </button>
+              <button type="button" className={btn} onClick={onClose}>
+                Garder le nom actuel
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
   );
 }
 
