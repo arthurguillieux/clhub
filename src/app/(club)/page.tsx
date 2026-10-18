@@ -74,6 +74,11 @@ function describeActivity(a: ActivityEntry): string {
       const p = a.payload as { title?: string };
       return `Une nouvelle annonce dans les Cabanes à dons : « ${p.title ?? "?"} ».`;
     }
+    case "club-event.added": {
+      const p = a.payload as { title?: string; eventDate?: string };
+      const dateLabel = p.eventDate ? ` (${formatFrench(p.eventDate as CalendarDate)})` : "";
+      return `Un évènement a été ajouté à l'agenda : « ${p.title ?? "?"} »${dateLabel}.`;
+    }
     default:
       return a.kind;
   }
