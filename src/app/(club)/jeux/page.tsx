@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
+import { getSession } from "@/core/auth/session";
+import { hasKillerAccess } from "@/modules/killer/access";
 
 const TOOLS = [
   {
@@ -24,13 +26,24 @@ const TOOLS = [
   },
 ];
 
-export default function JeuxPage() {
+// Only listed for members who already entered its password — the others shouldn't even guess it exists.
+const KILLER = {
+  href: "/jeux/killer",
+  icon: "🔥",
+  name: "Killer",
+  description: "Des tributs, des missions secrètes, et un canon qui tonne à chaque élimination.",
+};
+
+export default async function JeuxPage() {
+  const session = await getSession();
+  const tools = session && (await hasKillerAccess(session.member.id)) ? [...TOOLS, KILLER] : TOOLS;
+
   return (
     <Container size="md">
       <PageTitle>Jeux</PageTitle>
 
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {TOOLS.map((tool) => (
+        {tools.map((tool) => (
           <Link key={tool.href} href={tool.href}>
             <Card className="flex h-full flex-col gap-2 p-5 transition-colors hover:border-primary">
               <span aria-hidden="true" className="text-3xl">
