@@ -18,7 +18,8 @@ type HostAction =
   | { type: "release"; playerId: string }
   | { type: "mission"; playerId: string; mission: string }
   | { type: "end" }
-  | { type: "reset" };
+  | { type: "reset" }
+  | { type: "removePhoto"; playerId: string };
 
 interface DraftRow {
   key: string;
@@ -117,6 +118,16 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
       onConfirm: () => void send({ type: "reset" }),
     });
 
+  const askRemovePhoto = (t: HostTribute) =>
+    setDialog({
+      title: `Supprimer la photo de ${t.name} ?`,
+      detail: "Son téléphone lui proposera aussitôt d'en prendre une nouvelle. En attendant, la TV affiche l'initiale de son prénom.",
+      confirmLabel: `Supprimer la photo de ${t.name}`,
+      cancelLabel: "Garder la photo",
+      danger: true,
+      onConfirm: () => void send({ type: "removePhoto", playerId: t.id }),
+    });
+
   const byId = new Map(view.tributes.map((t) => [t.id, t]));
   const joined = view.tributes.filter((t) => t.joined).length;
 
@@ -156,6 +167,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
             if (dirty && !(await saveDraft())) return;
             await send({ type: "shuffle" });
           }}
+          onRemovePhoto={askRemovePhoto}
           onRelease={(t) =>
             setDialog({
               title: `Libérer la place de ${t.name} ?`,
@@ -168,8 +180,8 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
           onStart={() =>
             setDialog({
               title: "Lancer la partie ?",
-              detail: `Le cercle est figé et chaque tribut inscrit reçoit sa cible et sa mission. ${
-                joined < view.tributes.length ? `${view.tributes.length - joined} tribut(s) ne sont pas encore inscrits : ils pourront rejoindre en cours de route.` : ""
+              detail: `Le cercle est figé et chaque agent inscrit reçoit sa cible et sa mission. ${
+                joined < view.tributes.length ? `${view.tributes.length - joined} agent(s) ne sont pas encore inscrits : ils pourront rejoindre en cours de route.` : ""
               }`,
               confirmLabel: "Lancer la partie",
               cancelLabel: "Pas encore",
@@ -202,7 +214,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
           onUndo={() =>
             setDialog({
               title: "Annuler la dernière élimination ?",
-              detail: "Le dernier tribut tombé revient en jeu, et son tueur retrouve son ancienne cible.",
+              detail: "Le dernier agent éliminé revient en jeu, et son chasseur retrouve son ancienne cible.",
               confirmLabel: "Annuler la dernière élimination",
               cancelLabel: "Garder telle quelle",
               onConfirm: () => void send({ type: "undo" }),
@@ -218,12 +230,13 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
             })
           }
           onMission={(t, mission) => send({ type: "mission", playerId: t.id, mission })}
+          onRemovePhoto={askRemovePhoto}
           onAdd={(name, mission, afterId) => send({ type: "add", name, mission, afterId })}
           onReset={askReset}
           onEnd={() =>
             setDialog({
               title: "Terminer la partie maintenant ?",
-              detail: "La TV passe à l'écran de fin avec les statistiques, même s'il reste plusieurs tributs.",
+              detail: "La TV passe à l'écran de fin avec les statistiques, même s'il reste plusieurs agents.",
               confirmLabel: "Terminer la partie",
               cancelLabel: "Continuer la partie",
               danger: true,
@@ -237,7 +250,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
         <section className="mt-6 flex flex-col gap-4">
           <div className="killer-panel p-4">
             <p className="killer-label">Résultat</p>
-            <p className="mt-2 text-lg font-bold">{view.stats?.winner ? `🏆 ${view.stats.winner.name} remporte les jeux` : "Partie arrêtée avant la fin"}</p>
+            <p className="mt-2 text-lg font-bold">{view.stats?.winner ? `🏆 ${view.stats.winner.name} remporte la partie` : "Partie arrêtée avant la fin"}</p>
             <ul className="mt-2 text-sm text-[var(--k-muted)]">
               {view.stats?.podium.map((p, i) => (
                 <li key={p.id}>
@@ -253,7 +266,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
               onClick={() =>
                 setDialog({
                   title: "Annuler la dernière élimination ?",
-                  detail: "La partie reprend avec le dernier tribut tombé de retour en jeu.",
+                  detail: "La partie reprend avec le dernier agent éliminé de retour en jeu.",
                   confirmLabel: "Annuler la dernière élimination",
                   cancelLabel: "Garder la fin",
                   onConfirm: () => void send({ type: "undo" }),
@@ -272,7 +285,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
             onClick={() =>
               setDialog({
                 title: "Supprimer la partie ?",
-                detail: "Les tributs, leurs photos et l'historique sont effacés définitivement.",
+                detail: "Les agents, leurs photos et l'historique sont effacés définitivement.",
                 confirmLabel: "Supprimer la partie et les photos",
                 cancelLabel: "Garder la partie",
                 danger: true,
@@ -318,6 +331,7 @@ function LobbyEditor({
   onSave,
   onShuffle,
   onRelease,
+  onRemovePhoto,
   onStart,
 }: {
   code: string;
@@ -332,6 +346,7 @@ function LobbyEditor({
   onSave: () => Promise<boolean>;
   onShuffle: () => void;
   onRelease: (t: HostTribute) => void;
+  onRemovePhoto: (t: HostTribute) => void;
   onStart: () => void;
 }) {
   const move = (i: number, delta: number) => {
@@ -347,16 +362,16 @@ function LobbyEditor({
   const startBlocker = dirty
     ? "Enregistre d'abord tes changements."
     : draft.length < 2
-      ? "Il faut au moins deux tributs."
+      ? "Il faut au moins deux agents."
       : missingMission
-        ? "Chaque tribut doit avoir une mission."
+        ? "Chaque agent doit avoir une mission."
         : null;
 
   return (
     <section className="mt-5 flex flex-col gap-4">
       <p className="text-sm text-[var(--k-muted)]">
         L&apos;ordre de la liste, c&apos;est le cercle : chacun a pour cible le suivant, le dernier vise le premier. La mission
-        d&apos;un tribut, c&apos;est ce que son chasseur devra lui faire faire — elle passe au tueur à chaque élimination.
+        d&apos;un agent, c&apos;est ce que son chasseur devra lui faire faire — elle passe au tueur à chaque élimination.
       </p>
       <p className="text-sm">
         <span className="font-bold text-[var(--k-accent)]">
@@ -392,12 +407,12 @@ function LobbyEditor({
                     onChange={(e) => update(i, { name: e.target.value })}
                     placeholder="Prénom"
                     maxLength={30}
-                    aria-label={`Prénom du tribut ${i + 1}`}
+                    aria-label={`Prénom de l'agent ${i + 1}`}
                     className="min-h-11 min-w-0 flex-1 killer-field px-3 font-bold text-[var(--k-ink)]"
                   />
                   <button
                     type="button"
-                    aria-label={`Retirer ${row.name || "ce tribut"}`}
+                    aria-label={`Retirer ${row.name || "cet agent"}`}
                     className="killer-btn-ghost h-11 w-11 text-[var(--k-muted)]"
                     onClick={() => onEdit(draft.filter((_, k) => k !== i))}
                   >
@@ -410,16 +425,23 @@ function LobbyEditor({
                   placeholder="Sa mission : ce qu'on devra lui faire faire…"
                   rows={2}
                   maxLength={600}
-                  aria-label={`Mission de ${row.name || `tribut ${i + 1}`}`}
+                  aria-label={`Mission de ${row.name || `l'agent ${i + 1}`}`}
                   className="killer-field px-3 py-2 text-sm text-[var(--k-ink)]"
                 />
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   <StatusChip t={saved} />
-                  {saved?.joined && (
-                    <button type="button" className="-my-2 py-2 text-xs text-[var(--k-muted)] underline" onClick={() => onRelease(saved)}>
-                      Libérer sa place
-                    </button>
-                  )}
+                  <div className="flex gap-3">
+                    {saved && saved.photoVersion !== null && (
+                      <button type="button" className="-my-2 py-2 text-xs text-[var(--k-muted)] underline" onClick={() => onRemovePhoto(saved)}>
+                        Supprimer la photo
+                      </button>
+                    )}
+                    {saved?.joined && (
+                      <button type="button" className="-my-2 py-2 text-xs text-[var(--k-muted)] underline" onClick={() => onRelease(saved)}>
+                        Libérer sa place
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </li>
@@ -428,7 +450,7 @@ function LobbyEditor({
       </ol>
 
       <button type="button" className="killer-btn-ghost min-h-12 px-4" onClick={() => onEdit([...draft, { key: crypto.randomUUID(), id: null, name: "", mission: "" }])}>
-        + Ajouter un tribut
+        + Ajouter un agent
       </button>
 
       {circle.length > 0 && (
@@ -470,6 +492,7 @@ function RunningPanel({
   onUndo,
   onRelease,
   onMission,
+  onRemovePhoto,
   onAdd,
   onReset,
   onEnd,
@@ -482,6 +505,7 @@ function RunningPanel({
   onUndo: () => void;
   onRelease: (t: HostTribute) => void;
   onMission: (t: HostTribute, mission: string) => Promise<HostGameView | null>;
+  onRemovePhoto: (t: HostTribute) => void;
   onAdd: (name: string, mission: string, afterId: string | null) => Promise<HostGameView | null>;
   onReset: () => void;
   onEnd: () => void;
@@ -496,19 +520,19 @@ function RunningPanel({
     <section className="mt-5 flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-lg">
-          <span className="killer-title text-3xl">{alive.length}</span> tributs encore en jeu
+          <span className="killer-title text-3xl">{alive.length}</span> agents encore en jeu
         </p>
         <button type="button" disabled={busy} className="killer-btn-ghost min-h-11 px-3 text-sm" onClick={onReset}>
           ✎ Modifier la partie
         </button>
       </div>
       <p className="-mt-2 text-xs text-[var(--k-muted)]">
-        Une mission se change sans arrêter la partie : « Sa mission, sa place » sous chaque tribut. Pour les prénoms ou le
+        Une mission se change sans arrêter la partie : « Sa mission, sa photo, sa place » sous chaque agent. Pour les prénoms ou le
         cercle, « Modifier la partie » ramène à la préparation.
       </p>
 
       <div>
-        <p className="killer-label">Touche le tribut qui vient de tomber</p>
+        <p className="killer-label">Touche l&apos;agent qui vient d&apos;être éliminé</p>
         <ul className="mt-2 flex flex-col gap-2.5">
           {alive.map((t) => {
             const target = t.targetId ? byId.get(t.targetId) : undefined;
@@ -526,7 +550,7 @@ function RunningPanel({
                     Éliminé·e
                   </button>
                 </div>
-                <TributeDetails t={t} onMission={onMission} onRelease={onRelease} />
+                <TributeDetails t={t} onMission={onMission} onRelease={onRelease} onRemovePhoto={onRemovePhoto} />
               </li>
             );
           })}
@@ -541,7 +565,7 @@ function RunningPanel({
 
       {fallen.length > 0 && (
         <div>
-          <p className="killer-label">Tombés ({fallen.length})</p>
+          <p className="killer-label">Éliminés ({fallen.length})</p>
           <ul className="mt-2 flex flex-col gap-1.5 text-sm">
             {fallen.map((t) => (
               <li key={t.id} className="flex items-center gap-2.5 text-[var(--k-muted)]">
@@ -618,15 +642,17 @@ function TributeDetails({
   t,
   onMission,
   onRelease,
+  onRemovePhoto,
 }: {
   t: HostTribute;
   onMission: (t: HostTribute, mission: string) => Promise<HostGameView | null>;
   onRelease: (t: HostTribute) => void;
+  onRemovePhoto: (t: HostTribute) => void;
 }) {
   const [mission, setMission] = useState(t.mission);
   return (
     <details className="mt-2">
-      <summary className="cursor-pointer py-1.5 text-xs text-[var(--k-muted)]">Sa mission, sa place</summary>
+      <summary className="cursor-pointer py-1.5 text-xs text-[var(--k-muted)]">Sa mission, sa photo, sa place</summary>
       <textarea
         value={mission}
         onChange={(e) => setMission(e.target.value)}
@@ -638,6 +664,11 @@ function TributeDetails({
         <button type="button" className="killer-btn-ghost min-h-10 px-3 text-sm" disabled={mission.trim() === t.mission} onClick={() => void onMission(t, mission)}>
           Enregistrer la mission
         </button>
+        {t.photoVersion !== null && (
+          <button type="button" className="killer-btn-ghost min-h-10 px-3 text-sm" onClick={() => onRemovePhoto(t)}>
+            Supprimer la photo
+          </button>
+        )}
         {t.joined && (
           <button type="button" className="killer-btn-ghost min-h-10 px-3 text-sm" onClick={() => onRelease(t)}>
             Libérer sa place

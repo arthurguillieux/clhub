@@ -20,10 +20,10 @@ test("killer: password, lobby, anonymous join, elimination, end", async ({ page,
   await expect(page).toHaveURL(/\/killer\/[A-Z0-9]{6}\/panneau$/);
   const code = page.url().match(/\/killer\/([A-Z0-9]{6})\/panneau/)![1]!;
 
-  for (let i = 0; i < 2; i++) await page.getByRole("button", { name: "+ Ajouter un tribut" }).click();
-  await page.getByLabel("Prénom du tribut 1").fill("Alice");
+  for (let i = 0; i < 2; i++) await page.getByRole("button", { name: "+ Ajouter un agent" }).click();
+  await page.getByLabel("Prénom de l'agent 1").fill("Alice");
   await page.getByLabel("Mission de Alice").fill("Lui faire chanter le refrain");
-  await page.getByLabel("Prénom du tribut 2").fill("Bob");
+  await page.getByLabel("Prénom de l'agent 2").fill("Bob");
   await page.getByLabel("Mission de Bob").fill("Lui faire dire citrouille");
   await page.getByRole("button", { name: "Enregistrer les changements" }).click();
   await expect(page.getByText("Alice → Bob → Alice")).toBeVisible();
@@ -44,7 +44,7 @@ test("killer: password, lobby, anonymous join, elimination, end", async ({ page,
 
   await page.getByRole("button", { name: "Lancer la partie" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Lancer la partie" }).click();
-  await expect(page.getByText("tributs encore en jeu")).toBeVisible();
+  await expect(page.getByText("agents encore en jeu")).toBeVisible();
 
   // Alice has no photo yet, so her phone still asks for one; the API says what she'd see once she has.
   const token = await guest.evaluate((c) => localStorage.getItem(`clhub:killer:${c}`), code);
@@ -58,7 +58,7 @@ test("killer: password, lobby, anonymous join, elimination, end", async ({ page,
   const bobRow = page.getByRole("listitem").filter({ has: page.getByText("Bob", { exact: true }) });
   await bobRow.getByRole("button", { name: "Éliminé·e" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Oui, Bob est éliminé·e" }).click();
-  await expect(page.getByText("Alice remporte les jeux")).toBeVisible();
+  await expect(page.getByText("Alice remporte la partie")).toBeVisible();
 
   await guestContext.close();
 });

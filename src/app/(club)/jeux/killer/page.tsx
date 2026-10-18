@@ -46,7 +46,7 @@ export default async function KillerHomePage() {
         <PageTitle>Killer</PageTitle>
       </div>
       <p className="mt-2 text-sm text-muted">
-        Tu prépares la liste des tributs et leurs missions, tu affiches l&apos;écran sur la TV, chacun scanne le QR code et
+        Tu prépares la liste des agents et leurs missions, tu affiches l&apos;écran sur la TV, chacun scanne le QR code et
         prend sa photo. Ensuite tu valides les éliminations depuis ton téléphone.
       </p>
 
@@ -61,7 +61,7 @@ export default async function KillerHomePage() {
         </form>
         <form action={createKillerDemoAction} className="mt-4 border-t border-line pt-4">
           <p className="text-sm text-muted">
-            Pour voir à quoi ça ressemble : une partie « Test » avec 12 tributs inventés et leurs missions, dont 2 places
+            Pour voir à quoi ça ressemble : une partie « Test » avec 12 agents inventés et leurs missions, dont 2 places
             libres pour essayer depuis ton téléphone.
           </p>
           <Button type="submit" variant="ghost" className="mt-2">

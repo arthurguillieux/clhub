@@ -72,8 +72,8 @@ export type EliminateResult =
 
 export function eliminate(tributes: Tribute[], victimId: string, now: Date): EliminateResult {
   const victim = tributes.find((t) => t.id === victimId);
-  if (!victim) return { ok: false, error: "Tribut introuvable." };
-  if (!victim.alive) return { ok: false, error: `${victim.name} est déjà tombé·e.` };
+  if (!victim) return { ok: false, error: "Agent introuvable." };
+  if (!victim.alive) return { ok: false, error: `${victim.name} est déjà éliminé·e.` };
   const killer = findKiller(tributes, victimId);
   if (!killer || !victim.targetId) return { ok: false, error: `Personne n'a ${victim.name} pour cible.` };
 
@@ -103,7 +103,7 @@ export type InsertResult = { ok: true; patches: Patch[] } | { ok: false; error: 
 /** A late arrival slots in right after a living tribute: they now hunt the newcomer, who takes over their old target. */
 export function insertLate(tributes: Tribute[], newcomerId: string, afterId: string): InsertResult {
   const host = tributes.find((t) => t.id === afterId);
-  if (!host || !host.alive || !host.targetId) return { ok: false, error: "Ce tribut n'est plus en jeu." };
+  if (!host || !host.alive || !host.targetId) return { ok: false, error: "Cet agent n'est plus en jeu." };
   return {
     ok: true,
     patches: [

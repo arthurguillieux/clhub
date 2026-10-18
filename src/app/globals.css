@@ -107,28 +107,27 @@ body {
 }
 
 /*
- * Killer (jeux/killer) — its own world on purpose, "Le Laboratoire": bright,
- * between a research lab and a spaceship interior (pearl white, deep navy ink,
- * an instrument blue, drifting blue particles). Nothing borrowed from a film or
- * a game. Light-only by choice: it's a projected screen, not a reading page.
- * Scoped to `.killer` so none of it leaks into the rest of the site.
+ * Killer (jeux/killer) — its own world on purpose, "Le Laboratoire": bright and
+ * futuristic, porcelain androids under studio light (soft white and silver
+ * greys, graphite like a black glass visor, an ice-cyan light, embossed white
+ * circuitry with signals running along it, a red visor glow for eliminations).
+ * Nothing borrowed from a film or a game. Light-only by choice: it's a
+ * projected screen, not a reading page. Scoped to `.killer` so none of it leaks.
  */
 .killer {
-  --k-ground: #f2f6fb;
-  --k-surface: rgba(255, 255, 255, 0.74);
-  --k-surface-strong: #e4edf8;
-  --k-line: #cbd8e8;
-  --k-ink: #0d1b2e;
-  --k-muted: #5a6b82;
-  --k-accent: #1769f5;
-  --k-glow: #29b6f6;
-  --k-alert: #ef3e55;
+  --k-ground: #eceef1;
+  --k-surface: rgba(255, 255, 255, 0.84);
+  --k-surface-strong: #e2e6ea;
+  --k-line: #d5dbe0;
+  --k-ink: #1b2127;
+  --k-muted: #66707a;
+  --k-accent: #0b7f96;
+  --k-glow: #5fd3e6;
+  --k-alert: #f0365a;
   font-family: var(--k-font-body), ui-sans-serif, system-ui, sans-serif;
   background:
-    radial-gradient(ellipse 70% 55% at 85% 0%, rgba(41, 182, 246, 0.16), transparent 70%),
-    radial-gradient(ellipse 60% 50% at 0% 100%, rgba(23, 105, 245, 0.1), transparent 70%),
-    linear-gradient(rgba(23, 105, 245, 0.045) 1px, transparent 1px) 0 0 / 48px 48px,
-    linear-gradient(90deg, rgba(23, 105, 245, 0.045) 1px, transparent 1px) 0 0 / 48px 48px,
+    radial-gradient(ellipse 85% 60% at 50% -12%, #ffffff, transparent 70%),
+    radial-gradient(ellipse 70% 45% at 50% 115%, rgba(95, 211, 230, 0.12), transparent 70%),
     var(--k-ground);
   color: var(--k-ink);
 }
@@ -136,7 +135,7 @@ body {
   font-family: var(--k-font-display), ui-sans-serif, system-ui, sans-serif;
   font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--k-ink);
   text-wrap: balance;
 }
@@ -149,12 +148,13 @@ body {
   color: var(--k-accent);
 }
 .killer-panel {
-  background: var(--k-surface);
-  border: 1px solid var(--k-line);
-  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(244, 246, 248, 0.86));
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 22px;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 12px 32px rgba(20, 60, 120, 0.08);
+    0 0 0 1px rgba(27, 33, 39, 0.06),
+    0 1px 0 #fff inset,
+    0 14px 36px rgba(27, 33, 39, 0.1);
   backdrop-filter: blur(10px);
 }
 /* Corner brackets, as on an instrument display — for the panels that matter (QR code, a target). */
@@ -167,7 +167,7 @@ body {
   position: absolute;
   width: 22px;
   height: 22px;
-  border: 2px solid var(--k-accent);
+  border: 2px solid var(--k-glow);
   pointer-events: none;
 }
 .killer-frame::before {
@@ -184,39 +184,42 @@ body {
   border-top: 0;
   border-bottom-right-radius: 8px;
 }
+/* Primary actions in graphite, like the black glass visors; a cyan line of light underneath. */
 .killer-btn {
-  border-radius: 12px;
+  border-radius: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  background: linear-gradient(180deg, #3d8bff, var(--k-accent));
+  background: linear-gradient(180deg, #3b444d, var(--k-ink));
   color: #fff;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.35) inset,
-    0 8px 22px rgba(23, 105, 245, 0.3);
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 -2px 0 var(--k-glow) inset,
+    0 10px 24px rgba(27, 33, 39, 0.22);
 }
 .killer-btn:disabled {
   opacity: 0.4;
   box-shadow: none;
 }
 .killer-btn-ghost {
-  border-radius: 12px;
+  border-radius: 14px;
   font-weight: 600;
   border: 1px solid var(--k-line);
   color: var(--k-ink);
-  background: rgba(255, 255, 255, 0.85);
+  background: linear-gradient(180deg, #ffffff, #f1f3f5);
+  box-shadow: 0 2px 6px rgba(27, 33, 39, 0.06);
 }
 .killer-btn-ghost:disabled {
   opacity: 0.4;
 }
 .killer-btn-blood {
-  border-radius: 12px;
+  border-radius: 14px;
   font-weight: 600;
-  background: var(--k-alert);
+  background: linear-gradient(180deg, #ff5577, var(--k-alert));
   color: #fff;
-  box-shadow: 0 8px 20px rgba(239, 62, 85, 0.28);
+  box-shadow: 0 0 18px rgba(240, 54, 90, 0.4);
 }
 .killer :is(.killer-btn, .killer-btn-ghost, .killer-btn-blood, .killer-field):focus-visible {
-  outline: 3px solid rgba(23, 105, 245, 0.45);
+  outline: 3px solid rgba(11, 127, 150, 0.45);
   outline-offset: 2px;
 }
 .killer-field {
@@ -226,31 +229,33 @@ body {
   color: var(--k-ink);
 }
 .killer-field::placeholder {
-  color: #93a2b6;
+  color: #9aa3ac;
 }
 .killer-bar {
   border-top: 1px solid var(--k-line);
-  background: rgba(242, 246, 251, 0.92);
+  background: rgba(236, 238, 241, 0.92);
   backdrop-filter: blur(12px);
 }
 .killer-alert {
   border: 1px solid var(--k-alert);
-  background: rgba(239, 62, 85, 0.08);
+  background: rgba(240, 54, 90, 0.08);
   border-radius: 10px;
 }
 .killer-range {
   accent-color: var(--k-accent);
 }
+/* A porcelain bezel with a thin ring of light. */
 .killer-portrait {
-  border: 3px solid #fff;
+  border: 4px solid #fff;
   box-shadow:
-    0 0 0 2px var(--k-accent),
-    0 10px 26px rgba(23, 105, 245, 0.22);
+    0 0 0 1.5px var(--k-glow),
+    0 0 16px rgba(95, 211, 230, 0.35),
+    0 12px 26px rgba(27, 33, 39, 0.16);
 }
 .killer-portrait.fallen {
-  box-shadow: 0 0 0 2px var(--k-line);
-  filter: grayscale(1) contrast(0.9) brightness(1.08);
-  opacity: 0.5;
+  box-shadow: 0 0 0 1px #c9d0d6;
+  filter: grayscale(1) contrast(0.9) brightness(1.06);
+  opacity: 0.55;
 }
 @keyframes killer-flicker {
   0%,
@@ -359,7 +364,7 @@ body {
   animation: killer-fall-portrait 6s ease-out both;
 }
 .killer-scan {
-  background: linear-gradient(180deg, transparent, rgba(239, 62, 85, 0.55) 48%, rgba(255, 255, 255, 0.9) 50%, rgba(239, 62, 85, 0.55) 52%, transparent);
+  background: linear-gradient(180deg, transparent, rgba(240, 54, 90, 0.55) 48%, rgba(255, 255, 255, 0.9) 50%, rgba(240, 54, 90, 0.55) 52%, transparent);
   animation: killer-scan 1.6s ease-in-out 0.5s both;
 }
 .killer-ring {
@@ -376,6 +381,169 @@ body {
   .killer-scan,
   .killer-ring,
   .killer-shake {
+    animation: none;
+  }
+}
+
+/* The TV's laboratory, in CSS 3D (LabRoom.tsx): five planes around a perspective stage. */
+.lab-stage {
+  --lab-depth: 80vmax;
+  position: absolute;
+  inset: -6%;
+  overflow: hidden;
+  perspective: 55vmax;
+  perspective-origin: 50% 44%;
+  pointer-events: none;
+}
+.lab-room {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: lab-drift 30s ease-in-out infinite alternate;
+}
+.lab-face {
+  position: absolute;
+}
+.lab-back {
+  inset: 0;
+  transform: translateZ(calc(-1 * var(--lab-depth)));
+  background:
+    repeating-linear-gradient(90deg, rgba(27, 33, 39, 0.05) 0 2px, transparent 2px 12.5%),
+    linear-gradient(180deg, #f7f8fa, #e7eaee);
+}
+.lab-door {
+  position: absolute;
+  bottom: 0;
+  left: 40%;
+  width: 20%;
+  height: 64%;
+  border-radius: 3vmax 3vmax 0 0;
+  background: linear-gradient(180deg, #fdfdfe, #e3e7eb);
+  box-shadow:
+    0 0 0 1vmax #fff,
+    0 0 4vmax 1.4vmax rgba(95, 211, 230, 0.55);
+}
+.lab-door-seam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 0.2vmax);
+  width: 0.4vmax;
+  background: rgba(27, 33, 39, 0.18);
+}
+.lab-back-strip {
+  position: absolute;
+  top: 16%;
+  left: 6%;
+  right: 6%;
+  height: 3%;
+  border-radius: 1vmax;
+  background: #fff;
+  box-shadow: 0 0 5vmax 1.5vmax rgba(200, 240, 255, 0.9);
+}
+.lab-floor {
+  left: 0;
+  top: 100%;
+  width: 100%;
+  height: var(--lab-depth);
+  transform-origin: top center;
+  transform: rotateX(-90deg);
+  background:
+    linear-gradient(90deg, rgba(95, 211, 230, 0.7) 0 0.4vmax, transparent 0.4vmax calc(100% - 0.4vmax), rgba(95, 211, 230, 0.7) 0),
+    linear-gradient(90deg, transparent 0 44%, rgba(255, 255, 255, 0.85) 50%, transparent 56% 100%),
+    repeating-linear-gradient(90deg, rgba(27, 33, 39, 0.07) 0 0.25vmax, transparent 0.25vmax 9vmax),
+    repeating-linear-gradient(0deg, rgba(27, 33, 39, 0.07) 0 0.25vmax, transparent 0.25vmax 9vmax),
+    linear-gradient(180deg, #f4f6f8, #dde2e6);
+}
+.lab-ceiling {
+  left: 0;
+  bottom: 100%;
+  width: 100%;
+  height: var(--lab-depth);
+  transform-origin: bottom center;
+  transform: rotateX(90deg);
+  background: linear-gradient(0deg, #f9fafb, #eceff2);
+}
+.lab-light {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3vmax;
+  margin-left: -1.5vmax;
+  border-radius: 1.5vmax;
+  background: #fff;
+  box-shadow: 0 0 4vmax 1.5vmax rgba(200, 240, 255, 0.9);
+}
+.lab-wall {
+  top: 0;
+  width: var(--lab-depth);
+  height: 100%;
+  background:
+    linear-gradient(0deg, #d6dce1 0 7%, rgba(255, 255, 255, 0.9) 7% 7.6%, transparent 7.6%),
+    repeating-linear-gradient(90deg, rgba(27, 33, 39, 0.06) 0 0.25vmax, transparent 0.25vmax 14vmax),
+    linear-gradient(180deg, #f5f6f8, #e5e8ec);
+}
+.lab-wall-left {
+  right: 100%;
+  transform-origin: right center;
+  transform: rotateY(-90deg);
+}
+.lab-wall-right {
+  left: 100%;
+  transform-origin: left center;
+  transform: rotateY(90deg);
+}
+.lab-wall-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 58%;
+  height: 0.5vmax;
+  overflow: hidden;
+  background: rgba(95, 211, 230, 0.85);
+  box-shadow: 0 0 2vmax 0.4vmax rgba(95, 211, 230, 0.55);
+}
+/* A pulse of light running along the strip, from the viewer towards the far door. */
+.lab-wall-strip::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 18%;
+  background: linear-gradient(90deg, transparent, #fff, transparent);
+  animation: lab-pulse 5s linear infinite;
+}
+.lab-wall-right .lab-wall-strip::after {
+  animation-direction: reverse;
+  animation-delay: -2.5s;
+}
+.lab-haze {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 38% 32% at 50% 44%, rgba(255, 255, 255, 0.8), transparent 70%),
+    radial-gradient(ellipse 120% 95% at 50% 44%, transparent 55%, rgba(27, 33, 39, 0.08)),
+    rgba(242, 244, 246, 0.22);
+}
+@keyframes lab-drift {
+  from {
+    transform: translateX(-0.8%) rotateY(0.7deg);
+  }
+  to {
+    transform: translateX(0.8%) rotateY(-0.7deg);
+  }
+}
+@keyframes lab-pulse {
+  from {
+    left: 100%;
+  }
+  to {
+    left: -18%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab-room,
+  .lab-wall-strip::after {
     animation: none;
   }
 }

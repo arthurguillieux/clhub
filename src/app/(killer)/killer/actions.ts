@@ -15,6 +15,7 @@ import {
   getGameByCode,
   getHostView,
   releaseSeat,
+  removePhoto,
   resetToLobby,
   saveLobby,
   shuffleLobby,
@@ -69,6 +70,7 @@ const hostActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("mission"), playerId: id, mission }),
   z.object({ type: z.literal("end") }),
   z.object({ type: z.literal("reset") }),
+  z.object({ type: z.literal("removePhoto"), playerId: id }),
 ]);
 
 export type KillerHostResult = { ok: true; view: HostGameView } | { ok: false; error: string };
@@ -101,7 +103,9 @@ export async function killerHostAction(code: string, action: unknown): Promise<K
                     ? await updateMission(game, a.playerId, a.mission)
                     : a.type === "reset"
                       ? await resetToLobby(game)
-                      : await endGame(game);
+                      : a.type === "removePhoto"
+                        ? await removePhoto(game, a.playerId)
+                        : await endGame(game);
   if (!result.ok) return { ok: false, error: result.error };
 
   const fresh = await getGameByCode(code);

@@ -27,7 +27,7 @@ export function KillerDialog({
   }, [onClose]);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(13,27,46,0.38)] p-4 backdrop-blur-sm sm:items-center" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(27,33,39,0.35)] p-4 backdrop-blur-sm sm:items-center" onClick={onClose}>
       <div className="killer-panel w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
         <p className="text-xl font-semibold">{title}</p>
         {detail && <p className="mt-2 text-sm text-[var(--k-muted)]">{detail}</p>}

@@ -31,7 +31,7 @@ const KILLER = {
   href: "/jeux/killer",
   icon: "🎯",
   name: "Killer",
-  description: "Des tributs, des missions secrètes, et un canon qui tonne à chaque élimination.",
+  description: "Des agents, des missions secrètes, une cible à éliminer — et un grand écran qui suit la partie.",
 };
 
 export default async function JeuxPage() {

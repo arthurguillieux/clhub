@@ -2,22 +2,26 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PublicGameView, PublicTribute } from "@/modules/killer/views";
-import { playCannon, playChime } from "../../cannon";
+import { playChime, playElimination } from "../../sounds";
+import { LabRoom } from "../../LabRoom";
 import { Particles } from "../../Particles";
 import { TributePhoto } from "../../TributePhoto";
 import { useLongPoll } from "../../useLongPoll";
 
 const FALL_DURATION_MS = 7000;
 
-/** Picks the column count that gives the biggest portraits while every tribute fits on screen. */
-function bestGrid(count: number, width: number, height: number): { cols: number; size: number } {
+/**
+ * Picks the column count that gives the biggest portraits while every agent fits on screen, then
+ * scales them down so the lab behind keeps some room to breathe.
+ */
+function bestGrid(count: number, width: number, height: number, scale = 0.72): { cols: number; size: number } {
   let best = { cols: 1, size: 0 };
   for (let cols = 1; cols <= Math.max(1, count); cols++) {
     const rows = Math.ceil(count / cols);
     const size = Math.min((width / cols) * 0.78, (height / rows) * 0.66);
     if (size > best.size) best = { cols, size };
   }
-  return best;
+  return { cols: best.cols, size: best.size * scale };
 }
 
 function useWindowSize() {
@@ -50,7 +54,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
   useEffect(() => {
     if (!fall) return;
     const ctx = audio.current;
-    if (ctx) void ctx.resume().then(() => playCannon(ctx));
+    if (ctx) void ctx.resume().then(() => playElimination(ctx));
     const timer = setTimeout(() => setFall(null), FALL_DURATION_MS);
     return () => clearTimeout(timer);
   }, [fall]);
@@ -65,7 +69,8 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
 
   return (
     <main className="killer relative h-dvh overflow-hidden">
-      <Particles density={80} />
+      <LabRoom />
+      <Particles density={50} variant="motes" />
       <div className="relative flex h-full flex-col px-[3vw] py-[3vh]">
         {view.status === "lobby" && <Lobby code={code} view={view} qrSvg={qrSvg} joinUrl={joinUrl} />}
         {view.status === "running" && <Arena code={code} view={view} />}
@@ -86,11 +91,11 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
       ) : (
         <button
           type="button"
-          onClick={() => audio.current && playCannon(audio.current)}
+          onClick={() => audio.current && playElimination(audio.current)}
           className="absolute right-[1.5vw] bottom-[1.5vh] z-30 rounded-full px-3 py-2 text-sm text-[var(--k-muted)] opacity-30 transition-opacity hover:opacity-100"
-          title="Faire tonner le canon pour régler le volume"
+          title="Jouer le son d'élimination pour régler le volume"
         >
-          🔊 Tester le canon
+          🔊 Tester le son
         </button>
       )}
     </main>
@@ -106,19 +111,19 @@ function Lobby({ code, view, qrSvg, joinUrl }: { code: string; view: PublicGameV
     <div className="grid h-full grid-cols-[1fr_0.75fr] items-center gap-[4vw]">
       <section className="flex h-full min-h-0 flex-col">
         <p className="killer-label" style={{ fontSize: "min(1.4vw, 2.4vh)" }}>
-          Les jeux vont commencer
+          Initialisation de la simulation
         </p>
         <h1 className="killer-title killer-flicker mt-[1vh]" style={{ fontSize: "min(4.4vw, 7.5vh)", lineHeight: 1.1 }}>
           {view.title}
         </h1>
         <p className="mt-[2vh] text-[var(--k-muted)]" style={{ fontSize: "min(1.8vw, 3vh)" }}>
-          {`${joined.length} tribut${joined.length > 1 ? "s" : ""} sur ${view.tributes.length} dans l'arène`}
+          {`${joined.length} agent${joined.length > 1 ? "s" : ""} connecté${joined.length > 1 ? "s" : ""} sur ${view.tributes.length}`}
         </p>
         <div className="mt-[3vh] grid min-h-0 flex-1 content-start justify-start gap-[1.5vw]" style={{ gridTemplateColumns: `repeat(${grid.cols}, ${grid.size}px)` }}>
           {joined.map((t) => (
             <figure key={t.id} className="killer-rise flex flex-col items-center">
               <TributePhoto code={code} id={t.id} name={t.name} photoVersion={t.photoVersion} className="w-full" />
-              <figcaption className="mt-[0.8vh] max-w-full truncate font-bold" style={{ fontSize: Math.max(14, grid.size * 0.15) }}>
+              <figcaption className="mt-[0.8vh] truncate text-center font-bold" style={{ fontSize: Math.max(12, grid.size * 0.16), width: grid.size * 1.35 }}>
                 {t.name}
               </figcaption>
             </figure>
@@ -128,7 +133,7 @@ function Lobby({ code, view, qrSvg, joinUrl }: { code: string; view: PublicGameV
       <section className="killer-panel killer-frame flex flex-col items-center p-[2.5vh]">
         <div className="aspect-square rounded-xl bg-white p-[1vh] [&>svg]:h-full [&>svg]:w-full" style={{ width: "min(30vw, 52vh)" }} dangerouslySetInnerHTML={{ __html: qrSvg }} />
         <p className="killer-title mt-[2vh] text-center" style={{ fontSize: "min(1.8vw, 3vh)" }}>
-          Scanne pour entrer dans l&apos;arène
+          Scanne pour rejoindre la simulation
         </p>
         <p className="mt-[1vh] text-[var(--k-muted)]" style={{ fontSize: "min(1.2vw, 2vh)" }}>
           {joinUrl.replace(/^https?:\/\//, "")}
@@ -154,7 +159,7 @@ function Arena({ code, view }: { code: string; view: PublicGameView }) {
           <span className="killer-title block" style={{ fontSize: "min(4.2vw, 7.5vh)", lineHeight: 1, color: "var(--k-accent)" }}>
             {view.aliveCount}
           </span>
-          tribut{view.aliveCount > 1 ? "s" : ""} en vie
+          agent{view.aliveCount > 1 ? "s" : ""} actif{view.aliveCount > 1 ? "s" : ""}
         </p>
       </header>
       <div className="mt-[2vh] grid min-h-0 flex-1 content-center justify-center gap-x-[1.6vw] gap-y-[2vh]" style={{ gridTemplateColumns: `repeat(${grid.cols}, ${grid.size}px)` }}>
@@ -178,8 +183,8 @@ function Portrait({ code, t, size }: { code: string; t: PublicTribute; size: num
         )}
       </div>
       <figcaption
-        className={`mt-[0.6vh] max-w-full truncate font-bold ${t.alive ? "" : "text-[var(--k-muted)] line-through"}`}
-        style={{ fontSize: Math.max(14, size * 0.15) }}
+        className={`mt-[0.6vh] truncate text-center font-bold ${t.alive ? "" : "text-[var(--k-muted)] line-through"}`}
+        style={{ fontSize: Math.max(12, size * 0.16), width: size * 1.35 }}
       >
         {t.name}
       </figcaption>
@@ -189,12 +194,12 @@ function Portrait({ code, t, size }: { code: string; t: PublicTribute; size: num
 
 function FallOverlay({ code, fall, remaining }: { code: string; fall: NonNullable<PublicGameView["lastFall"]>; remaining: number }) {
   return (
-    <div className="killer-fall-veil absolute inset-0 z-40 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.97),rgba(228,237,248,0.98)_70%)] backdrop-blur-md">
+    <div className="killer-fall-veil absolute inset-0 z-40 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.97),rgba(226,230,234,0.98)_70%)] backdrop-blur-md">
       <div className="killer-shake flex flex-col items-center">
         <p className="killer-label" style={{ fontSize: "min(1.6vw, 2.8vh)", color: "var(--k-alert)" }}>
-          Un canon a tonné
+          Signal perdu
         </p>
-        <div className="relative mt-[3vh] rounded-full shadow-[0_0_0_3px_var(--k-alert),0_16px_40px_rgba(239,62,85,0.25)]" style={{ width: "min(30vw, 46vh)" }}>
+        <div className="relative mt-[3vh] rounded-full shadow-[0_0_0_3px_var(--k-alert),0_0_30px_rgba(240,54,90,0.35)]" style={{ width: "min(30vw, 46vh)" }}>
           <span aria-hidden="true" className="killer-ring absolute inset-0 rounded-full" />
           <div className="killer-fall-portrait relative overflow-hidden rounded-full">
             <TributePhoto code={code} id={fall.id} name={fall.name} photoVersion={fall.photoVersion} className="w-full" />
@@ -205,7 +210,7 @@ function FallOverlay({ code, fall, remaining }: { code: string; fall: NonNullabl
           {fall.name}
         </p>
         <p className="mt-[1.5vh] text-[var(--k-muted)]" style={{ fontSize: "min(2vw, 3.4vh)" }}>
-          est tombé·e · {remaining} tribut{remaining > 1 ? "s" : ""} en vie
+          est éliminé·e · {remaining} agent{remaining > 1 ? "s" : ""} actif{remaining > 1 ? "s" : ""}
         </p>
       </div>
     </div>
@@ -219,19 +224,19 @@ function Wrapped({ code, view }: { code: string; view: PublicGameView }) {
   if (!s) return null;
 
   const tiles: { label: string; value: string; sub?: string }[] = [
-    { label: "Durée des jeux", value: s.durationMinutes !== null ? formatDuration(s.durationMinutes) : "—" },
+    { label: "Durée de la partie", value: s.durationMinutes !== null ? formatDuration(s.durationMinutes) : "—" },
     { label: "Éliminations", value: String(s.totalKills) },
     s.fastestKill
-      ? { label: "Premier sang", value: s.fastestKill.killerName, sub: `sur ${s.fastestKill.victimName}, après ${formatDuration(s.fastestKill.minutesIn)}` }
-      : { label: "Premier sang", value: "—" },
-    s.lastFallen ? { label: "Dernier·e tombé·e", value: s.lastFallen.name, sub: "si près du but" } : { label: "Dernier·e tombé·e", value: "—" },
+      ? { label: "Première élimination", value: s.fastestKill.killerName, sub: `sur ${s.fastestKill.victimName}, après ${formatDuration(s.fastestKill.minutesIn)}` }
+      : { label: "Première élimination", value: "—" },
+    s.lastFallen ? { label: "Dernier·e éliminé·e", value: s.lastFallen.name, sub: "si près du but" } : { label: "Dernier·e éliminé·e", value: "—" },
   ];
 
   return (
     <div className="grid h-full grid-cols-[1fr_1.1fr] gap-[3vw]">
       <section className="flex flex-col items-center justify-center text-center">
         <p className="killer-label" style={{ fontSize: "min(1.6vw, 2.8vh)" }}>
-          {s.winner ? "Vainqueur des jeux" : "Fin des jeux"}
+          {s.winner ? "Dernier agent actif" : "Fin de la simulation"}
         </p>
         {s.winner && (
           <div className="killer-rise mt-[3vh]" style={{ width: "min(30vw, 46vh)" }}>

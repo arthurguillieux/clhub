@@ -109,11 +109,11 @@ function JoinScreen({ code, view, onJoined }: { code: string; view: PublicGameVi
   return (
     <Shell>
       <p className="killer-label text-center">{view.title}</p>
-      <h1 className="killer-title mt-2 text-center text-3xl">Qui es-tu, tribut ?</h1>
+      <h1 className="killer-title mt-2 text-center text-3xl">Qui es-tu, agent ?</h1>
       {view.status === "ended" ? (
         <Centered title="" text="Cette partie est terminée." />
       ) : free.length === 0 ? (
-        <Centered title="" text="Tous les tributs sont inscrits. Si ton prénom n'apparaît pas, va voir l'organisateur." />
+        <Centered title="" text="Tous les agents sont inscrits. Si ton prénom n'apparaît pas, va voir l'organisateur." />
       ) : (
         <>
           <p className="mt-3 text-center text-sm text-[var(--k-muted)]">Touche ton prénom.</p>
@@ -184,10 +184,10 @@ function PhotoScreen({ code, token, name, onDone }: { code: string; token: strin
 
   return (
     <Shell>
-      <p className="killer-label text-center">Tribut {name}</p>
+      <p className="killer-label text-center">Agent {name}</p>
       <h1 className="killer-title mt-2 text-center text-2xl">Ton portrait</h1>
       <p className="mt-3 text-center text-sm text-[var(--k-muted)]">
-        {source ? "Fais glisser la photo et zoome pour bien te placer dans le cercle." : "Il apparaîtra sur le grand écran, tout le long des jeux."}
+        {source ? "Fais glisser la photo et zoome pour bien te placer dans le cercle." : "Il apparaîtra sur le grand écran, tout le long de la partie."}
       </p>
       {source ? (
         <Cropper key={source} src={source} busy={busy} onConfirm={(blob) => void upload(blob)} onRetake={() => input.current?.click()} />
@@ -341,7 +341,7 @@ function Cropper({ src, busy, onConfirm, onRetake }: { src: string; busy: boolea
       </label>
       <div className="mt-6 flex w-full flex-col gap-3">
         <button type="button" className="killer-btn min-h-14 px-4 text-lg" disabled={busy || !img} onClick={() => void confirm()}>
-          {busy ? "Envoi…" : "C'est moi, j'entre dans l'arène"}
+          {busy ? "Envoi…" : "C'est moi, j'entre dans la simulation"}
         </button>
         <button type="button" className="killer-btn-ghost min-h-12 px-4" disabled={busy} onClick={onRetake}>
           Reprendre la photo
@@ -381,7 +381,7 @@ function GameScreen({ code, view, token }: { code: string; view: PlayerGameView;
       <header className="flex items-center gap-3">
         <TributePhoto code={code} id={me.id} name={me.name} photoVersion={view.tributes.find((t) => t.id === me.id)?.photoVersion ?? null} fallen={!me.alive} className="w-14" />
         <div>
-          <p className="killer-label">Tribut</p>
+          <p className="killer-label">Agent</p>
           <p className="text-xl font-bold">{me.name}</p>
         </div>
         <p className="ml-auto text-right text-sm text-[var(--k-muted)]">
@@ -391,8 +391,8 @@ function GameScreen({ code, view, token }: { code: string; view: PlayerGameView;
 
       {view.status === "lobby" && (
         <div className="m-auto text-center">
-          <h1 className="killer-title text-2xl">Tu es dans l&apos;arène</h1>
-          <p className="mt-3 text-[var(--k-muted)]">Les jeux vont bientôt commencer. Garde cette page ouverte : ta cible et ta mission s&apos;afficheront ici.</p>
+          <h1 className="killer-title text-2xl">Tu es dans la simulation</h1>
+          <p className="mt-3 text-[var(--k-muted)]">La simulation va bientôt démarrer. Garde cette page ouverte : ta cible et ta mission s&apos;afficheront ici.</p>
           <button type="button" className="killer-btn-ghost mt-8 min-h-12 px-4" onClick={() => setRetakePhoto(true)}>
             Reprendre ma photo
           </button>
@@ -401,7 +401,7 @@ function GameScreen({ code, view, token }: { code: string; view: PlayerGameView;
 
       {view.status === "running" && !me.alive && (
         <div className="m-auto text-center">
-          <h1 className="killer-title text-3xl">Tu es tombé·e</h1>
+          <h1 className="killer-title text-3xl">Tu es éliminé·e</h1>
           <p className="mt-3 text-[var(--k-muted)]">Ton chasseur a hérité de ta cible. Profite du spectacle — et pas un mot !</p>
         </div>
       )}
@@ -410,7 +410,7 @@ function GameScreen({ code, view, token }: { code: string; view: PlayerGameView;
         <div className="mt-10 flex flex-1 flex-col">
           {isNewTarget && !revealed && (
             <p className="killer-panel killer-rise mb-4 p-3 text-center text-sm">
-              <b>Nouvelle cible.</b> Ta proie précédente est tombée : tu reprends sa chasse.
+              <b>Nouvelle cible.</b> Ta cible précédente a été éliminée : tu reprends sa mission.
             </p>
           )}
           {!revealed ? (
@@ -439,8 +439,8 @@ function GameScreen({ code, view, token }: { code: string; view: PlayerGameView;
 
       {view.status === "ended" && (
         <div className="m-auto text-center">
-          <p className="killer-label">Fin des jeux</p>
-          <h1 className="killer-title mt-2 text-3xl">{view.stats?.winner ? `${view.stats.winner.name} l'emporte` : "Les jeux sont finis"}</h1>
+          <p className="killer-label">Fin de la simulation</p>
+          <h1 className="killer-title mt-2 text-3xl">{view.stats?.winner ? `${view.stats.winner.name} l'emporte` : "La simulation est terminée"}</h1>
           <p className="mt-3 text-[var(--k-muted)]">Regarde le grand écran.</p>
         </div>
       )}

@@ -214,8 +214,8 @@ export async function shuffleLobby(game: KillerGame): Promise<Result> {
 export async function startGame(game: KillerGame): Promise<Result> {
   if (game.status !== "lobby") return fail("La partie a déjà commencé.");
   const rows = await loadPlayers(game.id);
-  if (rows.length < 2) return fail("Il faut au moins deux tributs.");
-  if (rows.some((r) => !r.mission.trim())) return fail("Chaque tribut doit avoir une mission avant le lancement.");
+  if (rows.length < 2) return fail("Il faut au moins deux agents.");
+  if (rows.some((r) => !r.mission.trim())) return fail("Chaque agent doit avoir une mission avant le lancement.");
   await mutate(game.id, async (tx) => {
     await applyPatches(tx, buildCircle(rows));
     await tx.update(killerGame).set({ status: "running", startedAt: new Date() }).where(eq(killerGame.id, game.id));
@@ -253,6 +253,17 @@ export async function setPhoto(game: KillerGame, token: string, photo: Buffer): 
 export async function releaseSeat(game: KillerGame, playerId: string): Promise<Result> {
   await mutate(game.id, (tx) =>
     tx.update(killerPlayer).set({ token: null }).where(and(eq(killerPlayer.gameId, game.id), eq(killerPlayer.id, playerId))),
+  );
+  return { ok: true };
+}
+
+/** The organizer removes a bad photo: the guest's phone goes back to the photo step on its own. */
+export async function removePhoto(game: KillerGame, playerId: string): Promise<Result> {
+  await mutate(game.id, (tx) =>
+    tx
+      .update(killerPlayer)
+      .set({ photo: null, photoVersion: sql`${killerPlayer.photoVersion} + 1` })
+      .where(and(eq(killerPlayer.gameId, game.id), eq(killerPlayer.id, playerId))),
   );
   return { ok: true };
 }
