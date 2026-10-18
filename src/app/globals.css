@@ -387,12 +387,12 @@ body {
 
 /* The TV's laboratory, in CSS 3D (LabRoom.tsx): five planes around a perspective stage. */
 .lab-stage {
-  --lab-depth: 80vmax;
+  --lab-depth: 160vmax;
   position: absolute;
   inset: -6%;
   overflow: hidden;
   perspective: 55vmax;
-  perspective-origin: 50% 44%;
+  perspective-origin: 50% 45%;
   pointer-events: none;
 }
 .lab-room {
@@ -404,13 +404,16 @@ body {
 .lab-face {
   position: absolute;
 }
+/* The far wall: a little darker than the near surfaces, so the end of the corridor recedes. */
 .lab-back {
   inset: 0;
   transform: translateZ(calc(-1 * var(--lab-depth)));
   background:
-    repeating-linear-gradient(90deg, rgba(27, 33, 39, 0.05) 0 2px, transparent 2px 12.5%),
-    linear-gradient(180deg, #f7f8fa, #e7eaee);
+    linear-gradient(0deg, rgba(27, 33, 39, 0.22) 0, transparent 22%),
+    repeating-linear-gradient(90deg, rgba(27, 33, 39, 0.07) 0 3px, transparent 3px 12.5%),
+    linear-gradient(180deg, #e9ecef, #d6dbe0);
 }
+/* A sealed door set into the wall: a dark recess around it, a lit frame, a seam down the middle. */
 .lab-door {
   position: absolute;
   bottom: 0;
@@ -418,18 +421,22 @@ body {
   width: 20%;
   height: 64%;
   border-radius: 3vmax 3vmax 0 0;
-  background: linear-gradient(180deg, #fdfdfe, #e3e7eb);
+  background:
+    linear-gradient(90deg, rgba(27, 33, 39, 0.12), transparent 18%, transparent 82%, rgba(27, 33, 39, 0.12)),
+    linear-gradient(180deg, #f6f7f9, #d3d8dd);
   box-shadow:
-    0 0 0 1vmax #fff,
-    0 0 4vmax 1.4vmax rgba(95, 211, 230, 0.55);
+    inset 0 2vmax 4vmax rgba(27, 33, 39, 0.28),
+    0 0 0 1.2vmax #c6cdd3,
+    0 0 0 2vmax #fff,
+    0 0 6vmax 2vmax rgba(95, 211, 230, 0.5);
 }
 .lab-door-seam {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: calc(50% - 0.2vmax);
-  width: 0.4vmax;
-  background: rgba(27, 33, 39, 0.18);
+  left: calc(50% - 0.3vmax);
+  width: 0.6vmax;
+  background: rgba(27, 33, 39, 0.3);
 }
 .lab-back-strip {
   position: absolute;
@@ -439,8 +446,13 @@ body {
   height: 3%;
   border-radius: 1vmax;
   background: #fff;
-  box-shadow: 0 0 5vmax 1.5vmax rgba(200, 240, 255, 0.9);
+  box-shadow: 0 0 5vmax 1.5vmax rgba(200, 240, 255, 0.85);
 }
+/*
+ * The floor runs from the viewer (top of the plane) to the far wall (bottom). Layers, top first:
+ * shadow where it meets the walls, cyan edge lines, the ceiling lights' reflections, a glossy
+ * sheen, tile joints, and the base tone fading slightly into the distance.
+ */
 .lab-floor {
   left: 0;
   top: 100%;
@@ -449,11 +461,12 @@ body {
   transform-origin: top center;
   transform: rotateX(-90deg);
   background:
-    linear-gradient(90deg, rgba(95, 211, 230, 0.7) 0 0.4vmax, transparent 0.4vmax calc(100% - 0.4vmax), rgba(95, 211, 230, 0.7) 0),
-    linear-gradient(90deg, transparent 0 44%, rgba(255, 255, 255, 0.85) 50%, transparent 56% 100%),
-    repeating-linear-gradient(90deg, rgba(27, 33, 39, 0.07) 0 0.25vmax, transparent 0.25vmax 9vmax),
-    repeating-linear-gradient(0deg, rgba(27, 33, 39, 0.07) 0 0.25vmax, transparent 0.25vmax 9vmax),
-    linear-gradient(180deg, #f4f6f8, #dde2e6);
+    linear-gradient(90deg, rgba(27, 33, 39, 0.28) 0, transparent 9%, transparent 91%, rgba(27, 33, 39, 0.28) 100%),
+    linear-gradient(90deg, rgba(95, 211, 230, 0.75) 0 0.4vmax, transparent 0.4vmax calc(100% - 0.4vmax), rgba(95, 211, 230, 0.75) 0),
+    linear-gradient(90deg, transparent 18%, rgba(255, 255, 255, 0.55) 22%, transparent 26%, transparent 46%, rgba(255, 255, 255, 0.75) 50%, transparent 54%, transparent 74%, rgba(255, 255, 255, 0.55) 78%, transparent 82%),
+    repeating-linear-gradient(90deg, rgba(27, 33, 39, 0.09) 0 0.25vmax, transparent 0.25vmax 9vmax),
+    repeating-linear-gradient(0deg, rgba(27, 33, 39, 0.09) 0 0.25vmax, transparent 0.25vmax 9vmax),
+    linear-gradient(180deg, #f1f3f5 0%, #d9dee2 60%, #cbd1d7 100%);
 }
 .lab-ceiling {
   left: 0;
@@ -462,7 +475,9 @@ body {
   height: var(--lab-depth);
   transform-origin: bottom center;
   transform: rotateX(90deg);
-  background: linear-gradient(0deg, #f9fafb, #eceff2);
+  background:
+    linear-gradient(90deg, rgba(27, 33, 39, 0.18) 0, transparent 10%, transparent 90%, rgba(27, 33, 39, 0.18) 100%),
+    linear-gradient(0deg, #eef0f2, #d5dade);
 }
 .lab-light {
   position: absolute;
@@ -472,29 +487,47 @@ body {
   margin-left: -1.5vmax;
   border-radius: 1.5vmax;
   background: #fff;
-  box-shadow: 0 0 4vmax 1.5vmax rgba(200, 240, 255, 0.9);
+  box-shadow: 0 0 4vmax 1.5vmax rgba(200, 240, 255, 0.85);
 }
+/*
+ * Walls: the near edge is at the viewer, the far edge at the back. Shadow along the floor and the
+ * ceiling, bevelled panels (light edge, dark joint), and a light falloff towards the back.
+ */
 .lab-wall {
   top: 0;
   width: var(--lab-depth);
   height: 100%;
   background:
-    linear-gradient(0deg, #d6dce1 0 7%, rgba(255, 255, 255, 0.9) 7% 7.6%, transparent 7.6%),
-    repeating-linear-gradient(90deg, rgba(27, 33, 39, 0.06) 0 0.25vmax, transparent 0.25vmax 14vmax),
-    linear-gradient(180deg, #f5f6f8, #e5e8ec);
+    linear-gradient(0deg, #c9d0d6 0 7%, rgba(255, 255, 255, 0.9) 7% 7.6%, rgba(27, 33, 39, 0.2) 7.6%, transparent 18%, transparent 86%, rgba(27, 33, 39, 0.16) 100%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.7) 0 0.3vmax, transparent 0.3vmax 13.4vmax, rgba(27, 33, 39, 0.14) 13.7vmax 14vmax),
+    linear-gradient(180deg, #f3f5f7, #dfe3e7);
 }
 .lab-wall-left {
   right: 100%;
   transform-origin: right center;
   transform: rotateY(-90deg);
 }
+.lab-wall-left::after,
+.lab-wall-right::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+/* Light falls off towards the back: the far end of each wall is darker. */
+.lab-wall-left::after {
+  background: linear-gradient(90deg, rgba(27, 33, 39, 0.22), transparent 70%);
+}
 .lab-wall-right {
   left: 100%;
   transform-origin: left center;
   transform: rotateY(90deg);
 }
+.lab-wall-right::after {
+  background: linear-gradient(270deg, rgba(27, 33, 39, 0.22), transparent 70%);
+}
 .lab-wall-strip {
   position: absolute;
+  z-index: 1;
   left: 0;
   right: 0;
   top: 58%;
@@ -509,21 +542,22 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 18%;
+  width: 12%;
   background: linear-gradient(90deg, transparent, #fff, transparent);
-  animation: lab-pulse 5s linear infinite;
+  animation: lab-pulse 6s linear infinite;
 }
 .lab-wall-right .lab-wall-strip::after {
   animation-direction: reverse;
-  animation-delay: -2.5s;
+  animation-delay: -3s;
 }
+/* Haze at the far end, and a vignette that darkens the corners of the picture. */
 .lab-haze {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 38% 32% at 50% 44%, rgba(255, 255, 255, 0.8), transparent 70%),
-    radial-gradient(ellipse 120% 95% at 50% 44%, transparent 55%, rgba(27, 33, 39, 0.08)),
-    rgba(242, 244, 246, 0.22);
+    radial-gradient(ellipse 22% 20% at 50% 45%, rgba(255, 255, 255, 0.45), transparent 70%),
+    radial-gradient(ellipse 110% 90% at 50% 45%, transparent 50%, rgba(27, 33, 39, 0.2)),
+    rgba(242, 244, 246, 0.12);
 }
 @keyframes lab-drift {
   from {
