@@ -339,6 +339,20 @@ export async function endGame(game: KillerGame): Promise<Result> {
   return { ok: true };
 }
 
+/**
+ * Back to the preparation screen, as if the game had never been launched: everyone alive again,
+ * no targets, no kill history. Seats and photos are kept, so nobody has to sign up again.
+ */
+export async function resetToLobby(game: KillerGame): Promise<Result> {
+  if (game.status === "lobby") return fail("La partie est déjà en préparation.");
+  await mutate(game.id, async (tx) => {
+    await tx.delete(killerKill).where(eq(killerKill.gameId, game.id));
+    await tx.update(killerPlayer).set({ alive: true, targetId: null, killedAt: null, killedById: null }).where(eq(killerPlayer.gameId, game.id));
+    await tx.update(killerGame).set({ status: "lobby", startedAt: null, endedAt: null }).where(eq(killerGame.id, game.id));
+  });
+  return { ok: true };
+}
+
 /** Removes the game with its players, photos and kills (cascade). */
 export async function deleteGame(game: KillerGame): Promise<void> {
   await db.delete(killerGame).where(eq(killerGame.id, game.id));

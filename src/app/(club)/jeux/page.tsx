@@ -29,7 +29,7 @@ const TOOLS = [
 // Only listed for members who already entered its password — the others shouldn't even guess it exists.
 const KILLER = {
   href: "/jeux/killer",
-  icon: "🔥",
+  icon: "🎯",
   name: "Killer",
   description: "Des tributs, des missions secrètes, et un canon qui tonne à chaque élimination.",
 };

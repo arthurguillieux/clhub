@@ -107,100 +107,166 @@ body {
 }
 
 /*
- * Killer (jeux/killer) — its own world on purpose, "L'Embrasement": embers,
- * fire and gold on near-black, nothing from the CLHUB's neon palette. Scoped
- * to `.killer` so none of it leaks into the rest of the site.
+ * Killer (jeux/killer) — its own world on purpose, "Le Laboratoire": bright,
+ * between a research lab and a spaceship interior (pearl white, deep navy ink,
+ * an instrument blue, drifting blue particles). Nothing borrowed from a film or
+ * a game. Light-only by choice: it's a projected screen, not a reading page.
+ * Scoped to `.killer` so none of it leaks into the rest of the site.
  */
 .killer {
-  --k-night: #080505;
-  --k-coal: #140b09;
-  --k-ash: #a8998e;
-  --k-ember: #ff5a1f;
-  --k-flame: #ffa040;
-  --k-gold: #e9b44c;
-  --k-blood: #d0282f;
-  --k-ink: #f7ede4;
+  --k-ground: #f2f6fb;
+  --k-surface: rgba(255, 255, 255, 0.74);
+  --k-surface-strong: #e4edf8;
+  --k-line: #cbd8e8;
+  --k-ink: #0d1b2e;
+  --k-muted: #5a6b82;
+  --k-accent: #1769f5;
+  --k-glow: #29b6f6;
+  --k-alert: #ef3e55;
+  font-family: var(--k-font-body), ui-sans-serif, system-ui, sans-serif;
   background:
-    radial-gradient(ellipse 120% 60% at 50% 115%, rgba(255, 90, 31, 0.28), transparent 60%),
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(233, 180, 76, 0.08), transparent 70%),
-    var(--k-night);
+    radial-gradient(ellipse 70% 55% at 85% 0%, rgba(41, 182, 246, 0.16), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 0% 100%, rgba(23, 105, 245, 0.1), transparent 70%),
+    linear-gradient(rgba(23, 105, 245, 0.045) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, rgba(23, 105, 245, 0.045) 1px, transparent 1px) 0 0 / 48px 48px,
+    var(--k-ground);
   color: var(--k-ink);
 }
 .killer-title {
-  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
-  font-weight: 800;
+  font-family: var(--k-font-display), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  background: linear-gradient(180deg, #fff3d6 0%, var(--k-gold) 45%, var(--k-ember) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 0 18px rgba(255, 110, 40, 0.45));
+  letter-spacing: 0.04em;
+  color: var(--k-ink);
+  text-wrap: balance;
 }
 .killer-label {
+  font-family: var(--k-font-mono), ui-monospace, monospace;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.18em;
   font-size: 0.7rem;
-  color: var(--k-gold);
+  color: var(--k-accent);
 }
 .killer-panel {
-  background: linear-gradient(180deg, rgba(40, 20, 14, 0.85), rgba(16, 9, 7, 0.92));
-  border: 1px solid rgba(233, 180, 76, 0.28);
-  border-radius: 14px;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6) inset, 0 10px 30px rgba(0, 0, 0, 0.5);
+  background: var(--k-surface);
+  border: 1px solid var(--k-line);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 12px 32px rgba(20, 60, 120, 0.08);
+  backdrop-filter: blur(10px);
+}
+/* Corner brackets, as on an instrument display — for the panels that matter (QR code, a target). */
+.killer-frame {
+  position: relative;
+}
+.killer-frame::before,
+.killer-frame::after {
+  content: "";
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--k-accent);
+  pointer-events: none;
+}
+.killer-frame::before {
+  top: -7px;
+  left: -7px;
+  border-right: 0;
+  border-bottom: 0;
+  border-top-left-radius: 8px;
+}
+.killer-frame::after {
+  right: -7px;
+  bottom: -7px;
+  border-left: 0;
+  border-top: 0;
+  border-bottom-right-radius: 8px;
 }
 .killer-btn {
-  border-radius: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  background: linear-gradient(180deg, var(--k-flame), var(--k-ember));
-  color: #1a0700;
-  box-shadow: 0 0 22px rgba(255, 90, 31, 0.45);
+  border-radius: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: linear-gradient(180deg, #3d8bff, var(--k-accent));
+  color: #fff;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 8px 22px rgba(23, 105, 245, 0.3);
 }
 .killer-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
+  box-shadow: none;
 }
 .killer-btn-ghost {
-  border-radius: 10px;
+  border-radius: 12px;
   font-weight: 600;
-  border: 1px solid rgba(233, 180, 76, 0.4);
+  border: 1px solid var(--k-line);
   color: var(--k-ink);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.85);
+}
+.killer-btn-ghost:disabled {
+  opacity: 0.4;
 }
 .killer-btn-blood {
-  border-radius: 10px;
-  font-weight: 700;
-  background: var(--k-blood);
+  border-radius: 12px;
+  font-weight: 600;
+  background: var(--k-alert);
   color: #fff;
-  box-shadow: 0 0 20px rgba(208, 40, 47, 0.45);
+  box-shadow: 0 8px 20px rgba(239, 62, 85, 0.28);
+}
+.killer :is(.killer-btn, .killer-btn-ghost, .killer-btn-blood, .killer-field):focus-visible {
+  outline: 3px solid rgba(23, 105, 245, 0.45);
+  outline-offset: 2px;
+}
+.killer-field {
+  border-radius: 10px;
+  border: 1px solid var(--k-line);
+  background: #fff;
+  color: var(--k-ink);
+}
+.killer-field::placeholder {
+  color: #93a2b6;
+}
+.killer-bar {
+  border-top: 1px solid var(--k-line);
+  background: rgba(242, 246, 251, 0.92);
+  backdrop-filter: blur(12px);
+}
+.killer-alert {
+  border: 1px solid var(--k-alert);
+  background: rgba(239, 62, 85, 0.08);
+  border-radius: 10px;
+}
+.killer-range {
+  accent-color: var(--k-accent);
 }
 .killer-portrait {
-  border: 2px solid var(--k-gold);
-  box-shadow: 0 0 18px rgba(255, 140, 50, 0.35);
+  border: 3px solid #fff;
+  box-shadow:
+    0 0 0 2px var(--k-accent),
+    0 10px 26px rgba(23, 105, 245, 0.22);
 }
 .killer-portrait.fallen {
-  border-color: #3a2a24;
-  box-shadow: none;
-  filter: grayscale(1) brightness(0.45);
+  box-shadow: 0 0 0 2px var(--k-line);
+  filter: grayscale(1) contrast(0.9) brightness(1.08);
+  opacity: 0.5;
 }
 @keyframes killer-flicker {
   0%,
   100% {
     opacity: 1;
   }
-  45% {
-    opacity: 0.86;
-  }
   50% {
-    opacity: 0.95;
+    opacity: 0.82;
   }
 }
 .killer-flicker {
-  animation: killer-flicker 3.2s ease-in-out infinite;
+  animation: killer-flicker 3.6s ease-in-out infinite;
 }
 @keyframes killer-rise {
   from {
-    transform: translateY(18px) scale(0.92);
+    transform: translateY(14px) scale(0.94);
     opacity: 0;
   }
   to {
@@ -209,15 +275,15 @@ body {
   }
 }
 .killer-rise {
-  animation: killer-rise 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  animation: killer-rise 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
 }
-/* The fall: the screen darkens, the portrait burns in, then drains to grey. */
+/* The fall: a white-out, the portrait locks in, a red scan crosses it, then it drains to grey. */
 @keyframes killer-fall-veil {
   0% {
     opacity: 0;
   }
-  8%,
-  85% {
+  6%,
+  86% {
     opacity: 1;
   }
   100% {
@@ -226,22 +292,46 @@ body {
 }
 @keyframes killer-fall-portrait {
   0% {
-    transform: scale(1.35);
-    filter: grayscale(0) brightness(1.4);
+    transform: scale(1.25);
+    filter: grayscale(0) brightness(1.6);
     opacity: 0;
   }
   12% {
     transform: scale(1);
-    filter: grayscale(0) brightness(1.15);
+    filter: grayscale(0) brightness(1.05);
     opacity: 1;
   }
-  55% {
+  50% {
     filter: grayscale(0) brightness(1);
   }
   100% {
-    transform: scale(0.96);
-    filter: grayscale(1) brightness(0.55);
+    transform: scale(0.97);
+    filter: grayscale(1) brightness(1.05);
     opacity: 1;
+  }
+}
+@keyframes killer-scan {
+  0% {
+    transform: translateY(-110%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  60%,
+  100% {
+    transform: translateY(110%);
+    opacity: 0;
+  }
+}
+@keyframes killer-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
   }
 }
 @keyframes killer-shake {
@@ -268,6 +358,14 @@ body {
 .killer-fall-portrait {
   animation: killer-fall-portrait 6s ease-out both;
 }
+.killer-scan {
+  background: linear-gradient(180deg, transparent, rgba(239, 62, 85, 0.55) 48%, rgba(255, 255, 255, 0.9) 50%, rgba(239, 62, 85, 0.55) 52%, transparent);
+  animation: killer-scan 1.6s ease-in-out 0.5s both;
+}
+.killer-ring {
+  border: 2px solid var(--k-alert);
+  animation: killer-ring 1.4s ease-out 0.3s 3 both;
+}
 .killer-shake {
   animation: killer-shake 0.5s ease-out 0.15s both;
 }
@@ -275,6 +373,8 @@ body {
   .killer-flicker,
   .killer-rise,
   .killer-fall-portrait,
+  .killer-scan,
+  .killer-ring,
   .killer-shake {
     animation: none;
   }

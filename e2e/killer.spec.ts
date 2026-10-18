@@ -42,7 +42,7 @@ test("killer: password, lobby, anonymous join, elimination, end", async ({ page,
   await expect(probe).toHaveURL(/\/sign-in/);
   await probe.close();
 
-  await page.getByRole("button", { name: "🔥 Lancer la partie" }).click();
+  await page.getByRole("button", { name: "Lancer la partie" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Lancer la partie" }).click();
   await expect(page.getByText("tributs encore en jeu")).toBeVisible();
 

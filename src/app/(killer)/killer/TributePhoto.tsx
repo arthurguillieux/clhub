@@ -18,7 +18,7 @@ export function TributePhoto({
   if (photoVersion === null) {
     return (
       <div
-        className={`${shape} flex items-center justify-center bg-[#1c110d] font-display font-extrabold text-[var(--k-gold)]`}
+        className={`${shape} flex items-center justify-center bg-[var(--k-surface-strong)] font-semibold text-[var(--k-accent)]`}
         style={{ containerType: "inline-size" }}
       >
         <span style={{ fontSize: "40cqw" }}>{name.charAt(0).toUpperCase()}</span>

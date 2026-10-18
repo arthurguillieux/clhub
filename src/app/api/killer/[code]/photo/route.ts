@@ -25,7 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
 
   let photo: Buffer;
   try {
-    photo = await sharp(raw).rotate().resize(400, 400, { fit: "cover", position: "attention" }).webp({ quality: 78 }).toBuffer();
+    photo = await sharp(raw).rotate().resize(400, 400, { fit: "cover", position: "centre" }).webp({ quality: 78 }).toBuffer();
   } catch {
     return jsonError("Cette image n'a pas pu être lue", 400);
   }

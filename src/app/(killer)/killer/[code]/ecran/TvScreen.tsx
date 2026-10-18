@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PublicGameView, PublicTribute } from "@/modules/killer/views";
-import { playCannon } from "../../cannon";
-import { Embers } from "../../Embers";
+import { playCannon, playChime } from "../../cannon";
+import { Particles } from "../../Particles";
 import { TributePhoto } from "../../TributePhoto";
 import { useLongPoll } from "../../useLongPoll";
 
@@ -49,7 +49,8 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
 
   useEffect(() => {
     if (!fall) return;
-    if (audio.current) playCannon(audio.current);
+    const ctx = audio.current;
+    if (ctx) void ctx.resume().then(() => playCannon(ctx));
     const timer = setTimeout(() => setFall(null), FALL_DURATION_MS);
     return () => clearTimeout(timer);
   }, [fall]);
@@ -57,13 +58,14 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
   const enableSound = async () => {
     audio.current ??= new AudioContext();
     await audio.current.resume();
+    playChime(audio.current); // proof that the sound works, before the first fall
     setSoundOn(true);
     document.documentElement.requestFullscreen?.().catch(() => {});
   };
 
   return (
     <main className="killer relative h-dvh overflow-hidden">
-      <Embers density={90} />
+      <Particles density={80} />
       <div className="relative flex h-full flex-col px-[3vw] py-[3vh]">
         {view.status === "lobby" && <Lobby code={code} view={view} qrSvg={qrSvg} joinUrl={joinUrl} />}
         {view.status === "running" && <Arena code={code} view={view} />}
@@ -72,7 +74,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
 
       {fall && <FallOverlay key={fall.at} code={code} fall={fall} remaining={view.aliveCount} />}
 
-      {!soundOn && (
+      {!soundOn ? (
         <button
           type="button"
           onClick={() => void enableSound()}
@@ -80,6 +82,15 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
           title="Les navigateurs n'autorisent le son qu'après un clic"
         >
           🔊 Activer le son et le plein écran
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => audio.current && playCannon(audio.current)}
+          className="absolute right-[1.5vw] bottom-[1.5vh] z-30 rounded-full px-3 py-2 text-sm text-[var(--k-muted)] opacity-30 transition-opacity hover:opacity-100"
+          title="Faire tonner le canon pour régler le volume"
+        >
+          🔊 Tester le canon
         </button>
       )}
     </main>
@@ -97,10 +108,10 @@ function Lobby({ code, view, qrSvg, joinUrl }: { code: string; view: PublicGameV
         <p className="killer-label" style={{ fontSize: "min(1.4vw, 2.4vh)" }}>
           Les jeux vont commencer
         </p>
-        <h1 className="killer-title killer-flicker mt-[1vh]" style={{ fontSize: "min(6vw, 10vh)", lineHeight: 1 }}>
+        <h1 className="killer-title killer-flicker mt-[1vh]" style={{ fontSize: "min(4.4vw, 7.5vh)", lineHeight: 1.1 }}>
           {view.title}
         </h1>
-        <p className="mt-[2vh] text-[var(--k-ash)]" style={{ fontSize: "min(1.8vw, 3vh)" }}>
+        <p className="mt-[2vh] text-[var(--k-muted)]" style={{ fontSize: "min(1.8vw, 3vh)" }}>
           {`${joined.length} tribut${joined.length > 1 ? "s" : ""} sur ${view.tributes.length} dans l'arène`}
         </p>
         <div className="mt-[3vh] grid min-h-0 flex-1 content-start justify-start gap-[1.5vw]" style={{ gridTemplateColumns: `repeat(${grid.cols}, ${grid.size}px)` }}>
@@ -114,12 +125,12 @@ function Lobby({ code, view, qrSvg, joinUrl }: { code: string; view: PublicGameV
           ))}
         </div>
       </section>
-      <section className="killer-panel flex flex-col items-center p-[2.5vh]">
+      <section className="killer-panel killer-frame flex flex-col items-center p-[2.5vh]">
         <div className="aspect-square rounded-xl bg-white p-[1vh] [&>svg]:h-full [&>svg]:w-full" style={{ width: "min(30vw, 52vh)" }} dangerouslySetInnerHTML={{ __html: qrSvg }} />
-        <p className="killer-title mt-[2vh] text-center" style={{ fontSize: "min(2.4vw, 4vh)" }}>
+        <p className="killer-title mt-[2vh] text-center" style={{ fontSize: "min(1.8vw, 3vh)" }}>
           Scanne pour entrer dans l&apos;arène
         </p>
-        <p className="mt-[1vh] text-[var(--k-ash)]" style={{ fontSize: "min(1.2vw, 2vh)" }}>
+        <p className="mt-[1vh] text-[var(--k-muted)]" style={{ fontSize: "min(1.2vw, 2vh)" }}>
           {joinUrl.replace(/^https?:\/\//, "")}
         </p>
       </section>
@@ -136,11 +147,11 @@ function Arena({ code, view }: { code: string; view: PublicGameView }) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-end justify-between">
-        <h1 className="killer-title" style={{ fontSize: "min(3.6vw, 6vh)", lineHeight: 1 }}>
+        <h1 className="killer-title" style={{ fontSize: "min(2.8vw, 4.8vh)", lineHeight: 1.1 }}>
           {view.title}
         </h1>
-        <p className="text-right text-[var(--k-ash)]" style={{ fontSize: "min(1.6vw, 2.8vh)" }}>
-          <span className="killer-title block" style={{ fontSize: "min(5vw, 9vh)", lineHeight: 1 }}>
+        <p className="text-right text-[var(--k-muted)]" style={{ fontSize: "min(1.6vw, 2.8vh)" }}>
+          <span className="killer-title block" style={{ fontSize: "min(4.2vw, 7.5vh)", lineHeight: 1, color: "var(--k-accent)" }}>
             {view.aliveCount}
           </span>
           tribut{view.aliveCount > 1 ? "s" : ""} en vie
@@ -161,13 +172,13 @@ function Portrait({ code, t, size }: { code: string; t: PublicTribute; size: num
       <div className="relative w-full">
         <TributePhoto code={code} id={t.id} name={t.name} photoVersion={t.photoVersion} fallen={!t.alive} className="w-full" />
         {!t.alive && (
-          <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center font-black text-[var(--k-blood)]" style={{ fontSize: size * 0.7, lineHeight: 1 }}>
-            ✕
-          </span>
+          <svg aria-hidden="true" viewBox="0 0 100 100" className="absolute top-[18%] left-[18%] h-[64%] w-[64%] text-[var(--k-alert)]">
+            <path d="M12 12 L88 88 M88 12 L12 88" stroke="currentColor" strokeWidth={Math.max(5, 600 / size)} strokeLinecap="round" />
+          </svg>
         )}
       </div>
       <figcaption
-        className={`mt-[0.6vh] max-w-full truncate font-bold ${t.alive ? "" : "text-[#6b5b52] line-through"}`}
+        className={`mt-[0.6vh] max-w-full truncate font-bold ${t.alive ? "" : "text-[var(--k-muted)] line-through"}`}
         style={{ fontSize: Math.max(14, size * 0.15) }}
       >
         {t.name}
@@ -178,18 +189,22 @@ function Portrait({ code, t, size }: { code: string; t: PublicTribute; size: num
 
 function FallOverlay({ code, fall, remaining }: { code: string; fall: NonNullable<PublicGameView["lastFall"]>; remaining: number }) {
   return (
-    <div className="killer-fall-veil absolute inset-0 z-40 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_45%,rgba(95,16,8,0.94),rgba(3,1,1,0.99)_70%)]">
+    <div className="killer-fall-veil absolute inset-0 z-40 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.97),rgba(228,237,248,0.98)_70%)] backdrop-blur-md">
       <div className="killer-shake flex flex-col items-center">
-        <p className="killer-label" style={{ fontSize: "min(1.8vw, 3vh)" }}>
+        <p className="killer-label" style={{ fontSize: "min(1.6vw, 2.8vh)", color: "var(--k-alert)" }}>
           Un canon a tonné
         </p>
-        <div className="killer-fall-portrait mt-[3vh]" style={{ width: "min(32vw, 50vh)" }}>
-          <TributePhoto code={code} id={fall.id} name={fall.name} photoVersion={fall.photoVersion} className="w-full" />
+        <div className="relative mt-[3vh] rounded-full shadow-[0_0_0_3px_var(--k-alert),0_16px_40px_rgba(239,62,85,0.25)]" style={{ width: "min(30vw, 46vh)" }}>
+          <span aria-hidden="true" className="killer-ring absolute inset-0 rounded-full" />
+          <div className="killer-fall-portrait relative overflow-hidden rounded-full">
+            <TributePhoto code={code} id={fall.id} name={fall.name} photoVersion={fall.photoVersion} className="w-full" />
+            <span aria-hidden="true" className="killer-scan absolute inset-x-0 top-0 h-1/3" />
+          </div>
         </div>
-        <p className="killer-title mt-[3vh]" style={{ fontSize: "min(7vw, 12vh)", lineHeight: 1 }}>
+        <p className="killer-title mt-[3.5vh]" style={{ fontSize: "min(5.4vw, 9vh)", lineHeight: 1.1 }}>
           {fall.name}
         </p>
-        <p className="mt-[1.5vh] text-[var(--k-ash)]" style={{ fontSize: "min(2vw, 3.4vh)" }}>
+        <p className="mt-[1.5vh] text-[var(--k-muted)]" style={{ fontSize: "min(2vw, 3.4vh)" }}>
           est tombé·e · {remaining} tribut{remaining > 1 ? "s" : ""} en vie
         </p>
       </div>
@@ -223,7 +238,7 @@ function Wrapped({ code, view }: { code: string; view: PublicGameView }) {
             <TributePhoto code={code} id={s.winner.id} name={s.winner.name} photoVersion={photo(s.winner.id)} className="w-full" />
           </div>
         )}
-        <p className="killer-title killer-flicker mt-[3vh]" style={{ fontSize: "min(6vw, 11vh)", lineHeight: 1 }}>
+        <p className="killer-title killer-flicker mt-[3vh]" style={{ fontSize: "min(4.4vw, 8vh)", lineHeight: 1.1 }}>
           {s.winner?.name ?? view.title}
         </p>
       </section>
@@ -236,14 +251,14 @@ function Wrapped({ code, view }: { code: string; view: PublicGameView }) {
             <ol className="mt-[1.5vh] flex flex-col gap-[1.5vh]">
               {s.podium.map((p, i) => (
                 <li key={p.id} className="flex items-center gap-[1.5vw]">
-                  <span className="killer-title w-[3vw] text-center" style={{ fontSize: "min(3vw, 5vh)" }}>
+                  <span className="killer-title w-[3vw] text-center" style={{ fontSize: "min(2.4vw, 4vh)", color: "var(--k-accent)" }}>
                     {i + 1}
                   </span>
                   <TributePhoto code={code} id={p.id} name={p.name} photoVersion={photo(p.id)} className="w-[min(6vw,10vh)]" />
                   <span className="flex-1 truncate font-bold" style={{ fontSize: "min(2.2vw, 3.8vh)" }}>
                     {p.name}
                   </span>
-                  <span className="text-[var(--k-flame)]" style={{ fontSize: "min(2vw, 3.4vh)" }}>
+                  <span className="font-semibold text-[var(--k-accent)] tabular-nums" style={{ fontSize: "min(2vw, 3.4vh)" }}>
                     {p.kills} kill{p.kills > 1 ? "s" : ""}
                   </span>
                 </li>
@@ -261,7 +276,7 @@ function Wrapped({ code, view }: { code: string; view: PublicGameView }) {
                 {tile.value}
               </p>
               {tile.sub && (
-                <p className="truncate text-[var(--k-ash)]" style={{ fontSize: "min(1.1vw, 2vh)" }}>
+                <p className="truncate text-[var(--k-muted)]" style={{ fontSize: "min(1.1vw, 2vh)" }}>
                   {tile.sub}
                 </p>
               )}

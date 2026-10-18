@@ -17,7 +17,8 @@ type HostAction =
   | { type: "add"; name: string; mission: string; afterId: string | null }
   | { type: "release"; playerId: string }
   | { type: "mission"; playerId: string; mission: string }
-  | { type: "end" };
+  | { type: "end" }
+  | { type: "reset" };
 
 interface DraftRow {
   key: string;
@@ -106,6 +107,16 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
     );
   }
 
+  const askReset = () =>
+    setDialog({
+      title: "Revenir à la préparation ?",
+      detail:
+        "Pour changer les prénoms, les missions ou le cercle. Les éliminations sont effacées et tout le monde revient en jeu ; les inscriptions et les photos sont gardées. Il faudra relancer la partie.",
+      confirmLabel: "Revenir à la préparation",
+      cancelLabel: view.status === "running" ? "Laisser la partie en cours" : "Garder la fin",
+      onConfirm: () => void send({ type: "reset" }),
+    });
+
   const byId = new Map(view.tributes.map((t) => [t.id, t]));
   const joined = view.tributes.filter((t) => t.joined).length;
 
@@ -124,7 +135,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
       </header>
 
       {error && (
-        <p role="alert" className="mt-4 rounded-lg border border-[var(--k-blood)] bg-[rgba(208,40,47,0.12)] px-3 py-2.5 text-sm">
+        <p role="alert" className="mt-4 killer-alert px-3 py-2.5 text-sm">
           {error}
         </p>
       )}
@@ -208,6 +219,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
           }
           onMission={(t, mission) => send({ type: "mission", playerId: t.id, mission })}
           onAdd={(name, mission, afterId) => send({ type: "add", name, mission, afterId })}
+          onReset={askReset}
           onEnd={() =>
             setDialog({
               title: "Terminer la partie maintenant ?",
@@ -226,7 +238,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
           <div className="killer-panel p-4">
             <p className="killer-label">Résultat</p>
             <p className="mt-2 text-lg font-bold">{view.stats?.winner ? `🏆 ${view.stats.winner.name} remporte les jeux` : "Partie arrêtée avant la fin"}</p>
-            <ul className="mt-2 text-sm text-[var(--k-ash)]">
+            <ul className="mt-2 text-sm text-[var(--k-muted)]">
               {view.stats?.podium.map((p, i) => (
                 <li key={p.id}>
                   {i + 1}. {p.name} — {p.kills} élimination{p.kills > 1 ? "s" : ""}
@@ -251,9 +263,12 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
               ↺ Annuler la dernière élimination
             </button>
           )}
+          <button type="button" className="killer-btn-ghost min-h-12 px-4" onClick={askReset}>
+            ✎ Revenir à la préparation (modifier, rejouer)
+          </button>
           <button
             type="button"
-            className="killer-btn-ghost min-h-12 px-4 text-[var(--k-ash)]"
+            className="killer-btn-ghost min-h-12 px-4 text-[var(--k-muted)]"
             onClick={() =>
               setDialog({
                 title: "Supprimer la partie ?",
@@ -284,8 +299,8 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function StatusChip({ t }: { t: HostTribute | undefined }) {
-  if (!t || !t.joined) return <span className="text-xs text-[var(--k-ash)]">pas encore inscrit</span>;
-  return <span className="text-xs text-[var(--k-flame)]">{t.photoVersion !== null ? "inscrit ✓ photo" : "inscrit, sans photo"}</span>;
+  if (!t || !t.joined) return <span className="text-xs text-[var(--k-muted)]">pas encore inscrit</span>;
+  return <span className="text-xs text-[var(--k-accent)]">{t.photoVersion !== null ? "inscrit ✓ photo" : "inscrit, sans photo"}</span>;
 }
 
 // ───────── Préparation ─────────
@@ -339,15 +354,15 @@ function LobbyEditor({
 
   return (
     <section className="mt-5 flex flex-col gap-4">
-      <p className="text-sm text-[var(--k-ash)]">
+      <p className="text-sm text-[var(--k-muted)]">
         L&apos;ordre de la liste, c&apos;est le cercle : chacun a pour cible le suivant, le dernier vise le premier. La mission
         d&apos;un tribut, c&apos;est ce que son chasseur devra lui faire faire — elle passe au tueur à chaque élimination.
       </p>
       <p className="text-sm">
-        <span className="font-bold text-[var(--k-gold)]">
+        <span className="font-bold text-[var(--k-accent)]">
           {joined} / {view.tributes.length}
         </span>{" "}
-        inscrits · lien des joueurs : <span className="break-all text-[var(--k-ash)]">{joinUrl}</span>
+        inscrits · lien des joueurs : <span className="break-all text-[var(--k-muted)]">{joinUrl}</span>
       </p>
 
       <ol className="flex flex-col gap-3">
@@ -359,7 +374,7 @@ function LobbyEditor({
                 {saved ? (
                   <TributePhoto code={code} id={saved.id} name={row.name || "?"} photoVersion={saved.photoVersion} className="w-12" />
                 ) : (
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-[var(--k-ash)] text-sm text-[var(--k-ash)]">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-[var(--k-line)] text-sm text-[var(--k-muted)]">
                     {i + 1}
                   </span>
                 )}
@@ -378,12 +393,12 @@ function LobbyEditor({
                     placeholder="Prénom"
                     maxLength={30}
                     aria-label={`Prénom du tribut ${i + 1}`}
-                    className="min-h-11 min-w-0 flex-1 rounded-lg border border-[rgba(233,180,76,0.3)] bg-black/40 px-3 font-bold text-[var(--k-ink)]"
+                    className="min-h-11 min-w-0 flex-1 killer-field px-3 font-bold text-[var(--k-ink)]"
                   />
                   <button
                     type="button"
                     aria-label={`Retirer ${row.name || "ce tribut"}`}
-                    className="killer-btn-ghost h-11 w-11 text-[var(--k-ash)]"
+                    className="killer-btn-ghost h-11 w-11 text-[var(--k-muted)]"
                     onClick={() => onEdit(draft.filter((_, k) => k !== i))}
                   >
                     ✕
@@ -396,12 +411,12 @@ function LobbyEditor({
                   rows={2}
                   maxLength={600}
                   aria-label={`Mission de ${row.name || `tribut ${i + 1}`}`}
-                  className="rounded-lg border border-[rgba(233,180,76,0.3)] bg-black/40 px-3 py-2 text-sm text-[var(--k-ink)]"
+                  className="killer-field px-3 py-2 text-sm text-[var(--k-ink)]"
                 />
                 <div className="flex items-center justify-between gap-2">
                   <StatusChip t={saved} />
                   {saved?.joined && (
-                    <button type="button" className="-my-2 py-2 text-xs text-[var(--k-ash)] underline" onClick={() => onRelease(saved)}>
+                    <button type="button" className="-my-2 py-2 text-xs text-[var(--k-muted)] underline" onClick={() => onRelease(saved)}>
                       Libérer sa place
                     </button>
                   )}
@@ -426,7 +441,7 @@ function LobbyEditor({
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[rgba(233,180,76,0.25)] bg-[rgba(8,5,5,0.94)] px-4 py-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-40 killer-bar px-4 py-3">
         <div className="mx-auto flex max-w-xl flex-col gap-2">
           {dirty ? (
             <button type="button" className="killer-btn min-h-12 px-4" disabled={busy} onClick={() => void onSave()}>
@@ -434,10 +449,10 @@ function LobbyEditor({
             </button>
           ) : (
             <button type="button" className="killer-btn min-h-12 px-4" disabled={busy || !!startBlocker} onClick={onStart}>
-              🔥 Lancer la partie
+              Lancer la partie
             </button>
           )}
-          {!dirty && startBlocker && <p className="text-center text-xs text-[var(--k-ash)]">{startBlocker}</p>}
+          {!dirty && startBlocker && <p className="text-center text-xs text-[var(--k-muted)]">{startBlocker}</p>}
         </div>
       </div>
     </section>
@@ -456,6 +471,7 @@ function RunningPanel({
   onRelease,
   onMission,
   onAdd,
+  onReset,
   onEnd,
 }: {
   code: string;
@@ -467,6 +483,7 @@ function RunningPanel({
   onRelease: (t: HostTribute) => void;
   onMission: (t: HostTribute, mission: string) => Promise<HostGameView | null>;
   onAdd: (name: string, mission: string, afterId: string | null) => Promise<HostGameView | null>;
+  onReset: () => void;
   onEnd: () => void;
 }) {
   const alive = view.tributes.filter((t) => t.alive);
@@ -477,8 +494,17 @@ function RunningPanel({
 
   return (
     <section className="mt-5 flex flex-col gap-5">
-      <p className="text-lg">
-        <span className="killer-title text-3xl">{alive.length}</span> tributs encore en jeu
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-lg">
+          <span className="killer-title text-3xl">{alive.length}</span> tributs encore en jeu
+        </p>
+        <button type="button" disabled={busy} className="killer-btn-ghost min-h-11 px-3 text-sm" onClick={onReset}>
+          ✎ Modifier la partie
+        </button>
+      </div>
+      <p className="-mt-2 text-xs text-[var(--k-muted)]">
+        Une mission se change sans arrêter la partie : « Sa mission, sa place » sous chaque tribut. Pour les prénoms ou le
+        cercle, « Modifier la partie » ramène à la préparation.
       </p>
 
       <div>
@@ -492,7 +518,7 @@ function RunningPanel({
                   <TributePhoto code={code} id={t.id} name={t.name} photoVersion={t.photoVersion} className="w-12 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-bold">{t.name}</p>
-                    <p className="truncate text-xs text-[var(--k-ash)]">
+                    <p className="truncate text-xs text-[var(--k-muted)]">
                       chasse {target?.name ?? "?"} {!t.joined && "· pas encore inscrit"}
                     </p>
                   </div>
@@ -518,7 +544,7 @@ function RunningPanel({
           <p className="killer-label">Tombés ({fallen.length})</p>
           <ul className="mt-2 flex flex-col gap-1.5 text-sm">
             {fallen.map((t) => (
-              <li key={t.id} className="flex items-center gap-2.5 text-[var(--k-ash)]">
+              <li key={t.id} className="flex items-center gap-2.5 text-[var(--k-muted)]">
                 <TributePhoto code={code} id={t.id} name={t.name} photoVersion={t.photoVersion} fallen className="w-8" />
                 <span>
                   <span className="text-[var(--k-ink)]">{t.name}</span>
@@ -539,7 +565,7 @@ function RunningPanel({
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Prénom"
             maxLength={30}
-            className="min-h-11 rounded-lg border border-[rgba(233,180,76,0.3)] bg-black/40 px-3 text-[var(--k-ink)]"
+            className="min-h-11 killer-field px-3 text-[var(--k-ink)]"
           />
           <textarea
             value={newMission}
@@ -547,14 +573,14 @@ function RunningPanel({
             placeholder="Sa mission"
             rows={2}
             maxLength={600}
-            className="rounded-lg border border-[rgba(233,180,76,0.3)] bg-black/40 px-3 py-2 text-sm text-[var(--k-ink)]"
+            className="killer-field px-3 py-2 text-sm text-[var(--k-ink)]"
           />
-          <label className="text-sm text-[var(--k-ash)]">
+          <label className="text-sm text-[var(--k-muted)]">
             Qui le chassera ?
             <select
               value={afterId}
               onChange={(e) => setAfterId(e.target.value)}
-              className="mt-1 block min-h-11 w-full rounded-lg border border-[rgba(233,180,76,0.3)] bg-black/60 px-3 text-[var(--k-ink)]"
+              className="mt-1 block min-h-11 w-full killer-field px-3 text-[var(--k-ink)]"
             >
               <option value="">Au hasard</option>
               {alive.map((t) => (
@@ -581,7 +607,7 @@ function RunningPanel({
         </div>
       </details>
 
-      <button type="button" disabled={busy} className="killer-btn-ghost min-h-12 px-4 text-[var(--k-ash)]" onClick={onEnd}>
+      <button type="button" disabled={busy} className="killer-btn-ghost min-h-12 px-4 text-[var(--k-muted)]" onClick={onEnd}>
         Terminer la partie
       </button>
     </section>
@@ -600,13 +626,13 @@ function TributeDetails({
   const [mission, setMission] = useState(t.mission);
   return (
     <details className="mt-2">
-      <summary className="cursor-pointer py-1.5 text-xs text-[var(--k-ash)]">Sa mission, sa place</summary>
+      <summary className="cursor-pointer py-1.5 text-xs text-[var(--k-muted)]">Sa mission, sa place</summary>
       <textarea
         value={mission}
         onChange={(e) => setMission(e.target.value)}
         rows={3}
         maxLength={600}
-        className="mt-1 w-full rounded-lg border border-[rgba(233,180,76,0.3)] bg-black/40 px-3 py-2 text-sm text-[var(--k-ink)]"
+        className="mt-1 w-full killer-field px-3 py-2 text-sm text-[var(--k-ink)]"
       />
       <div className="mt-2 flex flex-wrap gap-2">
         <button type="button" className="killer-btn-ghost min-h-10 px-3 text-sm" disabled={mission.trim() === t.mission} onClick={() => void onMission(t, mission)}>
