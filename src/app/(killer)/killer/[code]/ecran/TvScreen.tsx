@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PublicGameView, PublicTribute } from "@/modules/killer/views";
-import { playChime, playElimination } from "../../sounds";
+import { ELIMINATION_SAMPLE, loadSample, playChime, playElimination } from "../../sounds";
+import { Bubbles } from "../../Bubbles";
 import { LabRoom } from "../../LabRoom";
-import { Particles } from "../../Particles";
 import { TributePhoto } from "../../TributePhoto";
 import { useLongPoll } from "../../useLongPoll";
 
@@ -39,6 +39,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
   const { data, gone } = useLongPoll<PublicGameView>(`/api/killer/${code}/poll`, initialView);
   const view = data ?? initialView;
   const audio = useRef<AudioContext | null>(null);
+  const sample = useRef<AudioBuffer | null>(null);
   const [soundOn, setSoundOn] = useState(false);
 
   // A new fall since the page opened → the cannon and the portrait. Detected by the fall's own timestamp, so a
@@ -54,7 +55,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
   useEffect(() => {
     if (!fall) return;
     const ctx = audio.current;
-    if (ctx) void ctx.resume().then(() => playElimination(ctx));
+    if (ctx) void ctx.resume().then(() => playElimination(ctx, sample.current));
     const timer = setTimeout(() => setFall(null), FALL_DURATION_MS);
     return () => clearTimeout(timer);
   }, [fall]);
@@ -63,6 +64,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
     audio.current ??= new AudioContext();
     await audio.current.resume();
     playChime(audio.current); // proof that the sound works, before the first fall
+    if (ELIMINATION_SAMPLE && !sample.current) sample.current = await loadSample(audio.current, ELIMINATION_SAMPLE);
     setSoundOn(true);
     document.documentElement.requestFullscreen?.().catch(() => {});
   };
@@ -70,7 +72,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
   return (
     <main className="killer relative h-dvh overflow-hidden">
       <LabRoom />
-      <Particles density={50} variant="motes" />
+      <Bubbles />
       <div className="relative flex h-full flex-col px-[3vw] py-[3vh]">
         {gone && (
           <div className="m-auto text-center">
@@ -101,11 +103,11 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
       ) : (
         <button
           type="button"
-          onClick={() => audio.current && playElimination(audio.current)}
+          onClick={() => audio.current && playElimination(audio.current, sample.current)}
           className="absolute right-[1.5vw] bottom-[1.5vh] z-30 rounded-full px-3 py-2 text-sm text-[var(--k-muted)] opacity-30 transition-opacity hover:opacity-100"
-          title="Jouer le son d'élimination pour régler le volume"
+          title="Faire tonner le canon pour régler le volume"
         >
-          🔊 Tester le son
+          🔊 Tester le canon
         </button>
       )}
     </main>

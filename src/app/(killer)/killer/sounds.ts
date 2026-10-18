@@ -1,12 +1,26 @@
 /**
- * Sounds synthesised on the spot (no audio file). Browsers only allow sound after a click on the
- * page, hence the TV's "Activer le son" button, which creates the AudioContext passed here.
+ * The TV's sounds. Browsers only allow sound after a click on the page, hence the TV's "Activer le
+ * son" button, which creates the AudioContext passed here.
  *
- * The elimination is an impact followed by a machine powering down: a few digital glitches, a
- * distorted boom, then a falling synth tone. Most of the energy sits between 150 Hz and 3 kHz —
- * the first version (a cannon) was nearly all sub-bass, which a laptop's speakers can't play, and
- * was silent on the first try. The sub-bass stays on top for a real TV or a sound bar.
+ * The elimination is a cannon shot: a recorded one when ELIMINATION_SAMPLE points to a file in
+ * public/, otherwise synthesised on the spot — a bright crack, a distorted body, a sub-bass thump
+ * and a rumble with an echo. Most of the synthesised energy sits between 150 Hz and 3 kHz: the
+ * very first version was nearly all sub-bass, which a laptop's speakers can't play.
  */
+
+/** A recorded shot to play instead of the synthesised one (a file under public/), or null. */
+export const ELIMINATION_SAMPLE: string | null = null;
+
+/** Fetches and decodes a recorded sound; null if it can't be had (the synthesised shot then plays). */
+export async function loadSample(audio: AudioContext, url: string): Promise<AudioBuffer | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return await audio.decodeAudioData(await response.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
 function noiseBuffer(audio: AudioContext, seconds: number): AudioBuffer {
   const length = Math.floor(audio.sampleRate * seconds);
   const buffer = audio.createBuffer(1, length, audio.sampleRate);
@@ -24,8 +38,16 @@ function distortionCurve(amount: number): Float32Array<ArrayBuffer> {
   return curve;
 }
 
-export function playElimination(audio: AudioContext): void {
+export function playElimination(audio: AudioContext, sample: AudioBuffer | null = null): void {
   const now = audio.currentTime;
+
+  if (sample) {
+    const source = audio.createBufferSource();
+    source.buffer = sample;
+    source.connect(audio.destination);
+    source.start(now);
+    return;
+  }
 
   // Everything goes through a compressor so the sound is loud without clipping.
   const master = audio.createDynamicsCompressor();
@@ -96,63 +118,20 @@ export function playElimination(audio: AudioContext): void {
   thump.start(now);
   thump.stop(now + 1.4);
 
-  // Rumble: noise in the mid-range, rolling away.
+  // Rumble: noise in the mid-range, rolling away for a couple of seconds.
   const rumble = audio.createBufferSource();
   rumble.buffer = noise;
   const rumbleFilter = audio.createBiquadFilter();
   rumbleFilter.type = "lowpass";
   rumbleFilter.frequency.setValueAtTime(2200, now);
-  rumbleFilter.frequency.exponentialRampToValueAtTime(160, now + 1.8);
+  rumbleFilter.frequency.exponentialRampToValueAtTime(160, now + 2.6);
   const rumbleGain = audio.createGain();
   rumbleGain.gain.setValueAtTime(0.0001, now);
-  rumbleGain.gain.exponentialRampToValueAtTime(0.6, now + 0.05);
-  rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + 2);
+  rumbleGain.gain.exponentialRampToValueAtTime(0.8, now + 0.05);
+  rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + 2.8);
   rumble.connect(rumbleFilter).connect(rumbleGain).connect(master);
   rumble.start(now);
-  rumble.stop(now + 2.1);
-
-  // Glitches: three square-wave blips just before the impact, like a system failing.
-  [0, 0.06, 0.11].forEach((delay, i) => {
-    const blip = audio.createOscillator();
-    blip.type = "square";
-    blip.frequency.value = [2100, 1450, 2600][i]!;
-    const blipGain = audio.createGain();
-    blipGain.gain.setValueAtTime(0.0001, now + delay);
-    blipGain.gain.exponentialRampToValueAtTime(0.18, now + delay + 0.005);
-    blipGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.045);
-    blip.connect(blipGain).connect(master);
-    blip.start(now + delay);
-    blip.stop(now + delay + 0.05);
-  });
-
-  // Power-down: a sawtooth sliding from high to low while its filter closes.
-  const sweepStart = now + 0.15;
-  const sweep = audio.createOscillator();
-  sweep.type = "sawtooth";
-  sweep.frequency.setValueAtTime(820, sweepStart);
-  sweep.frequency.exponentialRampToValueAtTime(42, sweepStart + 1.7);
-  const wobble = audio.createOscillator();
-  wobble.frequency.value = 9;
-  const wobbleDepth = audio.createGain();
-  wobbleDepth.gain.value = 14;
-  wobble.connect(wobbleDepth).connect(sweep.frequency);
-  const sweepFilter = audio.createBiquadFilter();
-  sweepFilter.type = "lowpass";
-  sweepFilter.Q.value = 6;
-  sweepFilter.frequency.setValueAtTime(4000, sweepStart);
-  sweepFilter.frequency.exponentialRampToValueAtTime(180, sweepStart + 1.8);
-  const sweepGain = audio.createGain();
-  sweepGain.gain.setValueAtTime(0.0001, sweepStart);
-  sweepGain.gain.exponentialRampToValueAtTime(0.32, sweepStart + 0.06);
-  sweepGain.gain.setValueAtTime(0.32, sweepStart + 1);
-  sweepGain.gain.exponentialRampToValueAtTime(0.001, sweepStart + 1.9);
-  sweep.connect(sweepFilter).connect(sweepGain);
-  sweepGain.connect(master);
-  sweepGain.connect(echo);
-  sweep.start(sweepStart);
-  wobble.start(sweepStart);
-  sweep.stop(sweepStart + 2);
-  wobble.stop(sweepStart + 2);
+  rumble.stop(now + 2.9);
 
   // The echo loop would otherwise keep running silently forever.
   setTimeout(() => {
