@@ -22,6 +22,17 @@ async function deliverMagicLink(email: string, url: string) {
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.APP_URL,
+  // Signing back in costs an email round-trip, so sessions are long. This is
+  // also the *real* cookie lifetime: pages read the session in Server
+  // Components, which can't write cookies, so activity never extends the
+  // cookie — only the Max-Age it got at sign-in counts. At Better Auth's
+  // default of 7 days, members were bounced to the sign-in page every week
+  // however often they came by. Destructive admin actions don't depend on
+  // session age anyway: they sit behind the separate admin unlock code.
+  session: {
+    expiresIn: 60 * 60 * 24 * 365,
+    updateAge: 60 * 60 * 24,
+  },
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: { user, session, account, verification },
