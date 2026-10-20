@@ -7,6 +7,7 @@ import { grantKillerAccess, hasKillerAccess, isKillerPassword } from "@/modules/
 import {
   MAX_MISSION_LENGTH,
   MAX_NAME_LENGTH,
+  MAX_TITLE_LENGTH,
   addTribute,
   createGame,
   deleteGame,
@@ -16,6 +17,7 @@ import {
   getHostView,
   releaseSeat,
   removePhoto,
+  renameGame,
   resetToLobby,
   saveLobby,
   shuffleLobby,
@@ -71,6 +73,7 @@ const hostActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("end") }),
   z.object({ type: z.literal("reset") }),
   z.object({ type: z.literal("removePhoto"), playerId: id }),
+  z.object({ type: z.literal("rename"), title: z.string().trim().min(1, "Le nom de la partie ne peut pas être vide.").max(MAX_TITLE_LENGTH, "Nom trop long.") }),
 ]);
 
 export type KillerHostResult = { ok: true; view: HostGameView } | { ok: false; error: string };
@@ -105,7 +108,9 @@ export async function killerHostAction(code: string, action: unknown): Promise<K
                       ? await resetToLobby(game)
                       : a.type === "removePhoto"
                         ? await removePhoto(game, a.playerId)
-                        : await endGame(game);
+                        : a.type === "rename"
+                          ? await renameGame(game, a.title)
+                          : await endGame(game);
   if (!result.ok) return { ok: false, error: result.error };
 
   const fresh = await getGameByCode(code);

@@ -267,6 +267,16 @@ export async function releaseSeat(game: KillerGame, playerId: string): Promise<R
   return { ok: true };
 }
 
+export const MAX_TITLE_LENGTH = 80;
+
+/** Renames the game, whatever its state — the TV and the phones pick up the new title on their next update. */
+export async function renameGame(game: KillerGame, title: string): Promise<Result> {
+  const clean = title.trim();
+  if (!clean) return fail("Le nom de la partie ne peut pas être vide.");
+  await mutate(game.id, (tx) => tx.update(killerGame).set({ title: clean.slice(0, MAX_TITLE_LENGTH) }).where(eq(killerGame.id, game.id)));
+  return { ok: true };
+}
+
 /** The organizer's own elimination sound; null puts the synthesised cannon back. */
 export async function setGameSound(game: KillerGame, sound: { data: Buffer; type: string } | null): Promise<Result> {
   await mutate(game.id, (tx) =>

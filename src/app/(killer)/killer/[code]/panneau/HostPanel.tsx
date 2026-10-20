@@ -20,7 +20,8 @@ type HostAction =
   | { type: "mission"; playerId: string; mission: string }
   | { type: "end" }
   | { type: "reset" }
-  | { type: "removePhoto"; playerId: string };
+  | { type: "removePhoto"; playerId: string }
+  | { type: "rename"; title: string };
 
 interface DraftRow {
   key: string;
@@ -211,7 +212,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
           <p className="killer-label">
             {view.status === "lobby" ? "Préparation" : view.status === "running" ? "Partie en cours" : "Partie terminée"} · code {code}
           </p>
-          <h1 className="killer-title mt-1 text-2xl">{view.title}</h1>
+          <GameTitle title={view.title} busy={busy} onRename={(title) => send({ type: "rename", title })} />
         </div>
         <Link href={`/killer/${code}/ecran`} target="_blank" className="killer-btn-ghost px-3 py-2.5 text-sm">
           📺 Écran TV
@@ -377,6 +378,59 @@ function Shell({ children }: { children: React.ReactNode }) {
     <main className="killer min-h-dvh px-4 pt-5 pb-28">
       <div className="mx-auto flex max-w-xl flex-col">{children}</div>
     </main>
+  );
+}
+
+/** The game's name, with a small « Renommer » that turns it into a field — the TV follows on its next update. */
+function GameTitle({ title, busy, onRename }: { title: string; busy: boolean; onRename: (title: string) => Promise<HostGameView | null> }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(title);
+
+  if (!editing) {
+    return (
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h1 className="killer-title text-2xl">{title}</h1>
+        <button
+          type="button"
+          className="-my-2 py-2 text-xs text-[var(--k-muted)] underline"
+          onClick={() => {
+            setValue(title);
+            setEditing(true);
+          }}
+        >
+          Renommer
+        </button>
+      </div>
+    );
+  }
+
+  const save = async () => {
+    if (value.trim() === title) return setEditing(false);
+    if (await onRename(value)) setEditing(false);
+  };
+  return (
+    <form
+      className="mt-2 flex flex-wrap items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save();
+      }}
+    >
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        maxLength={80}
+        aria-label="Nom de la partie"
+        autoFocus
+        className="killer-field min-h-11 min-w-0 flex-1 px-3 font-bold"
+      />
+      <button type="submit" className="killer-btn min-h-11 px-3 text-sm" disabled={busy || !value.trim()}>
+        Enregistrer le nom
+      </button>
+      <button type="button" className="killer-btn-ghost min-h-11 px-3 text-sm" onClick={() => setEditing(false)}>
+        Garder l&apos;ancien
+      </button>
+    </form>
   );
 }
 
