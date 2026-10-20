@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { isMissionIdea, pickMissionIdea } from "@/modules/killer/missionIdeas";
 import type { HostGameView, HostTribute } from "@/modules/killer/views";
 import { deleteKillerGameAction, killerHostAction } from "../../actions";
 import { KillerDialog } from "../../KillerDialog";
@@ -311,6 +312,23 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * "🎲 Une idée du Killer": fills an empty mission with an idea from the bank, or swaps the idea for
+ * another. Hidden as soon as the organizer has written their own words, so it never erases them.
+ */
+function IdeaButton({ value, used, onPick }: { value: string; used: string[]; onPick: (mission: string) => void }) {
+  if (value.trim() && !isMissionIdea(value)) return null;
+  return (
+    <button
+      type="button"
+      className="-my-1.5 self-start py-1.5 text-xs font-semibold text-[var(--k-accent)]"
+      onClick={() => onPick(pickMissionIdea([...used, value]))}
+    >
+      {value.trim() ? "🎲 Une autre idée" : "🎲 Une idée du Killer"}
+    </button>
+  );
+}
+
 /** The TV's elimination sound: the synthesised cannon, or a file the organizer chose (kept on the NAS, played only by their TV). */
 function SoundSetting({ code, soundVersion }: { code: string; soundVersion: number | null }) {
   const input = useRef<HTMLInputElement>(null);
@@ -511,6 +529,7 @@ function LobbyEditor({
                   aria-label={`Mission de ${row.name || `l'agent ${i + 1}`}`}
                   className="killer-field px-3 py-2 text-sm text-[var(--k-ink)]"
                 />
+                <IdeaButton value={row.mission} used={draft.map((r) => r.mission)} onPick={(mission) => update(i, { mission })} />
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   <StatusChip t={saved} />
                   <div className="flex gap-3">
@@ -535,6 +554,25 @@ function LobbyEditor({
       <button type="button" className="killer-btn-ghost min-h-12 px-4" onClick={() => onEdit([...draft, { key: crypto.randomUUID(), id: null, name: "", mission: "" }])}>
         + Ajouter un agent
       </button>
+      {draft.some((r) => !r.mission.trim()) && (
+        <button
+          type="button"
+          className="killer-btn-ghost min-h-12 px-4"
+          onClick={() => {
+            const used = draft.map((r) => r.mission);
+            onEdit(
+              draft.map((r) => {
+                if (r.mission.trim()) return r;
+                const mission = pickMissionIdea(used);
+                used.push(mission);
+                return { ...r, mission };
+              }),
+            );
+          }}
+        >
+          🎲 Une idée du Killer pour chaque mission vide
+        </button>
+      )}
 
       {circle.length > 0 && (
         <div className="killer-panel p-3">
@@ -687,6 +725,7 @@ function RunningPanel({
             maxLength={600}
             className="killer-field px-3 py-2 text-sm text-[var(--k-ink)]"
           />
+          <IdeaButton value={newMission} used={view.tributes.map((t) => t.mission)} onPick={setNewMission} />
           <label className="text-sm text-[var(--k-muted)]">
             Qui le chassera ?
             <select
