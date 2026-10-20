@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isMissionIdea, pickMissionIdea } from "@/modules/killer/missionIdeas";
 import type { HostGameView, HostTribute } from "@/modules/killer/views";
 import { deleteKillerGameAction, killerHostAction } from "../../actions";
@@ -41,6 +41,31 @@ type Dialog = {
 const toDraft = (view: HostGameView): DraftRow[] =>
   view.tributes.map((t) => ({ key: t.id, id: t.id, name: t.name, mission: t.mission }));
 
+const sameRows = (a: DraftRow[], b: DraftRow[]) =>
+  JSON.stringify(a.map(({ id, name, mission }) => [id, name, mission])) === JSON.stringify(b.map(({ id, name, mission }) => [id, name, mission]));
+
+/** The unsaved lobby draft, kept in this browser so a reload, a closed tab or a sleeping phone doesn't lose it. */
+function readDraft(key: string): DraftRow[] | null {
+  try {
+    const rows = JSON.parse(window.localStorage.getItem(key) ?? "null") as unknown;
+    if (!Array.isArray(rows)) return null;
+    const valid = rows.every(
+      (r) => r && typeof r.key === "string" && (r.id === null || typeof r.id === "string") && typeof r.name === "string" && typeof r.mission === "string",
+    );
+    return valid ? (rows as DraftRow[]) : null;
+  } catch {
+    return null;
+  }
+}
+function writeDraft(key: string, rows: DraftRow[] | null) {
+  try {
+    if (rows) window.localStorage.setItem(key, JSON.stringify(rows));
+    else window.localStorage.removeItem(key);
+  } catch {
+    // Private mode: the warning before leaving still protects the draft.
+  }
+}
+
 const clock = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
 
 export function HostPanel({ code, initialView, joinUrl }: { code: string; initialView: HostGameView; joinUrl: string }) {
@@ -60,6 +85,39 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
     setSyncedVersion(view.version);
     setDraft(toDraft(view));
   }
+
+  // After a reload: bring back the changes that hadn't been saved yet, and say so.
+  const draftKey = `clhub:killer:${code}:draft`;
+  const [restored, setRestored] = useState(false);
+  useEffect(() => {
+    if (initialView.status !== "lobby") return;
+    const kept = readDraft(draftKey);
+    if (kept && !sameRows(kept, toDraft(initialView))) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage only exists in the browser
+      setDraft(kept);
+      setDirty(true);
+      setRestored(true);
+    }
+  }, [draftKey, initialView]);
+  useEffect(() => {
+    writeDraft(draftKey, dirty && view.status === "lobby" ? draft : null);
+  }, [draftKey, dirty, draft, view.status]);
+  // And ask before leaving the page with changes still unsaved.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+  const discardDraft = () => {
+    setDraft(toDraft(view));
+    setSyncedVersion(view.version);
+    setDirty(false);
+    setRestored(false);
+  };
 
   async function send(action: HostAction): Promise<HostGameView | null> {
     setBusy(true);
@@ -88,6 +146,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
     const saved = await send({ type: "saveLobby", rows: draft.map(({ id, name, mission }) => ({ id, name, mission })) });
     if (!saved) return false;
     setDirty(false);
+    setRestored(false);
     setDraft(toDraft(saved));
     setSyncedVersion(saved.version);
     return true;
@@ -163,6 +222,15 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
         <p role="alert" className="mt-4 killer-alert px-3 py-2.5 text-sm">
           {error}
         </p>
+      )}
+
+      {view.status === "lobby" && restored && (
+        <div role="status" className="killer-panel mt-4 flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
+          <span>Tes changements non enregistrés ont été retrouvés après le rechargement.</span>
+          <button type="button" className="-my-2 py-2 text-xs text-[var(--k-muted)] underline" onClick={discardDraft}>
+            Les abandonner
+          </button>
+        </div>
       )}
 
       {view.status === "lobby" && (
@@ -598,6 +666,7 @@ function LobbyEditor({
               Lancer la partie
             </button>
           )}
+          {dirty && <p className="text-center text-xs text-[var(--k-muted)]">Tes changements (ordre, prénoms, missions) ne sont pas encore enregistrés.</p>}
           {!dirty && startBlocker && <p className="text-center text-xs text-[var(--k-muted)]">{startBlocker}</p>}
         </div>
       </div>
