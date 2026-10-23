@@ -97,13 +97,73 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
     };
   }, [soundOn, soundVersion, code]);
 
-  const enableSound = async () => {
-    audio.current ??= new AudioContext();
-    await audio.current.resume();
-    playChime(audio.current); // proof that the sound works, before the first fall
-    setSoundOn(true);
-    document.documentElement.requestFullscreen?.().catch(() => {});
+  // Sound and full screen are asked for straight away, inside the click: Firefox (on a Mac at least)
+  // refuses full screen once anything has been awaited — it used to come after the sound had started.
+  // Each one is independent, so a refusal of one never blocks the other.
+  const [soundBlocked, setSoundBlocked] = useState(false);
+  const startAudio = () => {
+    const ctx = (audio.current ??= new AudioContext());
+    ctx.onstatechange = () => setSoundBlocked(ctx.state !== "running");
+    void ctx
+      .resume()
+      .then(() => {
+        setSoundBlocked(ctx.state !== "running");
+        if (ctx.state === "running") playChime(ctx); // proof that the sound works, before the first fall
+      })
+      .catch(() => setSoundBlocked(true));
   };
+  const enableSound = () => {
+    const page = document.documentElement;
+    if (!document.fullscreenElement && page.requestFullscreen) void page.requestFullscreen().catch(() => {});
+    startAudio();
+    setSoundOn(true);
+  };
+
+  // Bottom right: switch the sound on, unblock it if the browser held it back, then the volume and a test shot.
+  const soundCorner = !soundOn ? (
+    <button
+      type="button"
+      onClick={enableSound}
+      className="killer-btn absolute right-[2vw] bottom-[2vh] z-30 px-5 py-3 text-lg"
+      title="Les navigateurs n'autorisent le son qu'après un clic"
+    >
+      🔊 Activer le son et le plein écran
+    </button>
+  ) : soundBlocked ? (
+    <button
+      type="button"
+      onClick={startAudio}
+      className="killer-btn absolute right-[2vw] bottom-[2vh] z-30 px-5 py-3 text-lg"
+      title="Le navigateur a bloqué le son : un clic de plus le débloque"
+    >
+      🔇 Son bloqué par le navigateur — cliquer pour l&apos;activer
+    </button>
+  ) : (
+    <div className="absolute right-[1.5vw] bottom-[1.5vh] z-30 flex items-center gap-3 rounded-full bg-white/70 px-3 py-1.5 text-sm text-[var(--k-muted)] opacity-30 transition-opacity focus-within:opacity-100 hover:opacity-100">
+      <label className="flex items-center gap-2">
+        <span aria-hidden="true">🔉</span>
+        <input
+          type="range"
+          min={0.25}
+          max={MAX_VOLUME}
+          step={0.25}
+          value={volume}
+          onChange={(e) => setVolume(Number(e.target.value))}
+          aria-label="Volume du son d'élimination"
+          className="killer-range w-28"
+        />
+        <span className="w-12 tabular-nums">{Math.round(volume * 100)} %</span>
+      </label>
+      <button
+        type="button"
+        onClick={() => audio.current && playElimination(audio.current, sample.current, volume)}
+        className="rounded-full px-2 py-1 hover:text-[var(--k-ink)]"
+        title="Faire tonner le canon pour régler le volume"
+      >
+        🔊 Tester le canon
+      </button>
+    </div>
+  );
 
   return (
     <main className="killer relative h-dvh overflow-hidden">
@@ -127,41 +187,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
 
       {fall && <FallOverlay key={fall.at} code={code} fall={fall} remaining={view.aliveCount} />}
 
-      {!soundOn ? (
-        <button
-          type="button"
-          onClick={() => void enableSound()}
-          className="killer-btn absolute right-[2vw] bottom-[2vh] z-30 px-5 py-3 text-lg"
-          title="Les navigateurs n'autorisent le son qu'après un clic"
-        >
-          🔊 Activer le son et le plein écran
-        </button>
-      ) : (
-        <div className="absolute right-[1.5vw] bottom-[1.5vh] z-30 flex items-center gap-3 rounded-full bg-white/70 px-3 py-1.5 text-sm text-[var(--k-muted)] opacity-30 transition-opacity focus-within:opacity-100 hover:opacity-100">
-          <label className="flex items-center gap-2">
-            <span aria-hidden="true">🔉</span>
-            <input
-              type="range"
-              min={0.25}
-              max={MAX_VOLUME}
-              step={0.25}
-              value={volume}
-              onChange={(e) => setVolume(Number(e.target.value))}
-              aria-label="Volume du son d'élimination"
-              className="killer-range w-28"
-            />
-            <span className="w-12 tabular-nums">{Math.round(volume * 100)} %</span>
-          </label>
-          <button
-            type="button"
-            onClick={() => audio.current && playElimination(audio.current, sample.current, volume)}
-            className="rounded-full px-2 py-1 hover:text-[var(--k-ink)]"
-            title="Faire tonner le canon pour régler le volume"
-          >
-            🔊 Tester le canon
-          </button>
-        </div>
-      )}
+      {soundCorner}
     </main>
   );
 }
