@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, customType, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, timestamp, customType, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { member } from "./member";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
@@ -63,6 +63,26 @@ export const killerPlayer = pgTable(
     joinedAt: timestamp("joined_at", { withTimezone: true }),
   },
   (t) => [index("killer_player_game_idx").on(t.gameId)],
+);
+
+/**
+ * Members the organizer lets run the game with them (panel, TV, eliminations) — e.g. the
+ * person they host the party with. Only the creator adds or removes them, and only the
+ * creator can delete the game. A co-organizer still needs the Killer password.
+ */
+export const killerCohost = pgTable(
+  "killer_cohost",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => killerGame.id, { onDelete: "cascade" }),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => member.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("killer_cohost_game_member_idx").on(t.gameId, t.memberId)],
 );
 
 /** Kept so the organizer can undo the last elimination exactly. */

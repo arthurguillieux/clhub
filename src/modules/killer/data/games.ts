@@ -1,7 +1,7 @@
 import { randomBytes, randomInt } from "node:crypto";
-import { and, asc, desc, eq, getTableColumns, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/core/db/client";
-import { killerGame, killerKill, killerPlayer, type KillerGame } from "@/core/db/schema";
+import { killerCohost, killerGame, killerKill, killerPlayer, member, user, type KillerGame } from "@/core/db/schema";
 import {
   buildCircle,
   circleNames,
@@ -71,6 +71,36 @@ export async function listGamesByHost(memberId: string): Promise<KillerGame[]> {
   return db.select(gameColumns).from(killerGame).where(eq(killerGame.hostMemberId, memberId)).orderBy(desc(killerGame.createdAt));
 }
 
+/** The games a member runs: the ones they created, and the ones they co-organize. Newest first. */
+export async function listGamesForMember(memberId: string): Promise<(KillerGame & { role: "host" | "cohost" })[]> {
+  const cohosted = db.select({ gameId: killerCohost.gameId }).from(killerCohost).where(eq(killerCohost.memberId, memberId));
+  const games = await db
+    .select(gameColumns)
+    .from(killerGame)
+    .where(or(eq(killerGame.hostMemberId, memberId), inArray(killerGame.id, cohosted)))
+    .orderBy(desc(killerGame.createdAt));
+  return games.map((g) => ({ ...g, role: g.hostMemberId === memberId ? "host" : "cohost" }));
+}
+
+export async function isCohost(game: KillerGame, memberId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: killerCohost.id })
+    .from(killerCohost)
+    .where(and(eq(killerCohost.gameId, game.id), eq(killerCohost.memberId, memberId)))
+    .limit(1);
+  return !!row;
+}
+
+async function listCohosts(gameId: string): Promise<HostGameView["cohosts"]> {
+  return db
+    .select({ memberId: killerCohost.memberId, name: user.name })
+    .from(killerCohost)
+    .innerJoin(member, eq(member.id, killerCohost.memberId))
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(eq(killerCohost.gameId, gameId))
+    .orderBy(asc(killerCohost.createdAt));
+}
+
 function publicTribute(r: PlayerRow): PublicTribute {
   return {
     id: r.id,
@@ -135,6 +165,7 @@ export async function getHostView(game: KillerGame): Promise<HostGameView> {
     tributes: rows.map((r) => ({ ...publicTribute(r), mission: r.mission, position: r.position, targetId: r.targetId, killedById: r.killedById })),
     circle: game.status === "lobby" ? [...rows.map((r) => r.name), ...(rows[0] ? [rows[0].name] : [])] : circleNames(asTributes(rows)),
     canUndo: !!lastKill && game.status !== "lobby",
+    cohosts: await listCohosts(game.id),
   };
 }
 
@@ -264,6 +295,20 @@ export async function releaseSeat(game: KillerGame, playerId: string): Promise<R
   await mutate(game.id, (tx) =>
     tx.update(killerPlayer).set({ token: null }).where(and(eq(killerPlayer.gameId, game.id), eq(killerPlayer.id, playerId))),
   );
+  return { ok: true };
+}
+
+/** The creator lets another member run the game with them. */
+export async function addCohost(game: KillerGame, memberId: string): Promise<Result> {
+  if (memberId === game.hostMemberId) return fail("Tu organises déjà cette partie.");
+  const [exists] = await db.select({ id: member.id }).from(member).where(eq(member.id, memberId)).limit(1);
+  if (!exists) return fail("Membre introuvable.");
+  await mutate(game.id, (tx) => tx.insert(killerCohost).values({ gameId: game.id, memberId }).onConflictDoNothing());
+  return { ok: true };
+}
+
+export async function removeCohost(game: KillerGame, memberId: string): Promise<Result> {
+  await mutate(game.id, (tx) => tx.delete(killerCohost).where(and(eq(killerCohost.gameId, game.id), eq(killerCohost.memberId, memberId))));
   return { ok: true };
 }
 

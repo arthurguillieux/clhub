@@ -21,7 +21,9 @@ type HostAction =
   | { type: "end" }
   | { type: "reset" }
   | { type: "removePhoto"; playerId: string }
-  | { type: "rename"; title: string };
+  | { type: "rename"; title: string }
+  | { type: "addCohost"; memberId: string }
+  | { type: "removeCohost"; memberId: string };
 
 interface DraftRow {
   key: string;
@@ -69,7 +71,20 @@ function writeDraft(key: string, rows: DraftRow[] | null) {
 
 const clock = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" });
 
-export function HostPanel({ code, initialView, joinUrl }: { code: string; initialView: HostGameView; joinUrl: string }) {
+export function HostPanel({
+  code,
+  initialView,
+  joinUrl,
+  isCreator,
+  members,
+}: {
+  code: string;
+  initialView: HostGameView;
+  joinUrl: string;
+  /** The creator manages co-organizers and can delete the game; a co-organizer can do everything else. */
+  isCreator: boolean;
+  members: { id: string; name: string }[];
+}) {
   const polled = useLongPoll<HostGameView>(`/api/killer/${code}/host`, initialView);
   const [fromAction, setFromAction] = useState<HostGameView | null>(null);
   const view = fromAction && (!polled.data || fromAction.version > polled.data.version) ? fromAction : (polled.data ?? initialView);
@@ -211,6 +226,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
         <div>
           <p className="killer-label">
             {view.status === "lobby" ? "Préparation" : view.status === "running" ? "Partie en cours" : "Partie terminée"} · code {code}
+            {!isCreator && " · co-organisation"}
           </p>
           <GameTitle title={view.title} busy={busy} onRename={(title) => send({ type: "rename", title })} />
         </div>
@@ -251,7 +267,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
             await send({ type: "shuffle" });
           }}
           onRemovePhoto={askRemovePhoto}
-          onDelete={askDelete}
+          onDelete={isCreator ? askDelete : undefined}
           onRelease={(t) =>
             setDialog({
               title: `Libérer la place de ${t.name} ?`,
@@ -317,7 +333,7 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
           onRemovePhoto={askRemovePhoto}
           onAdd={(name, mission, afterId) => send({ type: "add", name, mission, afterId })}
           onReset={askReset}
-          onDelete={askDelete}
+          onDelete={isCreator ? askDelete : undefined}
           onEnd={() =>
             setDialog({
               title: "Terminer la partie maintenant ?",
@@ -364,8 +380,18 @@ export function HostPanel({ code, initialView, joinUrl }: { code: string; initia
           <button type="button" className="killer-btn-ghost min-h-12 px-4" onClick={askReset}>
             ✎ Revenir à la préparation (modifier, rejouer)
           </button>
-          <DeleteGameButton onClick={askDelete} />
+          {isCreator && <DeleteGameButton onClick={askDelete} />}
         </section>
+      )}
+
+      {isCreator && (
+        <CohostSetting
+          cohosts={view.cohosts}
+          members={members}
+          busy={busy}
+          onAdd={(memberId) => send({ type: "addCohost", memberId })}
+          onRemove={(memberId) => send({ type: "removeCohost", memberId })}
+        />
       )}
 
       {dialog && <KillerDialog {...dialog} onClose={() => setDialog(null)} />}
@@ -378,6 +404,80 @@ function Shell({ children }: { children: React.ReactNode }) {
     <main className="killer min-h-dvh px-4 pt-5 pb-28">
       <div className="mx-auto flex max-w-xl flex-col">{children}</div>
     </main>
+  );
+}
+
+/**
+ * Co-organizers: club members the creator lets run the game with them — the panel, the TV and the
+ * eliminations, from their own account (they still need the Killer password). Creator only.
+ */
+function CohostSetting({
+  cohosts,
+  members,
+  busy,
+  onAdd,
+  onRemove,
+}: {
+  cohosts: HostGameView["cohosts"];
+  members: { id: string; name: string }[];
+  busy: boolean;
+  onAdd: (memberId: string) => Promise<HostGameView | null>;
+  onRemove: (memberId: string) => Promise<HostGameView | null>;
+}) {
+  const [choice, setChoice] = useState("");
+  const candidates = members.filter((m) => !cohosts.some((c) => c.memberId === m.id));
+  return (
+    <details className="killer-panel mt-5 p-3">
+      <summary className="cursor-pointer py-1 font-bold">👥 Co-organisateurs{cohosts.length > 0 && ` (${cohosts.length})`}</summary>
+      <p className="mt-2 text-sm text-[var(--k-muted)]">
+        Avec leur propre compte, ils ouvrent le panneau et l&apos;écran TV et valident les éliminations. Ils ne peuvent pas
+        supprimer la partie. Il leur faut aussi le mot de passe du Killer.
+      </p>
+      {cohosts.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-2">
+          {cohosts.map((c) => (
+            <li key={c.memberId} className="flex items-center justify-between gap-3 text-sm">
+              <span className="font-semibold">{c.name}</span>
+              <button
+                type="button"
+                className="-my-2 py-2 text-xs text-[var(--k-muted)] underline"
+                disabled={busy}
+                onClick={() => void onRemove(c.memberId)}
+              >
+                Retirer
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {candidates.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <select
+            value={choice}
+            onChange={(e) => setChoice(e.target.value)}
+            aria-label="Membre à ajouter comme co-organisateur"
+            className="killer-field min-h-11 min-w-0 flex-1 px-3"
+          >
+            <option value="">Choisir un membre du club…</option>
+            {candidates.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="killer-btn min-h-11 px-3 text-sm"
+            disabled={busy || !choice}
+            onClick={async () => {
+              if (await onAdd(choice)) setChoice("");
+            }}
+          >
+            Ajouter
+          </button>
+        </div>
+      )}
+    </details>
   );
 }
 
@@ -569,7 +669,7 @@ function LobbyEditor({
   onShuffle: () => void;
   onRelease: (t: HostTribute) => void;
   onRemovePhoto: (t: HostTribute) => void;
-  onDelete: () => void;
+  onDelete?: () => void;
   onStart: () => void;
 }) {
   const move = (i: number, delta: number) => {
@@ -707,7 +807,7 @@ function LobbyEditor({
       )}
 
       <SoundSetting code={code} soundVersion={view.soundVersion} />
-      <DeleteGameButton onClick={onDelete} />
+      {onDelete && <DeleteGameButton onClick={onDelete} />}
 
       <div className="fixed inset-x-0 bottom-0 z-40 killer-bar px-4 py-3">
         <div className="mx-auto flex max-w-xl flex-col gap-2">
@@ -756,7 +856,7 @@ function RunningPanel({
   onRemovePhoto: (t: HostTribute) => void;
   onAdd: (name: string, mission: string, afterId: string | null) => Promise<HostGameView | null>;
   onReset: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
   onEnd: () => void;
 }) {
   const alive = view.tributes.filter((t) => t.alive);
@@ -886,7 +986,7 @@ function RunningPanel({
       <button type="button" disabled={busy} className="killer-btn-ghost min-h-12 px-4 text-[var(--k-muted)]" onClick={onEnd}>
         Terminer la partie
       </button>
-      <DeleteGameButton onClick={onDelete} />
+      {onDelete && <DeleteGameButton onClick={onDelete} />}
     </section>
   );
 }

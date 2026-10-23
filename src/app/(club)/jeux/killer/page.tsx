@@ -7,7 +7,7 @@ import { Card } from "@/core/ui/components/Card";
 import { Button } from "@/core/ui/components/Button";
 import { FormField, Input } from "@/core/ui/components/Field";
 import { hasKillerAccess } from "@/modules/killer/access";
-import { listGamesByHost } from "@/modules/killer/data/games";
+import { listGamesForMember } from "@/modules/killer/data/games";
 import { createKillerDemoAction, createKillerGameAction } from "@/app/(killer)/killer/actions";
 import { DeleteGameButton } from "./DeleteGameButton";
 import { UnlockForm } from "./UnlockForm";
@@ -36,7 +36,7 @@ export default async function KillerHomePage() {
     );
   }
 
-  const games = await listGamesByHost(session.member.id);
+  const games = await listGamesForMember(session.member.id);
 
   return (
     <Container size="sm">
@@ -82,15 +82,18 @@ export default async function KillerHomePage() {
                     <p className="font-display font-bold text-ink">{g.title}</p>
                     <p className="text-xs text-muted">
                       Code {g.code} · {STATUS_LABELS[g.status] ?? g.status}
+                      {g.role === "cohost" && " · tu la co-organises"}
                     </p>
                   </div>
                   <Link href={`/killer/${g.code}/panneau`} className="-my-2.5 py-2.5 text-sm font-semibold text-primary hover:underline">
                     Ouvrir le panneau
                   </Link>
                 </div>
-                <div>
-                  <DeleteGameButton code={g.code} title={g.title} />
-                </div>
+                {g.role === "host" && (
+                  <div>
+                    <DeleteGameButton code={g.code} title={g.title} />
+                  </div>
+                )}
               </Card>
             ))}
           </div>

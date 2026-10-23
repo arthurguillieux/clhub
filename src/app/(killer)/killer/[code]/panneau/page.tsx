@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getHostView } from "@/modules/killer/data/games";
+import { listMembers } from "@/modules/members/data/members";
 import { checkKillerHost } from "@/modules/killer/host";
 import { HostPanel } from "./HostPanel";
 
@@ -26,5 +27,16 @@ export default async function KillerPanelPage({ params }: { params: Promise<{ co
   }
 
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
-  return <HostPanel code={check.game.code} initialView={await getHostView(check.game)} joinUrl={`${appUrl}/killer/${check.game.code}`} />;
+  const isCreator = check.role === "host";
+  // The creator picks co-organizers among the club's members (everyone but themselves).
+  const members = isCreator ? (await listMembers()).filter((m) => m.id !== check.memberId).map((m) => ({ id: m.id, name: m.name })) : [];
+  return (
+    <HostPanel
+      code={check.game.code}
+      initialView={await getHostView(check.game)}
+      joinUrl={`${appUrl}/killer/${check.game.code}`}
+      isCreator={isCreator}
+      members={members}
+    />
+  );
 }

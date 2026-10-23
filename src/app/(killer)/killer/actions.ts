@@ -17,6 +17,8 @@ import {
   getHostView,
   releaseSeat,
   removePhoto,
+  addCohost,
+  removeCohost,
   renameGame,
   resetToLobby,
   saveLobby,
@@ -73,6 +75,8 @@ const hostActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("end") }),
   z.object({ type: z.literal("reset") }),
   z.object({ type: z.literal("removePhoto"), playerId: id }),
+  z.object({ type: z.literal("addCohost"), memberId: id }),
+  z.object({ type: z.literal("removeCohost"), memberId: id }),
   z.object({ type: z.literal("rename"), title: z.string().trim().min(1, "Le nom de la partie ne peut pas être vide.").max(MAX_TITLE_LENGTH, "Nom trop long.") }),
 ]);
 
@@ -87,6 +91,9 @@ export async function killerHostAction(code: string, action: unknown): Promise<K
 
   const game = check.game;
   const a = parsed.data;
+  if ((a.type === "addCohost" || a.type === "removeCohost") && check.role !== "host") {
+    return { ok: false, error: "Seule la personne qui a créé la partie peut choisir ses co-organisateurs." };
+  }
   const result =
     a.type === "saveLobby"
       ? await saveLobby(game, a.rows)
@@ -110,7 +117,11 @@ export async function killerHostAction(code: string, action: unknown): Promise<K
                         ? await removePhoto(game, a.playerId)
                         : a.type === "rename"
                           ? await renameGame(game, a.title)
-                          : await endGame(game);
+                          : a.type === "addCohost"
+                            ? await addCohost(game, a.memberId)
+                            : a.type === "removeCohost"
+                              ? await removeCohost(game, a.memberId)
+                              : await endGame(game);
   if (!result.ok) return { ok: false, error: result.error };
 
   const fresh = await getGameByCode(code);
@@ -119,6 +130,7 @@ export async function killerHostAction(code: string, action: unknown): Promise<K
 
 export async function deleteKillerGameAction(code: string): Promise<void> {
   const check = await checkKillerHost(code);
-  if (check.ok) await deleteGame(check.game);
+  // Only its creator deletes a game; a co-organizer can't.
+  if (check.ok && check.role === "host") await deleteGame(check.game);
   redirect("/jeux/killer");
 }

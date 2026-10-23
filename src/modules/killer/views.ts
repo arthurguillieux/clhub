@@ -57,4 +57,6 @@ export interface HostGameView extends Omit<PublicGameView, "tributes"> {
   tributes: HostTribute[];
   circle: string[];
   canUndo: boolean;
+  /** Members the creator lets run the game with them. */
+  cohosts: { memberId: string; name: string }[];
 }

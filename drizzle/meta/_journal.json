@@ -239,6 +239,13 @@
       "when": 1792339521005,
       "tag": "0033_killer_game_sound",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792784517120,
+      "tag": "0034_killer_cohost",
+      "breakpoints": true
     }
   ]
 }
