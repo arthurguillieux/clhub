@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { COUNTDOWN_ZERO_S, countdownNumber } from "@/modules/killer/countdown";
 import type { PlayerGameView, PublicGameView } from "@/modules/killer/views";
 import { Particles } from "../Particles";
 import { KillerDialog } from "../KillerDialog";
@@ -353,8 +354,37 @@ function Cropper({ src, busy, onConfirm, onRetake }: { src: string; busy: boolea
 
 // ───────── Partie ─────────
 
+/**
+ * Seconds left before the launch countdown's zero, on the server's clock (the phone's own may be off);
+ * null outside the countdown. The TV shows the same numbers, give or take a network round trip.
+ */
+function useCountdownLeft(view: PublicGameView): number | null {
+  const [left, setLeft] = useState<number | null>(null);
+  useEffect(() => {
+    if (view.status !== "running" || !view.startedAt) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- follows the polled game state
+      setLeft(null);
+      return;
+    }
+    const skew = new Date(view.now).getTime() - Date.now();
+    const zeroAt = new Date(view.startedAt).getTime() + COUNTDOWN_ZERO_S * 1000;
+    const update = () => {
+      const ms = zeroAt - (Date.now() + skew);
+      setLeft(ms > 0 ? ms / 1000 : null);
+      return ms > 0;
+    };
+    if (!update()) return;
+    const timer = setInterval(() => {
+      if (!update()) clearInterval(timer);
+    }, 100);
+    return () => clearInterval(timer);
+  }, [view.status, view.startedAt, view.now]);
+  return left;
+}
+
 function GameScreen({ code, view, token }: { code: string; view: PlayerGameView; token: string }) {
   const { me } = view;
+  const countdownLeft = useCountdownLeft(view);
   const [revealed, setRevealed] = useState(false);
   const [retakePhoto, setRetakePhoto] = useState(false);
   const [seenTarget, setSeenTarget] = useState<string | null>(() => (typeof window === "undefined" ? null : readStorage(seenTargetKey(code))));
@@ -406,7 +436,24 @@ function GameScreen({ code, view, token }: { code: string; view: PlayerGameView;
         </div>
       )}
 
-      {view.status === "running" && me.alive && me.target && (
+      {view.status === "running" && me.alive && countdownLeft !== null && (
+        <div className="m-auto text-center" role="status">
+          <p className="killer-label">Lancement de la simulation</p>
+          {(() => {
+            const number = countdownNumber(COUNTDOWN_ZERO_S - countdownLeft);
+            return number === null ? (
+              <p className="killer-title mt-6 text-3xl text-[var(--k-muted)]">Prêts ?</p>
+            ) : (
+              <p key={number} className="killer-count-pop killer-title mt-4 tabular-nums" style={{ fontSize: "min(38vw, 10rem)", lineHeight: 1 }}>
+                {number}
+              </p>
+            );
+          })()}
+          <p className="mt-4 text-[var(--k-muted)]">Ta cible arrive à zéro. Garde ton écran pour toi.</p>
+        </div>
+      )}
+
+      {view.status === "running" && me.alive && me.target && countdownLeft === null && (
         <div className="mt-10 flex flex-1 flex-col">
           {isNewTarget && !revealed && (
             <p className="killer-panel killer-rise mb-4 p-3 text-center text-sm">

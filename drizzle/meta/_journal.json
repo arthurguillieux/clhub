@@ -246,6 +246,13 @@
       "when": 1792784517120,
       "tag": "0034_killer_cohost",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792789402527,
+      "tag": "0035_killer_countdown_sound",
+      "breakpoints": true
     }
   ]
 }

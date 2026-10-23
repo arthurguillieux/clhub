@@ -64,7 +64,7 @@ export const MAX_VOLUME = 8;
  * A WaveShaper clamps its input to [-1, 1], hence the input scaled down by MAX_VOLUME and a curve
  * that gives the gain back.
  */
-function loudnessStage(audio: AudioContext, volume: number): AudioNode {
+function loudnessStage(audio: AudioContext, volume: number, lifetime = 6): AudioNode {
   const pre = audio.createGain();
   pre.gain.value = volume / MAX_VOLUME;
   const shaper = audio.createWaveShaper();
@@ -76,22 +76,31 @@ function loudnessStage(audio: AudioContext, volume: number): AudioNode {
   shaper.curve = curve;
   shaper.oversample = "4x";
   pre.connect(shaper).connect(audio.destination);
-  setTimeout(() => pre.disconnect(), 6000);
+  setTimeout(() => pre.disconnect(), lifetime * 1000);
   return pre;
 }
 
-/** `volume` multiplies the organizer's file; the synthesised shot was tuned for a volume of 2, and follows the knob from there. */
-export function playElimination(audio: AudioContext, sample: AudioBuffer | null = null, volume = DEFAULT_VOLUME): void {
-  const now = audio.currentTime;
-  const output = loudnessStage(audio, volume);
+/**
+ * Plays a recorded sound through the loudness stage, starting at audio time `when`, `offset` seconds
+ * into the file — the countdown uses both to stay on the beat of Arthur's file.
+ */
+export function playRecording(audio: AudioContext, buffer: AudioBuffer, volume = DEFAULT_VOLUME, when = audio.currentTime, offset = 0): void {
+  const output = loudnessStage(audio, volume, when - audio.currentTime + buffer.duration - offset + 1);
+  const source = audio.createBufferSource();
+  source.buffer = buffer;
+  source.connect(output);
+  source.start(when, offset);
+}
 
-  if (sample) {
-    const source = audio.createBufferSource();
-    source.buffer = sample;
-    source.connect(output);
-    source.start(now);
-    return;
-  }
+/**
+ * `volume` multiplies the organizer's file; the synthesised shot was tuned for a volume of 2, and
+ * follows the knob from there. `when` schedules it ahead (the countdown's shots, when there's no file).
+ */
+export function playElimination(audio: AudioContext, sample: AudioBuffer | null = null, volume = DEFAULT_VOLUME, when = audio.currentTime): void {
+  if (sample) return playRecording(audio, sample, volume, when);
+  const now = when;
+  const ahead = Math.max(0, when - audio.currentTime);
+  const output = loudnessStage(audio, volume, ahead + 6);
 
   // Everything goes through a compressor so the sound is loud without clipping.
   const master = audio.createDynamicsCompressor();
@@ -178,10 +187,13 @@ export function playElimination(audio: AudioContext, sample: AudioBuffer | null 
   rumble.stop(now + 2.9);
 
   // The echo loop would otherwise keep running silently forever.
-  setTimeout(() => {
-    echo.disconnect();
-    master.disconnect();
-  }, 4500);
+  setTimeout(
+    () => {
+      echo.disconnect();
+      master.disconnect();
+    },
+    ahead * 1000 + 4500,
+  );
 }
 
 /** Two soft tones, played when the sound is switched on: proof that the TV can be heard. */

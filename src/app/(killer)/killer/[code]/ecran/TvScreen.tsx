@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { COUNTDOWN_LEAVE_S, COUNTDOWN_ZERO_S } from "@/modules/killer/countdown";
 import type { PublicGameView, PublicTribute } from "@/modules/killer/views";
-import { DEFAULT_VOLUME, MAX_VOLUME, loadSample, playChime, playElimination } from "../../sounds";
+import { DEFAULT_VOLUME, MAX_VOLUME, loadSample, playChime, playElimination, playRecording } from "../../sounds";
 import { Bubbles } from "../../Bubbles";
 import { LabRoom } from "../../LabRoom";
 import { TributePhoto } from "../../TributePhoto";
 import { useLongPoll } from "../../useLongPoll";
+import { LaunchCountdown, type Launch } from "./LaunchCountdown";
 
 const FALL_DURATION_MS = 7000;
 // "-v2": the default doubled on 24/10 — a knob remembered at the old default must not hold it back.
@@ -42,6 +44,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
   const view = data ?? initialView;
   const audio = useRef<AudioContext | null>(null);
   const sample = useRef<AudioBuffer | null>(null);
+  const countdownSample = useRef<AudioBuffer | null>(null);
   const [soundOn, setSoundOn] = useState(false);
   // The volume knob, remembered by this browser (the TV's laptop) from one game to the next.
   const [volume, setVolume] = useState(() => {
@@ -97,6 +100,64 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
       current = false;
     };
   }, [soundOn, soundVersion, code]);
+
+  // Same for the launch countdown's file.
+  const countdownSoundVersion = view.countdownSoundVersion;
+  useEffect(() => {
+    const ctx = audio.current;
+    if (!soundOn || !ctx) return;
+    if (countdownSoundVersion === null) {
+      countdownSample.current = null;
+      return;
+    }
+    let current = true;
+    void loadSample(ctx, `/api/killer/${code}/sound?kind=countdown&v=${countdownSoundVersion}`).then((buffer) => {
+      if (current) countdownSample.current = buffer;
+    });
+    return () => {
+      current = false;
+    };
+  }, [soundOn, countdownSoundVersion, code]);
+
+  // The launch: when the game goes from preparation to running while the TV is open, the countdown
+  // starts with its sound — the organizer's file, or a synthesised shot on each second — and the
+  // numbers follow the sound's own clock.
+  const [launch, setLaunch] = useState<Launch | null>(null);
+  const startLaunch = (offset: number) => {
+    const ctx = audio.current;
+    const perfStart = performance.now() - offset * 1000;
+    if (!ctx || ctx.state !== "running") return setLaunch({ audioStart: null, perfStart });
+    const when = ctx.currentTime + 0.05;
+    const audioStart = when - offset;
+    if (countdownSample.current) {
+      playRecording(ctx, countdownSample.current, volumeRef.current, when, offset);
+    } else {
+      for (let second = 1; second <= COUNTDOWN_ZERO_S; second++) {
+        if (second > offset) playElimination(ctx, null, volumeRef.current * (second === COUNTDOWN_ZERO_S ? 1 : 0.55), audioStart + second);
+      }
+    }
+    setLaunch({ audioStart, perfStart });
+  };
+  const startLaunchRef = useRef(startLaunch);
+  useEffect(() => {
+    startLaunchRef.current = startLaunch;
+  });
+  const previousStatus = useRef(initialView.status);
+  useEffect(() => {
+    const was = previousStatus.current;
+    previousStatus.current = view.status;
+    if (was === "lobby" && view.status === "running") startLaunchRef.current(0);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the organizer went back to preparation mid-countdown
+    if (view.status === "lobby") setLaunch(null);
+  }, [view.status]);
+  // Opened (or reloaded) in the middle of a countdown: pick it up where it is, without sound — the
+  // browser needs a click for that.
+  useEffect(() => {
+    if (initialView.status !== "running" || !initialView.startedAt) return;
+    const offset = (new Date(initialView.now).getTime() - new Date(initialView.startedAt).getTime()) / 1000;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the server's clock only arrives with the view
+    if (offset >= 0 && offset < COUNTDOWN_LEAVE_S) setLaunch({ audioStart: null, perfStart: performance.now() - offset * 1000 });
+  }, [initialView]);
 
   // Sound and full screen are asked for straight away, inside the click: Firefox (on a Mac at least)
   // refuses full screen once anything has been awaited — it used to come after the sound had started.
@@ -182,9 +243,13 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
           </div>
         )}
         {!gone && view.status === "lobby" && <Lobby code={code} view={view} qrSvg={qrSvg} joinUrl={joinUrl} />}
-        {!gone && view.status === "running" && <Arena code={code} view={view} />}
+        {!gone && view.status === "running" && <Arena code={code} view={view} hidden={!!launch} />}
         {!gone && view.status === "ended" && <Wrapped code={code} view={view} />}
       </div>
+
+      {launch && view.status === "running" && (
+        <LaunchCountdown launch={launch} getAudio={() => audio.current} title={view.title} onDone={() => setLaunch(null)} />
+      )}
 
       {fall && <FallOverlay key={fall.at} code={code} fall={fall} remaining={view.aliveCount} />}
 
@@ -234,14 +299,15 @@ function Lobby({ code, view, qrSvg, joinUrl }: { code: string; view: PublicGameV
   );
 }
 
-function Arena({ code, view }: { code: string; view: PublicGameView }) {
+/** `hidden` while the launch countdown runs: the arena fades in once it's over. */
+function Arena({ code, view, hidden = false }: { code: string; view: PublicGameView; hidden?: boolean }) {
   const { w, h } = useWindowSize();
   const grid = bestGrid(view.tributes.length, w * 0.94, h * 0.78);
   // The living first, then the fallen in the order they fell.
   const ordered = [...view.tributes].sort((a, b) => Number(b.alive) - Number(a.alive) || (a.killedAt ?? "").localeCompare(b.killedAt ?? ""));
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" style={{ opacity: hidden ? 0 : 1, transition: "opacity 0.8s ease" }}>
       <header className="flex items-end justify-between">
         <h1 className="killer-title" style={{ fontSize: "min(2.8vw, 4.8vh)", lineHeight: 1.1 }}>
           {view.title}

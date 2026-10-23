@@ -30,6 +30,10 @@ export interface PublicGameView {
   falls: number;
   /** Set when the organizer chose their own elimination sound (its version, to reload it on change). */
   soundVersion: number | null;
+  /** Same for the launch countdown's sound. */
+  countdownSoundVersion: number | null;
+  /** The server's clock when this view was made, so a phone can line its countdown up whatever its own clock says. */
+  now: string;
   /** Only once the game is over — it names who killed whom. */
   stats: EndStats | null;
 }

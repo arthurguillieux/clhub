@@ -552,11 +552,27 @@ function IdeaButton({ value, used, onPick }: { value: string; used: string[]; on
 }
 
 /** The TV's elimination sound: the synthesised cannon, or a file the organizer chose (kept on the NAS, played only by their TV). */
-function SoundSetting({ code, soundVersion }: { code: string; soundVersion: number | null }) {
+const SOUND_TEXTS = {
+  elimination: {
+    title: "🔊 Son d'élimination",
+    custom: "La TV joue ton fichier à chaque élimination.",
+    synth: "La TV joue un coup de canon de synthèse. Tu peux le remplacer par un fichier (mp3, 2 Mo au plus).",
+  },
+  countdown: {
+    title: "🔊 Son du compte à rebours",
+    custom: "La TV joue ton fichier au lancement : « 10 » à 1 s, « 9 » à 2 s… « 0 » à 11 s, puis la partie s'affiche pendant qu'il finit.",
+    synth:
+      "Au lancement, la TV compte de 10 à 0 avec un coup de canon de synthèse par seconde. Tu peux le remplacer par ton fichier : il doit avoir un coup à chaque seconde, « 0 » tombant à 11 s.",
+  },
+} as const;
+
+function SoundSetting({ code, kind, soundVersion }: { code: string; kind: "elimination" | "countdown"; soundVersion: number | null }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const url = `/api/killer/${code}/sound`;
+  const url = `/api/killer/${code}/sound${kind === "countdown" ? "?kind=countdown" : ""}`;
+  const listenUrl = `${url}${kind === "countdown" ? "&" : "?"}v=${soundVersion}`;
+  const texts = SOUND_TEXTS[kind];
 
   async function upload(file: File | undefined) {
     if (!file) return;
@@ -586,16 +602,14 @@ function SoundSetting({ code, soundVersion }: { code: string; soundVersion: numb
 
   return (
     <details className="killer-panel p-3">
-      <summary className="cursor-pointer py-1 font-bold">🔊 Son d&apos;élimination</summary>
+      <summary className="cursor-pointer py-1 font-bold">{texts.title}</summary>
       <p className="mt-2 text-sm text-[var(--k-muted)]">
-        {soundVersion !== null
-          ? "La TV joue ton fichier à chaque élimination."
-          : "La TV joue un coup de canon de synthèse. Tu peux le remplacer par un fichier (mp3, 2 Mo au plus)."}{" "}
+        {soundVersion !== null ? texts.custom : texts.synth}{" "}
         Il reste sur le CLHUB, seule ta TV le lit. Si la TV est déjà ouverte, elle le prend en compte toute seule.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {soundVersion !== null && (
-          <button type="button" className="killer-btn-ghost min-h-10 px-3 text-sm" onClick={() => void new Audio(`${url}?v=${soundVersion}`).play()}>
+          <button type="button" className="killer-btn-ghost min-h-10 px-3 text-sm" onClick={() => void new Audio(listenUrl).play()}>
             ▶ Écouter
           </button>
         )}
@@ -613,7 +627,7 @@ function SoundSetting({ code, soundVersion }: { code: string; soundVersion: numb
         type="file"
         accept="audio/*,.mp3"
         className="hidden"
-        aria-label="Fichier du son d'élimination"
+        aria-label={`Fichier : ${texts.title.replace("🔊 ", "")}`}
         onChange={(e) => {
           void upload(e.target.files?.[0]);
           e.target.value = "";
@@ -806,7 +820,8 @@ function LobbyEditor({
         </div>
       )}
 
-      <SoundSetting code={code} soundVersion={view.soundVersion} />
+      <SoundSetting code={code} kind="countdown" soundVersion={view.countdownSoundVersion} />
+      <SoundSetting code={code} kind="elimination" soundVersion={view.soundVersion} />
       {onDelete && <DeleteGameButton onClick={onDelete} />}
 
       <div className="fixed inset-x-0 bottom-0 z-40 killer-bar px-4 py-3">
@@ -981,7 +996,8 @@ function RunningPanel({
         </div>
       </details>
 
-      <SoundSetting code={code} soundVersion={view.soundVersion} />
+      <SoundSetting code={code} kind="countdown" soundVersion={view.countdownSoundVersion} />
+      <SoundSetting code={code} kind="elimination" soundVersion={view.soundVersion} />
 
       <button type="button" disabled={busy} className="killer-btn-ghost min-h-12 px-4 text-[var(--k-muted)]" onClick={onEnd}>
         Terminer la partie

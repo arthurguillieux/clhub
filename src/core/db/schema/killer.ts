@@ -33,6 +33,10 @@ export const killerGame = pgTable("killer_game", {
   sound: bytea("sound"),
   soundType: text("sound_type"),
   soundVersion: integer("sound_version").notNull().default(0),
+  /** Same idea for the launch: the file the TV plays with its countdown (Arthur's lasts 15 s, a shot each second). */
+  countdownSound: bytea("countdown_sound"),
+  countdownSoundType: text("countdown_sound_type"),
+  countdownSoundVersion: integer("countdown_sound_version").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -98,7 +102,7 @@ export const killerKill = pgTable("killer_kill", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** A game as the app reads it — without its sound file, which only the sound route loads. */
-export type KillerGame = Omit<typeof killerGame.$inferSelect, "sound">;
+/** A game as the app reads it — without its sound files, which only the sound route loads. */
+export type KillerGame = Omit<typeof killerGame.$inferSelect, "sound" | "countdownSound">;
 export type KillerPlayer = typeof killerPlayer.$inferSelect;
 export type KillerKill = typeof killerKill.$inferSelect;

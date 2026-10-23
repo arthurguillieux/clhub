@@ -29,7 +29,10 @@ const fail = (error: string) => ({ ok: false as const, error });
 
 // Every poll reads the game: leave the sound file (up to a few hundred KB) out of it.
 const allGameColumns = getTableColumns(killerGame);
-const gameColumns = Object.fromEntries(Object.entries(allGameColumns).filter(([key]) => key !== "sound")) as Omit<typeof allGameColumns, "sound">;
+const gameColumns = Object.fromEntries(Object.entries(allGameColumns).filter(([key]) => key !== "sound" && key !== "countdownSound")) as Omit<
+  typeof allGameColumns,
+  "sound" | "countdownSound"
+>;
 
 const playerColumns = {
   id: killerPlayer.id,
@@ -129,6 +132,8 @@ function publicView(game: KillerGame, rows: PlayerRow[]): PublicGameView {
       : null,
     falls: fallen.length,
     soundVersion: game.soundType ? game.soundVersion : null,
+    countdownSoundVersion: game.countdownSoundType ? game.countdownSoundVersion : null,
+    now: new Date().toISOString(),
     stats: game.status === "ended" ? endStats(asTributes(rows), game.startedAt, game.endedAt) : null,
   };
 }
@@ -169,8 +174,13 @@ export async function getHostView(game: KillerGame): Promise<HostGameView> {
   };
 }
 
-export async function getGameSound(game: KillerGame): Promise<{ data: Buffer; type: string } | null> {
-  const [row] = await db.select({ data: killerGame.sound, type: killerGame.soundType }).from(killerGame).where(eq(killerGame.id, game.id)).limit(1);
+/** The organizer's two sounds: one for each elimination, one for the launch countdown. */
+export type SoundKind = "elimination" | "countdown";
+
+export async function getGameSound(game: KillerGame, kind: SoundKind): Promise<{ data: Buffer; type: string } | null> {
+  const columns =
+    kind === "countdown" ? { data: killerGame.countdownSound, type: killerGame.countdownSoundType } : { data: killerGame.sound, type: killerGame.soundType };
+  const [row] = await db.select(columns).from(killerGame).where(eq(killerGame.id, game.id)).limit(1);
   return row?.data && row.type ? { data: row.data, type: row.type } : null;
 }
 
@@ -323,13 +333,12 @@ export async function renameGame(game: KillerGame, title: string): Promise<Resul
 }
 
 /** The organizer's own elimination sound; null puts the synthesised cannon back. */
-export async function setGameSound(game: KillerGame, sound: { data: Buffer; type: string } | null): Promise<Result> {
-  await mutate(game.id, (tx) =>
-    tx
-      .update(killerGame)
-      .set({ sound: sound?.data ?? null, soundType: sound?.type ?? null, soundVersion: sql`${killerGame.soundVersion} + 1` })
-      .where(eq(killerGame.id, game.id)),
-  );
+export async function setGameSound(game: KillerGame, kind: SoundKind, sound: { data: Buffer; type: string } | null): Promise<Result> {
+  const values =
+    kind === "countdown"
+      ? { countdownSound: sound?.data ?? null, countdownSoundType: sound?.type ?? null, countdownSoundVersion: sql`${killerGame.countdownSoundVersion} + 1` }
+      : { sound: sound?.data ?? null, soundType: sound?.type ?? null, soundVersion: sql`${killerGame.soundVersion} + 1` };
+  await mutate(game.id, (tx) => tx.update(killerGame).set(values).where(eq(killerGame.id, game.id)));
   return { ok: true };
 }
 

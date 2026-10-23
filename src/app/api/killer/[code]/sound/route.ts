@@ -1,4 +1,4 @@
-import { getGameSound, setGameSound } from "@/modules/killer/data/games";
+import { getGameSound, setGameSound, type SoundKind } from "@/modules/killer/data/games";
 import { checkKillerHost } from "@/modules/killer/host";
 import { jsonError, jsonOk } from "../../../buzzer/readJson";
 
@@ -16,16 +16,19 @@ function audioType(data: Buffer): string | null {
   return null;
 }
 
+/** ?kind=countdown for the launch countdown's sound; the elimination sound otherwise. */
+const kindOf = (request: Request): SoundKind => (new URL(request.url).searchParams.get("kind") === "countdown" ? "countdown" : "elimination");
+
 /**
- * The organizer's own elimination sound. Only the organizer can send, remove or fetch it — the TV
+ * The organizer's own sounds (elimination, launch countdown). Only the organizer can send, remove or fetch it — the TV
  * runs in their browser, signed in — so a sound found online stays on the NAS, played at home,
  * and never ends up in the public repository or in front of guests' phones.
  */
-export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const check = await checkKillerHost(code);
   if (!check.ok) return jsonError("Accès refusé", check.reason === "missing" ? 404 : 403);
-  const sound = await getGameSound(check.game);
+  const sound = await getGameSound(check.game, kindOf(request));
   if (!sound) return jsonError("Pas de son personnalisé", 404);
   return new Response(new Uint8Array(sound.data), {
     headers: { "Content-Type": sound.type, "Cache-Control": "private, max-age=31536000, immutable" },
@@ -42,14 +45,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   const type = audioType(data);
   if (!type) return jsonError("Ce fichier n'est pas un son lisible (mp3, wav, ogg ou m4a)", 400);
 
-  await setGameSound(check.game, { data, type });
+  await setGameSound(check.game, kindOf(request), { data, type });
   return jsonOk({ ok: true });
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ code: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const check = await checkKillerHost(code);
   if (!check.ok) return jsonError("Accès refusé", check.reason === "missing" ? 404 : 403);
-  await setGameSound(check.game, null);
+  await setGameSound(check.game, kindOf(request), null);
   return jsonOk({ ok: true });
 }
