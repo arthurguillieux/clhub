@@ -18,8 +18,8 @@ type Blob = {
   axis: number;
 };
 
-/** Field resolution: about this many computed points across the screen. */
-const FIELD_WIDTH = 320;
+/** Field resolution: about this many computed points across the screen (lowered on a machine that can't keep up). */
+const FIELD_WIDTHS = [320, 320, 220];
 const MIN_BLOBS = 7;
 const MAX_BLOBS = 13;
 const SURFACE = 1;
@@ -122,14 +122,18 @@ export function Bubbles() {
     let image: ImageData | null = null;
     let values = new Float32Array(0);
     let scale = 4; // screen pixels per computed point
-    const dpr = devicePixelRatio;
+    // Drawn at the screen's CSS resolution, not its device pixels: a Mac (×2) on a 4K TV would otherwise
+    // push four times the pixels for bubbles that are soft anyway.
+    const dpr = 1;
+    // 0: redrawn every frame · 1: every other frame · 2: every other frame, coarser field.
+    let quality = 0;
 
     const resize = () => {
       width = canvas.offsetWidth;
       height = canvas.offsetHeight;
       canvas.width = width * dpr;
       canvas.height = height * dpr;
-      scale = Math.max(4, Math.ceil(width / FIELD_WIDTH));
+      scale = Math.max(4, Math.ceil(width / FIELD_WIDTHS[quality]!));
       field.width = Math.ceil(width / scale);
       field.height = Math.ceil(height / scale);
       image = fieldCtx.createImageData(field.width, field.height);
@@ -306,14 +310,17 @@ export function Bubbles() {
       ctx.drawImage(field, 0, 0, fw * scale, fh * scale);
 
       // The membrane: a soft line on the surface — defined, but blurred into the water.
+      // Two strokes of the same path — a wide faint one for the glow, a thinner one for the line — rather
+      // than shadowBlur, which is among the slowest things a canvas can draw.
       traceContour(ctx, values, fw, fh, SURFACE, scale);
       ctx.lineCap = "round";
-      ctx.strokeStyle = "rgba(110, 190, 230, 0.22)";
-      ctx.lineWidth = 2.6;
-      ctx.shadowColor = "rgba(95, 200, 235, 0.55)";
-      ctx.shadowBlur = 9;
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "rgba(95, 200, 235, 0.1)";
+      ctx.lineWidth = 7;
       ctx.stroke();
-      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(110, 190, 230, 0.26)";
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
 
       // A small highlight where the ceiling lights catch each drop.
       for (const b of blobs) {
@@ -336,13 +343,27 @@ export function Bubbles() {
     };
     window.addEventListener("resize", onResize);
 
-    // Redrawn every frame; if this machine needs more than ~9 ms for it, every other frame instead.
+    // Watch how smoothly frames actually arrive (not just this script's share): if this machine keeps
+    // falling behind — frames slower than ~40 per second for a couple of seconds — step the quality down.
+    // A hidden tab or a one-off hiccup doesn't count.
     let frame = 0;
     let tick = 0;
     let cost = 0;
-    const loop = () => {
+    let last = 0;
+    let slow = 0;
+    const loop = (now: number) => {
+      const interval = last ? now - last : 16;
+      last = now;
+      if (!document.hidden && interval < 250) {
+        slow = interval > 25 || cost > 9 ? slow + 1 : Math.max(0, slow - 1);
+        if (slow > 90 && quality < FIELD_WIDTHS.length - 1) {
+          quality++;
+          slow = 0;
+          resize();
+        }
+      }
       step();
-      if (cost < 9 || tick % 2 === 0) {
+      if (quality === 0 || tick % 2 === 0) {
         const start = performance.now();
         draw();
         cost = cost * 0.9 + (performance.now() - start) * 0.1;

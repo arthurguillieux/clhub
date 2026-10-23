@@ -285,7 +285,7 @@ function Portrait({ code, t, size }: { code: string; t: PublicTribute; size: num
 
 function FallOverlay({ code, fall, remaining }: { code: string; fall: NonNullable<PublicGameView["lastFall"]>; remaining: number }) {
   return (
-    <div className="killer-fall-veil absolute inset-0 z-40 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.97),rgba(226,230,234,0.98)_70%)] backdrop-blur-md">
+    <div className="killer-fall-veil absolute inset-0 z-40 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.97),rgba(226,230,234,0.98)_70%)]">
       <div className="killer-shake flex flex-col items-center">
         <p className="killer-label" style={{ fontSize: "min(1.6vw, 2.8vh)", color: "var(--k-alert)" }}>
           Signal perdu

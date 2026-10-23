@@ -155,7 +155,8 @@ body {
     0 0 0 1px rgba(27, 33, 39, 0.06),
     0 1px 0 #fff inset,
     0 14px 36px rgba(27, 33, 39, 0.1);
-  backdrop-filter: blur(10px);
+  /* No backdrop blur: over the animated backgrounds it would be recomputed every frame (the TV lagged),
+     and the panel is nearly opaque anyway. */
 }
 /* Corner brackets, as on an instrument display — for the panels that matter (QR code, a target). */
 .killer-frame {
@@ -399,6 +400,7 @@ body {
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
+  will-change: transform;
   animation: lab-drift 30s ease-in-out infinite alternate;
 }
 .lab-face {
@@ -542,9 +544,11 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
+  left: 0;
   width: 12%;
   background: linear-gradient(90deg, transparent, #fff, transparent);
   animation: lab-pulse 6s linear infinite;
+  will-change: transform;
 }
 .lab-wall-right .lab-wall-strip::after {
   animation-direction: reverse;
@@ -567,12 +571,13 @@ body {
     transform: translateX(0.8%) rotateY(-0.7deg);
   }
 }
+/* Moved with transform, not `left`: animating `left` repainted a whole 3D wall on every frame. */
 @keyframes lab-pulse {
   from {
-    left: 100%;
+    transform: translateX(840%);
   }
   to {
-    left: -18%;
+    transform: translateX(-100%);
   }
 }
 @media (prefers-reduced-motion: reduce) {
