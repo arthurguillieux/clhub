@@ -1,22 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { COUNTDOWN_LEAVE_S, COUNTDOWN_ZERO_S, countdownNumber } from "@/modules/killer/countdown";
+import { LEAVE_AFTER_ZERO_S, countdownNumberAt } from "@/modules/killer/countdown";
 
 /**
- * When the countdown started: on the TV's audio clock when the sound is on (so the numbers land on
- * the shots of the file), otherwise on the page's clock.
+ * When the countdown started — on the TV's audio clock when the sound is on, otherwise on the page's
+ * clock — and when, from there, each of 10, 9 … 0 is due: on the shots found in the organizer's file,
+ * or on the whole seconds.
  */
-export type Launch = { audioStart: number | null; perfStart: number };
+export type Launch = { audioStart: number | null; perfStart: number; shots: readonly number[] };
 
 const RING_RADIUS = 46;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 /**
- * The picture runs this far ahead of the sound: at the first try the shots were heard a touch before
- * their number appeared (a TV takes a moment to process the picture it gets over HDMI, and the eye
- * catches a number a little after it starts to appear).
+ * The picture runs this far ahead of the sound, for the frame or two it takes to show a number; the
+ * TV's « Synchro » knob (`lead`) adds to it, for a TV that takes longer to show what it gets over HDMI.
  */
-const VISUAL_LEAD_S = 0.25;
+const VISUAL_LEAD_S = 0.05;
 
 /**
  * The launch screen between « Lancer la partie » and the arena: 10 … 0, one number per cannon shot,
@@ -27,20 +27,27 @@ export function LaunchCountdown({
   launch,
   getAudio,
   title,
+  lead,
   onDone,
 }: {
   launch: Launch;
   getAudio: () => AudioContext | null;
   title: string;
+  /** Extra head start of the picture over the sound, in seconds (the TV's « Synchro »). */
+  lead: number;
   onDone: () => void;
 }) {
   const [elapsed, setElapsed] = useState(0);
   const done = useRef(onDone);
   const audioOf = useRef(getAudio);
+  const leadRef = useRef(lead);
   useEffect(() => {
     done.current = onDone;
     audioOf.current = getAudio;
-  }, [onDone, getAudio]);
+    leadRef.current = lead;
+  }, [onDone, getAudio, lead]);
+  const zero = launch.shots[launch.shots.length - 1]!;
+  const leaveAt = zero + LEAVE_AFTER_ZERO_S;
 
   useEffect(() => {
     let frame = 0;
@@ -49,21 +56,25 @@ export function LaunchCountdown({
       const t =
         (launch.audioStart !== null && audio && audio.state === "running"
           ? audio.currentTime - launch.audioStart
-          : (performance.now() - launch.perfStart) / 1000) + VISUAL_LEAD_S;
+          : (performance.now() - launch.perfStart) / 1000) +
+        VISUAL_LEAD_S +
+        leadRef.current;
       setElapsed(t);
-      if (t >= COUNTDOWN_LEAVE_S) return done.current();
+      if (t >= leaveAt) return done.current();
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [launch]);
+  }, [launch, leaveAt]);
 
-  const number = countdownNumber(elapsed);
-  const launched = elapsed >= COUNTDOWN_ZERO_S;
-  // The ring fills over the first second, then over each second between two shots.
-  const progress = Math.min(1, Math.max(0, elapsed < 1 ? elapsed : elapsed % 1));
+  const number = countdownNumberAt(elapsed, launch.shots);
+  const launched = elapsed >= zero;
+  // The ring fills from one shot to the next (from the start up to the first).
+  const previous = [0, ...launch.shots].filter((s) => s <= elapsed).pop() ?? 0;
+  const next = launch.shots.find((s) => s > elapsed) ?? zero;
+  const progress = next > previous ? Math.min(1, Math.max(0, (elapsed - previous) / (next - previous))) : 1;
   // Fades onto the arena over the last moments.
-  const fade = Math.min(1, Math.max(0, (COUNTDOWN_LEAVE_S - elapsed) / 0.6));
+  const fade = Math.min(1, Math.max(0, (leaveAt - elapsed) / 0.6));
 
   return (
     <div

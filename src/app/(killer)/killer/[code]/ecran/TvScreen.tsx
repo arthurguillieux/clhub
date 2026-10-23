@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { COUNTDOWN_LEAVE_S, COUNTDOWN_ZERO_S } from "@/modules/killer/countdown";
+import { COUNTDOWN_LEAVE_S, COUNTDOWN_ZERO_S, WHOLE_SECOND_SHOTS, findShots } from "@/modules/killer/countdown";
 import type { PublicGameView, PublicTribute } from "@/modules/killer/views";
 import { DEFAULT_VOLUME, MAX_VOLUME, loadSample, playChime, playElimination, playRecording } from "../../sounds";
 import { Bubbles } from "../../Bubbles";
@@ -13,6 +13,9 @@ import { LaunchCountdown, type Launch } from "./LaunchCountdown";
 const FALL_DURATION_MS = 7000;
 // "-v2": the default doubled on 24/10 — a knob remembered at the old default must not hold it back.
 const VOLUME_KEY = "clhub:killer:tv-volume-v2";
+const SYNC_KEY = "clhub:killer:tv-sync";
+const SYNC_STEP = 0.05;
+const SYNC_MAX = 0.5;
 
 /**
  * Picks the column count that gives the biggest portraits while every agent fits on screen, then
@@ -45,6 +48,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
   const audio = useRef<AudioContext | null>(null);
   const sample = useRef<AudioBuffer | null>(null);
   const countdownSample = useRef<AudioBuffer | null>(null);
+  const countdownShots = useRef<readonly number[]>(WHOLE_SECOND_SHOTS);
   const [soundOn, setSoundOn] = useState(false);
   // The volume knob, remembered by this browser (the TV's laptop) from one game to the next.
   const [volume, setVolume] = useState(() => {
@@ -56,6 +60,24 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
     }
   });
   const volumeRef = useRef(volume);
+  // « Synchro »: how much earlier than the sound the countdown's numbers appear, adjusted by eye on the TV.
+  const [sync, setSync] = useState(() => {
+    try {
+      const saved = Number(window.localStorage.getItem(SYNC_KEY));
+      return Number.isFinite(saved) && Math.abs(saved) <= SYNC_MAX ? saved : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const nudgeSync = (delta: number) => {
+    const next = Math.round(Math.max(-SYNC_MAX, Math.min(SYNC_MAX, sync + delta)) * 100) / 100;
+    setSync(next);
+    try {
+      window.localStorage.setItem(SYNC_KEY, String(next));
+    } catch {
+      // Private mode: the setting still holds for this evening.
+    }
+  };
   useEffect(() => {
     volumeRef.current = volume;
     try {
@@ -112,7 +134,20 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
     }
     let current = true;
     void loadSample(ctx, `/api/killer/${code}/sound?kind=countdown&v=${countdownSoundVersion}`).then((buffer) => {
-      if (current) countdownSample.current = buffer;
+      if (!current) return;
+      countdownSample.current = buffer;
+      // Where the file's shots really are, so each number lands on its own.
+      let shots: number[] | null = null;
+      if (buffer) {
+        const mono = new Float32Array(buffer.length);
+        for (let c = 0; c < buffer.numberOfChannels; c++) {
+          const data = buffer.getChannelData(c);
+          for (let i = 0; i < data.length; i++) mono[i]! += data[i]! / buffer.numberOfChannels;
+        }
+        shots = findShots(mono, buffer.sampleRate);
+      }
+      countdownShots.current = shots ?? WHOLE_SECOND_SHOTS;
+      console.info(shots ? `Killer : coups du compte à rebours à ${shots.map((s) => s.toFixed(2)).join(", ")} s` : "Killer : coups calés sur les secondes rondes");
     });
     return () => {
       current = false;
@@ -126,7 +161,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
   const startLaunch = (offset: number) => {
     const ctx = audio.current;
     const perfStart = performance.now() - offset * 1000;
-    if (!ctx || ctx.state !== "running") return setLaunch({ audioStart: null, perfStart });
+    if (!ctx || ctx.state !== "running") return setLaunch({ audioStart: null, perfStart, shots: WHOLE_SECOND_SHOTS });
     const when = ctx.currentTime + 0.05;
     const audioStart = when - offset;
     if (countdownSample.current) {
@@ -136,7 +171,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
         if (second > offset) playElimination(ctx, null, volumeRef.current * (second === COUNTDOWN_ZERO_S ? 1 : 0.55), audioStart + second);
       }
     }
-    setLaunch({ audioStart, perfStart });
+    setLaunch({ audioStart, perfStart, shots: countdownSample.current ? countdownShots.current : WHOLE_SECOND_SHOTS });
   };
   const startLaunchRef = useRef(startLaunch);
   useEffect(() => {
@@ -147,7 +182,6 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
     const was = previousStatus.current;
     previousStatus.current = view.status;
     if (was === "lobby" && view.status === "running") startLaunchRef.current(0);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the organizer went back to preparation mid-countdown
     if (view.status === "lobby") setLaunch(null);
   }, [view.status]);
   // Opened (or reloaded) in the middle of a countdown: pick it up where it is, without sound — the
@@ -155,8 +189,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
   useEffect(() => {
     if (initialView.status !== "running" || !initialView.startedAt) return;
     const offset = (new Date(initialView.now).getTime() - new Date(initialView.startedAt).getTime()) / 1000;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the server's clock only arrives with the view
-    if (offset >= 0 && offset < COUNTDOWN_LEAVE_S) setLaunch({ audioStart: null, perfStart: performance.now() - offset * 1000 });
+    if (offset >= 0 && offset < COUNTDOWN_LEAVE_S) setLaunch({ audioStart: null, perfStart: performance.now() - offset * 1000, shots: WHOLE_SECOND_SHOTS });
   }, [initialView]);
 
   // Sound and full screen are asked for straight away, inside the click: Firefox (on a Mac at least)
@@ -224,6 +257,16 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
       >
         🔊 Tester le canon
       </button>
+      <span className="flex items-center gap-1" title="Avance des chiffres du compte à rebours sur le son : + si le son arrive avant le chiffre">
+        <span aria-hidden="true">⏱</span>
+        <button type="button" onClick={() => nudgeSync(-SYNC_STEP)} className="rounded-full px-1.5 hover:text-[var(--k-ink)]" aria-label="Chiffres plus tard">
+          −
+        </button>
+        <span className="w-24 text-center tabular-nums">Synchro {sync > 0 ? "+" : ""}{sync.toFixed(2).replace(".", ",")} s</span>
+        <button type="button" onClick={() => nudgeSync(SYNC_STEP)} className="rounded-full px-1.5 hover:text-[var(--k-ink)]" aria-label="Chiffres plus tôt">
+          +
+        </button>
+      </span>
     </div>
   );
 
@@ -248,7 +291,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
       </div>
 
       {launch && view.status === "running" && (
-        <LaunchCountdown launch={launch} getAudio={() => audio.current} title={view.title} onDone={() => setLaunch(null)} />
+        <LaunchCountdown launch={launch} getAudio={() => audio.current} title={view.title} lead={sync} onDone={() => setLaunch(null)} />
       )}
 
       {fall && <FallOverlay key={fall.at} code={code} fall={fall} remaining={view.aliveCount} />}
