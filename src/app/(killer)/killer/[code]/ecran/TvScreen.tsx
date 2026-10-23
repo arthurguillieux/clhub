@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PublicGameView, PublicTribute } from "@/modules/killer/views";
-import { loadSample, playChime, playElimination } from "../../sounds";
+import { DEFAULT_VOLUME, MAX_VOLUME, loadSample, playChime, playElimination } from "../../sounds";
 import { Bubbles } from "../../Bubbles";
 import { LabRoom } from "../../LabRoom";
 import { TributePhoto } from "../../TributePhoto";
 import { useLongPoll } from "../../useLongPoll";
 
 const FALL_DURATION_MS = 7000;
+const VOLUME_KEY = "clhub:killer:tv-volume";
 
 /**
  * Picks the column count that gives the biggest portraits while every agent fits on screen, then
@@ -41,6 +42,24 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
   const audio = useRef<AudioContext | null>(null);
   const sample = useRef<AudioBuffer | null>(null);
   const [soundOn, setSoundOn] = useState(false);
+  // The volume knob, remembered by this browser (the TV's laptop) from one game to the next.
+  const [volume, setVolume] = useState(() => {
+    try {
+      const saved = Number(window.localStorage.getItem(VOLUME_KEY));
+      return saved > 0 && saved <= MAX_VOLUME ? saved : DEFAULT_VOLUME;
+    } catch {
+      return DEFAULT_VOLUME;
+    }
+  });
+  const volumeRef = useRef(volume);
+  useEffect(() => {
+    volumeRef.current = volume;
+    try {
+      window.localStorage.setItem(VOLUME_KEY, String(volume));
+    } catch {
+      // Private mode: the knob still works for this evening.
+    }
+  }, [volume]);
 
   // A new fall since the page opened → the cannon and the portrait. Detected by the fall's own timestamp, so a
   // reconnect or an unrelated update never replays an old one.
@@ -55,7 +74,7 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
   useEffect(() => {
     if (!fall) return;
     const ctx = audio.current;
-    if (ctx) void ctx.resume().then(() => playElimination(ctx, sample.current));
+    if (ctx) void ctx.resume().then(() => playElimination(ctx, sample.current, volumeRef.current));
     const timer = setTimeout(() => setFall(null), FALL_DURATION_MS);
     return () => clearTimeout(timer);
   }, [fall]);
@@ -118,14 +137,30 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
           🔊 Activer le son et le plein écran
         </button>
       ) : (
-        <button
-          type="button"
-          onClick={() => audio.current && playElimination(audio.current, sample.current)}
-          className="absolute right-[1.5vw] bottom-[1.5vh] z-30 rounded-full px-3 py-2 text-sm text-[var(--k-muted)] opacity-30 transition-opacity hover:opacity-100"
-          title="Faire tonner le canon pour régler le volume"
-        >
-          🔊 Tester le canon
-        </button>
+        <div className="absolute right-[1.5vw] bottom-[1.5vh] z-30 flex items-center gap-3 rounded-full bg-white/70 px-3 py-1.5 text-sm text-[var(--k-muted)] opacity-30 transition-opacity focus-within:opacity-100 hover:opacity-100">
+          <label className="flex items-center gap-2">
+            <span aria-hidden="true">🔉</span>
+            <input
+              type="range"
+              min={0.25}
+              max={MAX_VOLUME}
+              step={0.25}
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+              aria-label="Volume du son d'élimination"
+              className="killer-range w-28"
+            />
+            <span className="w-12 tabular-nums">{Math.round(volume * 100)} %</span>
+          </label>
+          <button
+            type="button"
+            onClick={() => audio.current && playElimination(audio.current, sample.current, volume)}
+            className="rounded-full px-2 py-1 hover:text-[var(--k-ink)]"
+            title="Faire tonner le canon pour régler le volume"
+          >
+            🔊 Tester le canon
+          </button>
+        </div>
       )}
     </main>
   );

@@ -35,13 +35,33 @@ function distortionCurve(amount: number): Float32Array<ArrayBuffer> {
   return curve;
 }
 
-export function playElimination(audio: AudioContext, sample: AudioBuffer | null = null): void {
+/** The TV's volume knob, as a multiple of the sound's own level: 2 (twice as loud) unless the organizer changes it. */
+export const DEFAULT_VOLUME = 2;
+export const MAX_VOLUME = 4;
+
+/**
+ * `volume` multiplies the organizer's file as it is; the synthesised shot was tuned to sound right
+ * at the default, so it gets volume / DEFAULT_VOLUME. A limiter at the end keeps a loud setting
+ * from crackling.
+ */
+export function playElimination(audio: AudioContext, sample: AudioBuffer | null = null, volume = DEFAULT_VOLUME): void {
   const now = audio.currentTime;
+
+  const limiter = audio.createDynamicsCompressor();
+  limiter.threshold.value = -3;
+  limiter.knee.value = 0;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.002;
+  limiter.release.value = 0.2;
+  limiter.connect(audio.destination);
+  setTimeout(() => limiter.disconnect(), 6000);
 
   if (sample) {
     const source = audio.createBufferSource();
     source.buffer = sample;
-    source.connect(audio.destination);
+    const gain = audio.createGain();
+    gain.gain.value = volume;
+    source.connect(gain).connect(limiter);
     source.start(now);
     return;
   }
@@ -50,9 +70,9 @@ export function playElimination(audio: AudioContext, sample: AudioBuffer | null 
   const master = audio.createDynamicsCompressor();
   master.threshold.value = -18;
   master.ratio.value = 6;
-  const volume = audio.createGain();
-  volume.gain.value = 1.4;
-  master.connect(volume).connect(audio.destination);
+  const level = audio.createGain();
+  level.gain.value = 1.4 * (volume / DEFAULT_VOLUME);
+  master.connect(level).connect(limiter);
 
   // A short echo, as if the shot rang out across a hall.
   const echo = audio.createDelay();
