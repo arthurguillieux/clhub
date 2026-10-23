@@ -11,6 +11,12 @@ export type Launch = { audioStart: number | null; perfStart: number };
 
 const RING_RADIUS = 46;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
+/**
+ * The picture runs this far ahead of the sound: at the first try the shots were heard a touch before
+ * their number appeared (a TV takes a moment to process the picture it gets over HDMI, and the eye
+ * catches a number a little after it starts to appear).
+ */
+const VISUAL_LEAD_S = 0.25;
 
 /**
  * The launch screen between « Lancer la partie » and the arena: 10 … 0, one number per cannon shot,
@@ -41,9 +47,9 @@ export function LaunchCountdown({
     const tick = () => {
       const audio = audioOf.current();
       const t =
-        launch.audioStart !== null && audio && audio.state === "running"
+        (launch.audioStart !== null && audio && audio.state === "running"
           ? audio.currentTime - launch.audioStart
-          : (performance.now() - launch.perfStart) / 1000;
+          : (performance.now() - launch.perfStart) / 1000) + VISUAL_LEAD_S;
       setElapsed(t);
       if (t >= COUNTDOWN_LEAVE_S) return done.current();
       frame = requestAnimationFrame(tick);

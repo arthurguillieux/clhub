@@ -284,10 +284,11 @@ body {
   animation: killer-rise 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
 }
 /* The launch countdown: each number lands with a pop, a ripple goes out on every shot, a flash at 0. */
+/* Visible at once, then settling: a number must read on its cannon shot, not a moment after. */
 @keyframes killer-count-pop {
   from {
-    transform: scale(1.35);
-    opacity: 0;
+    transform: scale(1.15);
+    opacity: 0.85;
   }
   to {
     transform: scale(1);
@@ -313,7 +314,7 @@ body {
   }
 }
 .killer-count-pop {
-  animation: killer-count-pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+  animation: killer-count-pop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
 }
 .killer-count-wave {
   border: 2px solid var(--k-glow);
