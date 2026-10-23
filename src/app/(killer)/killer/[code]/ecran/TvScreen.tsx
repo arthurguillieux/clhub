@@ -9,7 +9,8 @@ import { TributePhoto } from "../../TributePhoto";
 import { useLongPoll } from "../../useLongPoll";
 
 const FALL_DURATION_MS = 7000;
-const VOLUME_KEY = "clhub:killer:tv-volume";
+// "-v2": the default doubled on 24/10 — a knob remembered at the old default must not hold it back.
+const VOLUME_KEY = "clhub:killer:tv-volume-v2";
 
 /**
  * Picks the column count that gives the biggest portraits while every agent fits on screen, then
@@ -144,9 +145,9 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
         <span aria-hidden="true">🔉</span>
         <input
           type="range"
-          min={0.25}
+          min={0.5}
           max={MAX_VOLUME}
-          step={0.25}
+          step={0.5}
           value={volume}
           onChange={(e) => setVolume(Number(e.target.value))}
           aria-label="Volume du son d'élimination"

@@ -8,12 +8,28 @@
  * very first version was nearly all sub-bass, which a laptop's speakers can't play.
  */
 
-/** Fetches and decodes a recorded sound; null if it can't be had (the synthesised shot then plays). */
+/**
+ * Fetches and decodes a recorded sound, normalised: a file recorded quietly is brought up so its
+ * loudest moment reaches full scale (at most ×8). Null if it can't be had — the synthesised shot
+ * then plays.
+ */
 export async function loadSample(audio: AudioContext, url: string): Promise<AudioBuffer | null> {
   try {
     const response = await fetch(url);
     if (!response.ok) return null;
-    return await audio.decodeAudioData(await response.arrayBuffer());
+    const buffer = await audio.decodeAudioData(await response.arrayBuffer());
+    let peak = 0;
+    for (let c = 0; c < buffer.numberOfChannels; c++) {
+      for (const v of buffer.getChannelData(c)) peak = Math.max(peak, Math.abs(v));
+    }
+    const boost = peak > 0 ? Math.min(8, 0.98 / peak) : 1;
+    if (boost > 1) {
+      for (let c = 0; c < buffer.numberOfChannels; c++) {
+        const data = buffer.getChannelData(c);
+        for (let i = 0; i < data.length; i++) data[i]! *= boost;
+      }
+    }
+    return buffer;
   } catch {
     return null;
   }
@@ -35,33 +51,44 @@ function distortionCurve(amount: number): Float32Array<ArrayBuffer> {
   return curve;
 }
 
-/** The TV's volume knob, as a multiple of the sound's own level: 2 (twice as loud) unless the organizer changes it. */
-export const DEFAULT_VOLUME = 2;
-export const MAX_VOLUME = 4;
+/**
+ * The TV's volume knob, as a multiple of the (normalised) sound: 4 by default — it has to carry over
+ * party music — up to 8. Beyond full scale the sound is saturated softly rather than clipped.
+ */
+export const DEFAULT_VOLUME = 4;
+export const MAX_VOLUME = 8;
 
 /**
- * `volume` multiplies the organizer's file as it is; the synthesised shot was tuned to sound right
- * at the default, so it gets volume / DEFAULT_VOLUME. A limiter at the end keeps a loud setting
- * from crackling.
+ * Loudness stage: a gain of `volume` for ordinary levels, rounding off smoothly towards full scale
+ * (tanh) instead of clipping — so a high setting makes the shot fuller and louder, not crackly.
+ * A WaveShaper clamps its input to [-1, 1], hence the input scaled down by MAX_VOLUME and a curve
+ * that gives the gain back.
  */
+function loudnessStage(audio: AudioContext, volume: number): AudioNode {
+  const pre = audio.createGain();
+  pre.gain.value = volume / MAX_VOLUME;
+  const shaper = audio.createWaveShaper();
+  const curve = new Float32Array(2048);
+  for (let i = 0; i < curve.length; i++) {
+    const x = (i * 2) / (curve.length - 1) - 1;
+    curve[i] = Math.tanh(MAX_VOLUME * x);
+  }
+  shaper.curve = curve;
+  shaper.oversample = "4x";
+  pre.connect(shaper).connect(audio.destination);
+  setTimeout(() => pre.disconnect(), 6000);
+  return pre;
+}
+
+/** `volume` multiplies the organizer's file; the synthesised shot was tuned for a volume of 2, and follows the knob from there. */
 export function playElimination(audio: AudioContext, sample: AudioBuffer | null = null, volume = DEFAULT_VOLUME): void {
   const now = audio.currentTime;
-
-  const limiter = audio.createDynamicsCompressor();
-  limiter.threshold.value = -3;
-  limiter.knee.value = 0;
-  limiter.ratio.value = 20;
-  limiter.attack.value = 0.002;
-  limiter.release.value = 0.2;
-  limiter.connect(audio.destination);
-  setTimeout(() => limiter.disconnect(), 6000);
+  const output = loudnessStage(audio, volume);
 
   if (sample) {
     const source = audio.createBufferSource();
     source.buffer = sample;
-    const gain = audio.createGain();
-    gain.gain.value = volume;
-    source.connect(gain).connect(limiter);
+    source.connect(output);
     source.start(now);
     return;
   }
@@ -71,8 +98,8 @@ export function playElimination(audio: AudioContext, sample: AudioBuffer | null 
   master.threshold.value = -18;
   master.ratio.value = 6;
   const level = audio.createGain();
-  level.gain.value = 1.4 * (volume / DEFAULT_VOLUME);
-  master.connect(level).connect(limiter);
+  level.gain.value = 0.7;
+  master.connect(level).connect(output);
 
   // A short echo, as if the shot rang out across a hall.
   const echo = audio.createDelay();
