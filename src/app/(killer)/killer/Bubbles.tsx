@@ -2,11 +2,20 @@
 
 import { useEffect, useRef } from "react";
 
+/**
+ * A drop of water floating in the lab. (u, v) is its place on the room's front plane, in screen
+ * pixels, and z how deep into the room it is (0 = at the viewer, Z_MAX = well down the corridor);
+ * what the screen shows is that point seen in perspective.
+ */
 type Blob = {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
+  u: number;
+  v: number;
+  z: number;
+  vu: number;
+  vv: number;
+  vz: number;
+  /** The depth it tends to drift towards; picked anew every twenty seconds or so, usually near the front. */
+  home: number;
   r: number;
   age: number;
   heading: number;
@@ -18,26 +27,58 @@ type Blob = {
   axis: number;
 };
 
-/** Field resolution: about this many computed points across the screen (lowered on a machine that can't keep up). */
+/** Field resolution near the viewer: about this many computed points across the screen (lowered on a slow machine). */
 const FIELD_WIDTHS = [320, 320, 220];
-const MIN_BLOBS = 7;
-const MAX_BLOBS = 13;
+const MIN_BLOBS = 9;
+const MAX_BLOBS = 15;
 const SURFACE = 1;
-/** A gentle stretch that never quite stops, as water in zero gravity never sits perfectly round. */
 const IDLE_WOBBLE = 0.05;
 /** Where the light comes from (up and to the left), as a unit vector in screen space. */
 const LIGHT = { x: -0.6, y: -0.8 };
 
 /**
- * Traces the iso-line `level` of a sampled field (marching squares) as one path of segments.
- * Point (x, y) of the field sits at screen ((x + 0.5)·scale, (y + 0.5)·scale).
+ * The room's perspective, matching LabRoom (perspective 55vmax, depth 160vmax, vanishing point at
+ * 50 % / 45 % of a stage 6 % larger than the screen): a drop at depth z is drawn at scale s(z).
  */
-function traceContour(ctx: CanvasRenderingContext2D, values: Float32Array, fw: number, fh: number, level: number, scale: number) {
+const PERSPECTIVE = 55;
+const ROOM_DEPTH = 160;
+const Z_MAX = 0.7;
+const scaleAt = (z: number) => PERSPECTIVE / (PERSPECTIVE + z * ROOM_DEPTH);
+/** Most drops stay towards the front, where they're big; some go all the way down the corridor. */
+const pickDepth = () => Z_MAX * Math.random() ** 3;
+const VANISH = { x: 0.5, y: -0.06 + 0.45 * 1.12 };
+/**
+ * Depth slices. Drops only merge with drops of their own slice — two drops far apart in depth that
+ * happen to overlap on screen must not fuse — and a drop only moves to the next slice when nothing
+ * is touching it, so no bridge between surfaces ever vanishes at once. Far slices are hazier.
+ */
+const SLICES = [
+  { from: 0, to: 0.1, haze: 1 },
+  { from: 0.1, to: 0.28, haze: 0.85 },
+  { from: 0.28, to: Z_MAX, haze: 0.68 },
+];
+const sliceOf = (z: number) => {
+  const index = SLICES.findIndex((s) => z < s.to);
+  return index === -1 ? SLICES.length - 1 : index;
+};
+
+/**
+ * Traces the iso-line `level` of a sampled field (marching squares) within [x0, x1) × [y0, y1) as one
+ * path of segments. Point (x, y) of the field sits at screen ((x + 0.5)·scale, (y + 0.5)·scale).
+ */
+function traceContour(
+  ctx: CanvasRenderingContext2D,
+  values: Float32Array,
+  fw: number,
+  box: { x0: number; y0: number; x1: number; y1: number },
+  level: number,
+  scale: number,
+) {
   const at = (x: number, y: number) => [(x + 0.5) * scale, (y + 0.5) * scale] as const;
   const cross = (p: number, q: number) => (level - p) / (q - p);
   ctx.beginPath();
-  for (let y = 0; y < fh - 1; y++) {
-    for (let x = 0; x < fw - 1; x++) {
+  for (let y = box.y0; y < box.y1 - 1; y++) {
+    for (let x = box.x0; x < box.x1 - 1; x++) {
       const i = y * fw + x;
       const a = values[i]!; // top left
       const b = values[i + 1]!; // top right
@@ -96,13 +137,16 @@ const smoothstep = (edge0: number, edge1: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
+/** One depth slice's field: its own buffer at its own resolution (finer for far, smaller drops). */
+type SliceField = { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; image: ImageData; values: Float32Array; scale: number };
+
 /**
- * Water in zero gravity, like a lava lamp with nothing pulling: very transparent blue blobs
- * drifting through the lab, merging when they meet and now and then splitting in two. Each blob
- * breathes — it stretches and relaxes along a slowly turning axis — and jiggles for a while after
- * a merge or a split before settling, as a real drop does. Drawn as metaballs (every point sums
- * r²/d², the surface is where the sum reaches 1), lit like a lens: the rim facing the light goes
- * pale, the far side deeper blue, with a soft membrane line and a small highlight.
+ * Water in zero gravity, like a lava lamp with nothing pulling: very transparent blue drops
+ * drifting through the whole depth of the lab — far ones smaller, slower and hazier — merging when
+ * they meet and now and then splitting in two. Each drop breathes (it stretches and relaxes along a
+ * slowly turning axis) and jiggles after a merge or a split before settling. Drawn as metaballs
+ * (every point sums r²/d², the surface is where the sum reaches 1), lit like a lens: the rim facing
+ * the light goes pale, the far side deeper blue, with a soft membrane line and a small highlight.
  * Decorative; reduced motion gets one still frame.
  */
 export function Bubbles() {
@@ -113,45 +157,59 @@ export function Bubbles() {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const field = document.createElement("canvas");
-    const fieldCtx = field.getContext("2d");
-    if (!fieldCtx) return;
 
     let width = 0; // in CSS pixels
     let height = 0;
-    let image: ImageData | null = null;
-    let values = new Float32Array(0);
-    let scale = 4; // screen pixels per computed point
     // Drawn at the screen's CSS resolution, not its device pixels: a Mac (×2) on a 4K TV would otherwise
-    // push four times the pixels for bubbles that are soft anyway.
+    // push four times the pixels for drops that are soft anyway.
     const dpr = 1;
-    // 0: redrawn every frame · 1: every other frame · 2: every other frame, coarser field.
+    // 0: redrawn every frame · 1: every other frame · 2: every other frame, coarser fields.
     let quality = 0;
+    let fields: SliceField[] = [];
 
+    const makeField = (scale: number): SliceField | null => {
+      const fieldCanvas = document.createElement("canvas");
+      fieldCanvas.width = Math.ceil(width / scale);
+      fieldCanvas.height = Math.ceil(height / scale);
+      const fieldCtx = fieldCanvas.getContext("2d");
+      if (!fieldCtx) return null;
+      return {
+        canvas: fieldCanvas,
+        ctx: fieldCtx,
+        image: fieldCtx.createImageData(fieldCanvas.width, fieldCanvas.height),
+        values: new Float32Array(fieldCanvas.width * fieldCanvas.height),
+        scale,
+      };
+    };
     const resize = () => {
       width = canvas.offsetWidth;
       height = canvas.offsetHeight;
       canvas.width = width * dpr;
       canvas.height = height * dpr;
-      scale = Math.max(4, Math.ceil(width / FIELD_WIDTHS[quality]!));
-      field.width = Math.ceil(width / scale);
-      field.height = Math.ceil(height / scale);
-      image = fieldCtx.createImageData(field.width, field.height);
-      values = new Float32Array(field.width * field.height);
+      const nearScale = Math.max(4, Math.ceil(width / FIELD_WIDTHS[quality]!));
+      // Far drops are drawn smaller, so their slice is sampled more finely.
+      fields = SLICES.map((s) => makeField(Math.max(2, Math.round(nearScale * scaleAt((s.from + s.to) / 2))))).filter(
+        (f): f is SliceField => f !== null,
+      );
     };
     resize();
 
     const unit = () => Math.min(width, height);
     const spawn = (): Blob => {
       const heading = Math.random() * Math.PI * 2;
+      const home = pickDepth();
       const r = unit() * (0.045 + Math.random() * 0.05);
-      // Cruising speed in px per frame, a little faster for small bubbles: ~25 to 55 px/s on a TV.
+      // Cruising speed on the front plane, in px per frame, a little faster for small drops: ~25 to 55 px/s
+      // on a TV up close; perspective slows the far ones down on screen by itself.
       const cruise = unit() * (0.0004 + Math.random() * 0.00035) * (0.07 / Math.max(0.045, r / unit()));
       return {
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: Math.cos(heading) * cruise,
-        vy: Math.sin(heading) * cruise,
+        u: Math.random() * width,
+        v: Math.random() * height,
+        z: home,
+        home,
+        vu: Math.cos(heading) * cruise,
+        vv: Math.sin(heading) * cruise,
+        vz: (Math.random() - 0.5) * 0.0008,
         r,
         age: 0,
         heading,
@@ -162,7 +220,20 @@ export function Bubbles() {
         axis: Math.random() * Math.PI,
       };
     };
-    const blobs: Blob[] = Array.from({ length: 10 }, spawn);
+    const blobs: Blob[] = Array.from({ length: 12 }, spawn);
+
+    /** Where a drop is on screen, and how big it looks. */
+    const project = (b: Blob) => {
+      const s = scaleAt(b.z);
+      const vx = VANISH.x * width;
+      const vy = VANISH.y * height;
+      return { x: vx + (b.u - vx) * s, y: vy + (b.v - vy) * s, r: b.r * s, s };
+    };
+    const touching = (a: Blob, b: Blob) => {
+      const pa = project(a);
+      const pb = project(b);
+      return Math.hypot(pa.x - pb.x, pa.y - pb.y) < (pa.r + pb.r) * 1.6;
+    };
     const jiggle = (b: Blob, amount: number) => {
       b.wobble = Math.min(0.32, b.wobble + amount);
       b.axis = b.heading; // it stretches along the way it was thrown
@@ -171,50 +242,68 @@ export function Bubbles() {
     const step = () => {
       for (const b of blobs) {
         b.age++;
-        // Each bubble keeps its cruising speed and slowly changes direction; near an edge it turns back in.
+        // On the front plane: a cruising speed and a slowly wandering heading, turning back in near the edges.
         b.heading += (Math.random() - 0.5) * 0.06;
         const margin = b.r * 0.6;
-        if (b.x < margin || b.x > width - margin || b.y < margin || b.y > height - margin) {
-          const toCentre = Math.atan2(height / 2 - b.y, width / 2 - b.x);
+        if (b.u < margin || b.u > width - margin || b.v < margin || b.v > height - margin) {
+          const toCentre = Math.atan2(height / 2 - b.v, width / 2 - b.u);
           b.heading += Math.sin(toCentre - b.heading) * 0.05;
         }
-        b.vx += (Math.cos(b.heading) * b.cruise - b.vx) * 0.02;
-        b.vy += (Math.sin(b.heading) * b.cruise - b.vy) * 0.02;
-        b.x += b.vx;
-        b.y += b.vy;
+        b.vu += (Math.cos(b.heading) * b.cruise - b.vu) * 0.02;
+        b.vv += (Math.sin(b.heading) * b.cruise - b.vv) * 0.02;
+        b.u += b.vu;
+        b.v += b.vv;
+        // In depth: a slow drift towards its preferred depth (half a minute or so from front to back), which
+        // changes now and then — so drops travel the whole room while most of them stay near the front.
+        if (Math.random() < 0.0008) b.home = pickDepth();
+        b.vz = Math.max(-0.0007, Math.min(0.0007, b.vz + (b.home - b.z) * 0.00002 + (Math.random() - 0.5) * 0.00003));
+        let z = b.z + b.vz;
+        if (z < 0 || z > Z_MAX) {
+          b.vz = -b.vz;
+          z = Math.max(0, Math.min(Z_MAX, z));
+        }
+        // Crossing into another slice only when no drop of the current slice is touching this one.
+        if (sliceOf(z) !== sliceOf(b.z) && blobs.some((o) => o !== b && sliceOf(o.z) === sliceOf(b.z) && touching(o, b))) {
+          b.vz = -b.vz;
+          z = b.z;
+        }
+        b.z = z;
         // The wobble: a slow oscillation that dies back down to the idle breathing.
         b.phase += b.speed;
         b.axis += 0.002;
         b.wobble = IDLE_WOBBLE + (b.wobble - IDLE_WOBBLE) * 0.993;
       }
-      // Fusion: two bubbles deep into each other become one. Keeping the sum of r² keeps the field —
-      // and so the drawn surface — the same at the moment they merge; the new drop then jiggles.
+      // Fusion: two drops of the same slice deep into each other (on screen and in depth) become one.
+      // Keeping the sum of r² keeps the field — and so the drawn surface — the same as they merge.
       for (let i = 0; i < blobs.length; i++) {
         for (let j = i + 1; j < blobs.length; j++) {
           const a = blobs[i]!;
           const b = blobs[j]!;
-          if (blobs.length > MIN_BLOBS && Math.hypot(a.x - b.x, a.y - b.y) < Math.max(a.r, b.r) * 0.45) {
-            const wa = a.r ** 2;
-            const wb = b.r ** 2;
-            const total = wa + wb;
-            const along = Math.atan2(b.y - a.y, b.x - a.x);
-            a.x = (a.x * wa + b.x * wb) / total;
-            a.y = (a.y * wa + b.y * wb) / total;
-            a.vx = (a.vx * wa + b.vx * wb) / total;
-            a.vy = (a.vy * wa + b.vy * wb) / total;
-            a.heading = Math.atan2(a.vy, a.vx);
-            a.cruise = Math.min(a.cruise, b.cruise);
-            a.r = Math.sqrt(total);
-            a.age = 0;
-            jiggle(a, 0.18);
-            a.axis = along; // still long in the direction the two came together
-            a.phase = Math.PI / 2;
-            blobs.splice(j, 1);
-            j--;
-          }
+          if (blobs.length <= MIN_BLOBS || sliceOf(a.z) !== sliceOf(b.z) || Math.abs(a.z - b.z) > 0.06) continue;
+          const pa = project(a);
+          const pb = project(b);
+          if (Math.hypot(pa.x - pb.x, pa.y - pb.y) >= Math.max(pa.r, pb.r) * 0.45) continue;
+          const wa = a.r ** 2;
+          const wb = b.r ** 2;
+          const total = wa + wb;
+          const along = Math.atan2(pb.y - pa.y, pb.x - pa.x);
+          a.u = (a.u * wa + b.u * wb) / total;
+          a.v = (a.v * wa + b.v * wb) / total;
+          a.z = (a.z * wa + b.z * wb) / total;
+          a.vu = (a.vu * wa + b.vu * wb) / total;
+          a.vv = (a.vv * wa + b.vv * wb) / total;
+          a.heading = Math.atan2(a.vv, a.vu);
+          a.cruise = Math.min(a.cruise, b.cruise);
+          a.r = Math.sqrt(total);
+          a.age = 0;
+          jiggle(a, 0.18);
+          a.axis = along; // still long in the direction the two came together
+          a.phase = Math.PI / 2;
+          blobs.splice(j, 1);
+          j--;
         }
       }
-      // Fission: now and then a big, settled bubble pinches into two that drift apart, both quivering.
+      // Fission: now and then a big, settled drop pinches into two that drift apart, both quivering.
       if (blobs.length < MAX_BLOBS && Math.random() < 0.005) {
         const big = blobs.filter((b) => b.r > unit() * 0.07 && b.age > 480);
         const parent = big[Math.floor(Math.random() * big.length)];
@@ -224,8 +313,8 @@ export function Bubbles() {
           const push = parent.cruise * 2.5;
           const child: Blob = {
             ...parent,
-            vx: parent.vx - Math.cos(angle) * push,
-            vy: parent.vy - Math.sin(angle) * push,
+            vu: parent.vu - Math.cos(angle) * push,
+            vv: parent.vv - Math.sin(angle) * push,
             r,
             age: 0,
             heading: angle + Math.PI,
@@ -233,8 +322,8 @@ export function Bubbles() {
             phase: parent.phase + Math.PI,
           };
           parent.r = r;
-          parent.vx += Math.cos(angle) * push;
-          parent.vy += Math.sin(angle) * push;
+          parent.vu += Math.cos(angle) * push;
+          parent.vv += Math.sin(angle) * push;
           parent.heading = angle;
           parent.cruise *= 1.2;
           parent.age = 0;
@@ -246,51 +335,67 @@ export function Bubbles() {
       if (blobs.length < MIN_BLOBS) blobs.push(spawn());
     };
 
-    const draw = () => {
-      if (!image) return;
+    /** One slice: its field, computed only around its own drops, then fill, membrane and highlights. */
+    const drawSlice = (sliceIndex: number, members: Blob[]) => {
+      const field = fields[sliceIndex];
+      if (!field || members.length === 0) return;
+      const { image, values, scale } = field;
       const data = image.data;
-      const fw = field.width;
-      const fh = field.height;
-      // Per bubble: centre and radius in field units, and its stretch — s along the axis, 1/s across it
+      const fw = field.canvas.width;
+      const fh = field.canvas.height;
+      const haze = SLICES[sliceIndex]!.haze;
+
+      // Per drop: centre and radius in field units, and its stretch — s along the axis, 1/s across it
       // (the same area, so a drop never seems to gain or lose water as it wobbles).
-      const shapes = blobs.map((b) => {
-        const s = 1 + b.wobble * Math.sin(b.phase);
+      const shapes = members.map((b) => {
+        const p = project(b);
+        const stretch = 1 + b.wobble * Math.sin(b.phase);
         return {
-          x: b.x / scale - 0.5,
-          y: b.y / scale - 0.5,
-          r2: (b.r / scale) ** 2,
+          x: p.x / scale - 0.5,
+          y: p.y / scale - 0.5,
+          rf: p.r / scale,
+          r2: (p.r / scale) ** 2,
           cos: Math.cos(b.axis),
           sin: Math.sin(b.axis),
-          along: 1 / (s * s),
-          across: s * s,
+          along: 1 / (stretch * stretch),
+          across: stretch * stretch,
         };
       });
-      for (let y = 0; y < fh; y++) {
-        for (let x = 0; x < fw; x++) {
+      const reach = (s: (typeof shapes)[number]) => s.rf * 2.6;
+      const box = {
+        x0: Math.max(0, Math.floor(Math.min(...shapes.map((s) => s.x - reach(s))))),
+        y0: Math.max(0, Math.floor(Math.min(...shapes.map((s) => s.y - reach(s))))),
+        x1: Math.min(fw, Math.ceil(Math.max(...shapes.map((s) => s.x + reach(s))))),
+        y1: Math.min(fh, Math.ceil(Math.max(...shapes.map((s) => s.y + reach(s))))),
+      };
+      if (box.x1 - box.x0 < 2 || box.y1 - box.y0 < 2) return;
+
+      for (let y = box.y0; y < box.y1; y++) {
+        for (let x = box.x0; x < box.x1; x++) {
           let f = 0;
-          for (const b of shapes) {
-            const dx = x - b.x;
-            const dy = y - b.y;
-            const u = dx * b.cos + dy * b.sin;
-            const v = dy * b.cos - dx * b.sin;
-            f += b.r2 / (u * u * b.along + v * v * b.across + 0.01);
+          for (const s of shapes) {
+            const dx = x - s.x;
+            const dy = y - s.y;
+            const u = dx * s.cos + dy * s.sin;
+            const v = dy * s.cos - dx * s.sin;
+            f += s.r2 / (u * u * s.along + v * v * s.across + 0.01);
           }
           values[y * fw + x] = f;
         }
       }
 
       // Light it like a lens: the outward normal is the field's gradient, reversed.
-      let k = 0;
-      for (let y = 0; y < fh; y++) {
-        for (let x = 0; x < fw; x++, k += 4) {
+      for (let y = box.y0; y < box.y1; y++) {
+        for (let x = box.x0; x < box.x1; x++) {
+          const k = (y * fw + x) * 4;
           const f = values[y * fw + x]!;
           const edge = smoothstep(0.86, 1.04, f);
           if (edge === 0) {
             data[k + 3] = 0;
             continue;
           }
-          const gx = values[y * fw + Math.min(fw - 1, x + 1)]! - values[y * fw + Math.max(0, x - 1)]!;
-          const gy = values[Math.min(fh - 1, y + 1) * fw + x]! - values[Math.max(0, y - 1) * fw + x]!;
+          const gx = values[y * fw + Math.min(box.x1 - 1, x + 1)]! - values[y * fw + Math.max(box.x0, x - 1)]!;
+          const gy = values[Math.min(box.y1 - 1, y + 1) * fw + x]! - values[Math.max(box.y0, y - 1) * fw + x]!;
           const length = Math.hypot(gx, gy) || 1;
           const facing = -(gx * LIGHT.x + gy * LIGHT.y) / length; // 1 = rim turned to the light, -1 = away
           const rim = Math.max(0, 1 - (f - SURFACE) / 0.75) ** 2; // strongest just inside the surface
@@ -299,41 +404,54 @@ export function Bubbles() {
           data[k] = 105 + 140 * shine - 25 * shade;
           data[k + 1] = 185 + 65 * shine - 30 * shade;
           data[k + 2] = 228 + 27 * shine - 10 * shade;
-          data[k + 3] = edge * (0.05 + 0.13 * rim + 0.1 * shine + 0.06 * shade) * 255;
+          data[k + 3] = edge * haze * (0.05 + 0.13 * rim + 0.1 * shine + 0.06 * shade) * 255;
         }
       }
-      fieldCtx.putImageData(image, 0, 0);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, width, height);
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(field, 0, 0, fw * scale, fh * scale);
+      const w = box.x1 - box.x0;
+      const h = box.y1 - box.y0;
+      field.ctx.putImageData(image, 0, 0, box.x0, box.y0, w, h);
+      ctx.drawImage(field.canvas, box.x0, box.y0, w, h, box.x0 * scale, box.y0 * scale, w * scale, h * scale);
 
-      // The membrane: a soft line on the surface — defined, but blurred into the water.
-      // Two strokes of the same path — a wide faint one for the glow, a thinner one for the line — rather
-      // than shadowBlur, which is among the slowest things a canvas can draw.
-      traceContour(ctx, values, fw, fh, SURFACE, scale);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = "rgba(95, 200, 235, 0.1)";
-      ctx.lineWidth = 7;
+      // The membrane: two strokes of the same path — a wide faint glow, then the line — rather than
+      // shadowBlur, which is among the slowest things a canvas can draw. Thinner for far drops.
+      const thickness = Math.max(0.6, scaleAt((SLICES[sliceIndex]!.from + SLICES[sliceIndex]!.to) / 2));
+      traceContour(ctx, values, fw, box, SURFACE, scale);
+      ctx.strokeStyle = `rgba(95, 200, 235, ${0.1 * haze})`;
+      ctx.lineWidth = 7 * thickness;
       ctx.stroke();
-      ctx.strokeStyle = "rgba(110, 190, 230, 0.26)";
-      ctx.lineWidth = 2.4;
+      ctx.strokeStyle = `rgba(110, 190, 230, ${0.26 * haze})`;
+      ctx.lineWidth = 2.4 * thickness;
       ctx.stroke();
 
       // A small highlight where the ceiling lights catch each drop.
-      for (const b of blobs) {
-        const hx = b.x - b.r * 0.38;
-        const hy = b.y - b.r * 0.42;
-        const radius = b.r * 0.24;
+      for (const b of members) {
+        const p = project(b);
+        const hx = p.x - p.r * 0.38;
+        const hy = p.y - p.r * 0.42;
+        const radius = p.r * 0.24;
         const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, radius);
-        g.addColorStop(0, "rgba(255, 255, 255, 0.5)");
+        g.addColorStop(0, `rgba(255, 255, 255, ${0.5 * haze})`);
         g.addColorStop(1, "rgba(255, 255, 255, 0)");
         ctx.fillStyle = g;
         ctx.beginPath();
         ctx.arc(hx, hy, radius, 0, Math.PI * 2);
         ctx.fill();
+      }
+    };
+
+    const draw = () => {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      // The far end first, so nearer drops pass in front.
+      for (let i = SLICES.length - 1; i >= 0; i--) {
+        drawSlice(
+          i,
+          blobs.filter((b) => sliceOf(b.z) === i),
+        );
       }
     };
 
