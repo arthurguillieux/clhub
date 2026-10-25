@@ -63,4 +63,29 @@ export interface HostGameView extends Omit<PublicGameView, "tributes"> {
   canUndo: boolean;
   /** Members the creator lets run the game with them. */
   cohosts: { memberId: string; name: string }[];
+  /** Whether a co-organization password is set (never the password itself). */
+  hasCohostPassword: boolean;
+  archived: boolean;
+}
+
+/** A finished game filed away: what the archive page shows. */
+export interface ArchiveView {
+  code: string;
+  title: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  stats: EndStats | null;
+  agents: {
+    id: string;
+    name: string;
+    photoVersion: number | null;
+    alive: boolean;
+    killedAt: string | null;
+    killedBy: string | null;
+    kills: number;
+    /** What their hunter had to get them to do. */
+    mission: string;
+  }[];
+  /** Eliminations in order: who, by whom, when, and the mission that did it. */
+  kills: { at: string; killer: string; victim: string; mission: string }[];
 }

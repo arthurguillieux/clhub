@@ -37,6 +37,13 @@ export const killerGame = pgTable("killer_game", {
   countdownSound: bytea("countdown_sound"),
   countdownSoundType: text("countdown_sound_type"),
   countdownSoundVersion: integer("countdown_sound_version").notNull().default(0),
+  /**
+   * Optional password that lets any club member join the game's organization (as a co-organizer)
+   * by typing it — salted scrypt hash, "salt:hash" in hex. Null: only the creator adds co-organizers.
+   */
+  cohostPassword: text("cohost_password"),
+  /** Set when the organizers file a finished game away: it then only shows as a read-only summary. */
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

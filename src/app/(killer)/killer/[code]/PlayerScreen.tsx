@@ -89,7 +89,8 @@ function Centered({ title, text }: { title: string; text: string }) {
 function JoinScreen({ code, view, onJoined }: { code: string; view: PublicGameView; onJoined: (token: string) => void }) {
   const [choice, setChoice] = useState<{ id: string; name: string } | null>(null);
   const [error, setError] = useState("");
-  const free = view.tributes.filter((t) => !t.joined && t.alive);
+  // Alphabetical: easy to find one's name, and it says nothing about the circle.
+  const free = view.tributes.filter((t) => !t.joined && t.alive).sort((a, b) => a.name.localeCompare(b.name, "fr"));
 
   async function join(id: string) {
     setError("");

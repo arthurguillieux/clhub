@@ -5,12 +5,10 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { Button } from "@/core/ui/components/Button";
-import { FormField, Input } from "@/core/ui/components/Field";
-import { hasKillerAccess } from "@/modules/killer/access";
 import { listGamesForMember } from "@/modules/killer/data/games";
-import { createKillerDemoAction, createKillerGameAction } from "@/app/(killer)/killer/actions";
+import { createKillerDemoAction } from "@/app/(killer)/killer/actions";
 import { DeleteGameButton } from "./DeleteGameButton";
-import { UnlockForm } from "./UnlockForm";
+import { CreateGameForm, JoinOrganizationForm } from "./KillerForms";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
@@ -24,19 +22,10 @@ export default async function KillerHomePage() {
   const session = await getSession();
   if (!session) return null; // guarded by (club)/layout.tsx
 
-  if (!(await hasKillerAccess(session.member.id))) {
-    return (
-      <Container size="sm">
-        <PageTitle>Accès réservé</PageTitle>
-        <p className="mt-2 text-sm text-muted">Ce jeu est protégé par un mot de passe.</p>
-        <Card className="mt-6 p-5">
-          <UnlockForm />
-        </Card>
-      </Container>
-    );
-  }
-
-  const games = await listGamesForMember(session.member.id);
+  const all = await listGamesForMember(session.member.id);
+  const games = all.filter((g) => !g.archivedAt);
+  const archived = all.filter((g) => g.archivedAt).sort((a, b) => b.archivedAt!.getTime() - a.archivedAt!.getTime());
+  const day = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "long", year: "numeric" });
 
   return (
     <Container size="sm">
@@ -52,14 +41,7 @@ export default async function KillerHomePage() {
       </p>
 
       <Card className="mt-6 p-5">
-        <form action={createKillerGameAction} className="flex flex-col gap-4">
-          <FormField label="Nom de la partie" htmlFor="title">
-            <Input id="title" name="title" placeholder="Halloween 2026" maxLength={80} />
-          </FormField>
-          <Button type="submit" variant="accent" className="self-start">
-            Préparer une nouvelle partie
-          </Button>
-        </form>
+        <CreateGameForm />
         <form action={createKillerDemoAction} className="mt-4 border-t border-line pt-4">
           <p className="text-sm text-muted">
             Pour voir à quoi ça ressemble : une partie « Test » avec 12 agents inventés et leurs missions, dont 2 places
@@ -94,6 +76,35 @@ export default async function KillerHomePage() {
                     <DeleteGameButton code={g.code} title={g.title} />
                   </div>
                 )}
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="mt-8">
+        <SectionTitle>Co-organiser une partie</SectionTitle>
+        <p className="mt-1 text-sm text-muted">L&apos;organisateur te donne le code de sa partie et son mot de passe de co-organisation.</p>
+        <Card className="mt-3 p-5">
+          <JoinOrganizationForm />
+        </Card>
+      </section>
+
+      {archived.length > 0 && (
+        <section className="mt-8">
+          <SectionTitle>Parties archivées</SectionTitle>
+          <div className="mt-3 flex flex-col gap-2">
+            {archived.map((g) => (
+              <Card key={g.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <div>
+                  <p className="font-display font-bold text-ink">{g.title}</p>
+                  <p className="text-xs text-muted">
+                    {g.startedAt ? `Jouée le ${day.format(g.startedAt)}` : "Archivée"} · code {g.code}
+                  </p>
+                </div>
+                <Link href={`/killer/${g.code}/archive`} className="-my-2.5 py-2.5 text-sm font-semibold text-primary hover:underline">
+                  Consulter
+                </Link>
               </Card>
             ))}
           </div>

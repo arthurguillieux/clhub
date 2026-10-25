@@ -21,7 +21,7 @@ const SYNC_MAX = 0.5;
  * Picks the column count that gives the biggest portraits while every agent fits on screen, then
  * scales them down so the lab behind keeps some room to breathe.
  */
-function bestGrid(count: number, width: number, height: number, scale = 0.72): { cols: number; size: number } {
+function bestGrid(count: number, width: number, height: number, scale = 0.88): { cols: number; size: number } {
   let best = { cols: 1, size: 0 };
   for (let cols = 1; cols <= Math.max(1, count); cols++) {
     const rows = Math.ceil(count / cols);
@@ -296,6 +296,22 @@ export function TvScreen({ code, initialView, qrSvg, joinUrl }: { code: string; 
 
       {fall && <FallOverlay key={fall.at} code={code} fall={fall} remaining={view.aliveCount} />}
 
+      {/* During the game, a small QR code stays in a corner: a player who closed their page scans it to come back. */}
+      {!gone && view.status === "running" && !launch && (
+        <div className="killer-panel absolute bottom-[1.5vh] left-[1.5vw] z-30 flex flex-col items-center p-[0.8vh]">
+          <div
+            className="aspect-square rounded-md bg-white p-[0.5vh] [&>svg]:h-full [&>svg]:w-full"
+            style={{ width: "min(8.5vw, 15vh)" }}
+            dangerouslySetInnerHTML={{ __html: qrSvg }}
+          />
+          <p className="mt-[0.5vh] text-center text-[var(--k-muted)]" style={{ fontSize: "min(0.9vw, 1.6vh)", lineHeight: 1.2 }}>
+            Revenir dans
+            <br />
+            la partie
+          </p>
+        </div>
+      )}
+
       {soundCorner}
     </main>
   );
@@ -345,7 +361,8 @@ function Lobby({ code, view, qrSvg, joinUrl }: { code: string; view: PublicGameV
 /** `hidden` while the launch countdown runs: the arena fades in once it's over. */
 function Arena({ code, view, hidden = false }: { code: string; view: PublicGameView; hidden?: boolean }) {
   const { w, h } = useWindowSize();
-  const grid = bestGrid(view.tributes.length, w * 0.94, h * 0.78);
+  // Leaves the corners free: the QR code bottom left, the sound controls bottom right.
+  const grid = bestGrid(view.tributes.length, w * 0.78, h * 0.74);
   // The living first, then the fallen in the order they fell.
   const ordered = [...view.tributes].sort((a, b) => Number(b.alive) - Number(a.alive) || (a.killedAt ?? "").localeCompare(b.killedAt ?? ""));
 

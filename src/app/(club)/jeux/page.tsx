@@ -2,8 +2,6 @@ import Link from "next/link";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
-import { getSession } from "@/core/auth/session";
-import { hasKillerAccess } from "@/modules/killer/access";
 
 const TOOLS = [
   {
@@ -24,19 +22,16 @@ const TOOLS = [
     name: "Buzzer",
     description: "Un QR code à scanner, et chaque téléphone devient un buzzer pour vos quizz.",
   },
+  {
+    href: "/jeux/killer",
+    icon: "🎯",
+    name: "Killer",
+    description: "Des agents, des missions secrètes, une cible à éliminer — et un grand écran qui suit la partie.",
+  },
 ];
 
-// Only listed for members who already entered its password — the others shouldn't even guess it exists.
-const KILLER = {
-  href: "/jeux/killer",
-  icon: "🎯",
-  name: "Killer",
-  description: "Des agents, des missions secrètes, une cible à éliminer — et un grand écran qui suit la partie.",
-};
-
-export default async function JeuxPage() {
-  const session = await getSession();
-  const tools = session && (await hasKillerAccess(session.member.id)) ? [...TOOLS, KILLER] : TOOLS;
+export default function JeuxPage() {
+  const tools = TOOLS;
 
   return (
     <Container size="md">

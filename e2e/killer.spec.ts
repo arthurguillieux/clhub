@@ -1,21 +1,17 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * The Killer end to end: password gate, lobby with two tributes and their
+ * The Killer end to end: creation (with a co-organization password), lobby with two tributes and their
  * missions, an anonymous guest claiming a name (separate browser context, no
  * session), launch, the guest seeing their target's mission, an elimination
  * from the organizer's panel, and the end of the game on the guest's phone.
  * Circle rules are unit-tested in modules/killer/domain.
  */
-test("killer: password, lobby, anonymous join, elimination, end", async ({ page, browser, baseURL }) => {
+test("killer: lobby, anonymous join, elimination, end", async ({ page, browser, baseURL }) => {
+  // Open to every member now; a co-organization password is optional at creation.
   await page.goto("/jeux/killer");
-  await page.getByLabel("Mot de passe").fill("pas-le-bon");
-  await page.getByRole("button", { name: "Entrer" }).click();
-  await expect(page.getByText("Ce n'est pas le bon mot de passe.")).toBeVisible();
-  await page.getByLabel("Mot de passe").fill("nathaemurira");
-  await page.getByRole("button", { name: "Entrer" }).click();
-
   await page.getByLabel("Nom de la partie").fill("Killer E2E");
+  await page.getByLabel("Mot de passe de co-organisation (facultatif)").fill("citrouille");
   await page.getByRole("button", { name: "Préparer une nouvelle partie" }).click();
   await expect(page).toHaveURL(/\/killer\/[A-Z0-9]{6}\/panneau$/);
   const code = page.url().match(/\/killer\/([A-Z0-9]{6})\/panneau/)![1]!;

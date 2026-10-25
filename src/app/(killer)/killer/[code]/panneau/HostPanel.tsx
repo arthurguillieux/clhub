@@ -23,7 +23,10 @@ type HostAction =
   | { type: "removePhoto"; playerId: string }
   | { type: "rename"; title: string }
   | { type: "addCohost"; memberId: string }
-  | { type: "removeCohost"; memberId: string };
+  | { type: "removeCohost"; memberId: string }
+  | { type: "cohostPassword"; password: string | null }
+  | { type: "archive"; archived: boolean }
+  | { type: "removeAllPhotos" };
 
 interface DraftRow {
   key: string;
@@ -377,6 +380,39 @@ export function HostPanel({
               ↺ Annuler la dernière élimination
             </button>
           )}
+          <PhotoTools
+            code={code}
+            hasPhotos={view.tributes.some((t) => t.photoVersion !== null)}
+            onRemoveAll={() =>
+              setDialog({
+                title: "Supprimer toutes les photos ?",
+                detail: "Pense à les télécharger d'abord pour les envoyer aux joueurs. Les résultats et l'historique de la partie sont gardés.",
+                confirmLabel: "Supprimer toutes les photos",
+                cancelLabel: "Garder les photos",
+                danger: true,
+                onConfirm: () => void send({ type: "removeAllPhotos" }),
+              })
+            }
+          />
+          <button
+            type="button"
+            className="killer-btn min-h-12 px-4"
+            disabled={busy}
+            onClick={() =>
+              setDialog({
+                title: "Archiver la partie ?",
+                detail:
+                  "Elle quitte « Tes parties » pour « Parties archivées », où vous pourrez la consulter : vainqueur, classement, toutes les éliminations et leurs missions. Les photos sont gardées.",
+                confirmLabel: "Archiver la partie",
+                cancelLabel: "Pas maintenant",
+                onConfirm: async () => {
+                  if (await send({ type: "archive", archived: true })) window.location.href = `/killer/${code}/archive`;
+                },
+              })
+            }
+          >
+            📦 Archiver la partie
+          </button>
           <button type="button" className="killer-btn-ghost min-h-12 px-4" onClick={askReset}>
             ✎ Revenir à la préparation (modifier, rejouer)
           </button>
@@ -386,11 +422,14 @@ export function HostPanel({
 
       {isCreator && (
         <CohostSetting
+          code={code}
           cohosts={view.cohosts}
           members={members}
           busy={busy}
+          hasPassword={view.hasCohostPassword}
           onAdd={(memberId) => send({ type: "addCohost", memberId })}
           onRemove={(memberId) => send({ type: "removeCohost", memberId })}
+          onPassword={(password) => send({ type: "cohostPassword", password })}
         />
       )}
 
@@ -412,26 +451,33 @@ function Shell({ children }: { children: React.ReactNode }) {
  * eliminations, from their own account (they still need the Killer password). Creator only.
  */
 function CohostSetting({
+  code,
   cohosts,
   members,
   busy,
+  hasPassword,
   onAdd,
   onRemove,
+  onPassword,
 }: {
+  code: string;
   cohosts: HostGameView["cohosts"];
   members: { id: string; name: string }[];
   busy: boolean;
+  hasPassword: boolean;
   onAdd: (memberId: string) => Promise<HostGameView | null>;
   onRemove: (memberId: string) => Promise<HostGameView | null>;
+  onPassword: (password: string | null) => Promise<HostGameView | null>;
 }) {
   const [choice, setChoice] = useState("");
+  const [password, setPassword] = useState("");
   const candidates = members.filter((m) => !cohosts.some((c) => c.memberId === m.id));
   return (
     <details className="killer-panel mt-5 p-3">
       <summary className="cursor-pointer py-1 font-bold">👥 Co-organisateurs{cohosts.length > 0 && ` (${cohosts.length})`}</summary>
       <p className="mt-2 text-sm text-[var(--k-muted)]">
         Avec leur propre compte, ils ouvrent le panneau et l&apos;écran TV et valident les éliminations. Ils ne peuvent pas
-        supprimer la partie. Il leur faut aussi le mot de passe du Killer.
+        supprimer la partie.
       </p>
       {cohosts.length > 0 && (
         <ul className="mt-3 flex flex-col gap-2">
@@ -477,7 +523,58 @@ function CohostSetting({
           </button>
         </div>
       )}
+
+      <div className="mt-4 border-t border-[var(--k-line)] pt-3">
+        <p className="text-sm font-semibold">Mot de passe de co-organisation</p>
+        <p className="mt-1 text-sm text-[var(--k-muted)]">
+          {hasPassword
+            ? `Défini. Un membre qui a le code ${code} et ce mot de passe peut co-organiser la partie (Jeux › Killer › Co-organiser une partie).`
+            : "Aucun. Avec un mot de passe, n'importe quel membre qui le connaît peut co-organiser la partie, sans que tu l'ajoutes toi-même."}
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            maxLength={100}
+            autoComplete="off"
+            aria-label="Nouveau mot de passe de co-organisation"
+            placeholder={hasPassword ? "Nouveau mot de passe" : "Mot de passe (4 caractères au moins)"}
+            className="killer-field min-h-11 min-w-0 flex-1 px-3"
+          />
+          <button
+            type="button"
+            className="killer-btn min-h-11 px-3 text-sm"
+            disabled={busy || password.trim().length < 4}
+            onClick={async () => {
+              if (await onPassword(password)) setPassword("");
+            }}
+          >
+            {hasPassword ? "Changer" : "Définir"}
+          </button>
+        </div>
+        {hasPassword && (
+          <button type="button" className="mt-2 -mb-2 py-2 text-xs text-[var(--k-muted)] underline" disabled={busy} onClick={() => void onPassword(null)}>
+            Retirer le mot de passe
+          </button>
+        )}
+      </div>
     </details>
+  );
+}
+
+/** After the game: every player's photo in one zip, to send them out — then, if wanted, delete them all. */
+function PhotoTools({ code, hasPhotos, onRemoveAll }: { code: string; hasPhotos: boolean; onRemoveAll: () => void }) {
+  if (!hasPhotos) return <p className="text-sm text-[var(--k-muted)]">Plus aucune photo n&apos;est enregistrée pour cette partie.</p>;
+  return (
+    <div className="killer-panel flex flex-col gap-2 p-3">
+      <p className="killer-label">Les photos des joueurs</p>
+      <a href={`/api/killer/${code}/photos`} download className="killer-btn-ghost flex min-h-12 items-center justify-center px-4">
+        ⬇ Télécharger toutes les photos (.zip)
+      </a>
+      <button type="button" className="-mb-1 py-2 text-xs text-[var(--k-muted)] underline" onClick={onRemoveAll}>
+        Supprimer toutes les photos
+      </button>
+    </div>
   );
 }
 

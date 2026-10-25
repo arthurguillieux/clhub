@@ -13,7 +13,8 @@ import {
   type Patch,
   type Tribute,
 } from "../domain/circle";
-import type { GameStatus, HostGameView, PlayerGameView, PublicGameView, PublicTribute } from "../views";
+import { hashPassword, verifyPassword } from "../password";
+import type { ArchiveView, GameStatus, HostGameView, PlayerGameView, PublicGameView, PublicTribute } from "../views";
 import { notifyGame } from "./notifier";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -115,6 +116,17 @@ function publicTribute(r: PlayerRow): PublicTribute {
   };
 }
 
+/**
+ * A fixed but meaningless order for everything guests and the TV see — players are stored in circle
+ * order, and showing them that way told everyone who hunts whom. Hashing the game and player ids
+ * gives the same order on every screen and every refresh, unrelated to the circle.
+ */
+function scrambleKey(gameId: string, playerId: string): number {
+  let h = 0x811c9dc5;
+  for (const c of `${gameId}:${playerId}`) h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
+  return h;
+}
+
 function publicView(game: KillerGame, rows: PlayerRow[]): PublicGameView {
   const fallen = rows.filter((r) => !r.alive && r.killedAt).sort((a, b) => b.killedAt!.getTime() - a.killedAt!.getTime());
   const last = fallen[0];
@@ -125,7 +137,7 @@ function publicView(game: KillerGame, rows: PlayerRow[]): PublicGameView {
     version: game.version,
     startedAt: game.startedAt?.toISOString() ?? null,
     endedAt: game.endedAt?.toISOString() ?? null,
-    tributes: rows.map(publicTribute),
+    tributes: [...rows].sort((a, b) => scrambleKey(game.id, a.id) - scrambleKey(game.id, b.id)).map(publicTribute),
     aliveCount: rows.filter((r) => r.alive).length,
     lastFall: last
       ? { id: last.id, name: last.name, at: last.killedAt!.toISOString(), photoVersion: last.hasPhoto ? last.photoVersion : null }
@@ -171,7 +183,54 @@ export async function getHostView(game: KillerGame): Promise<HostGameView> {
     circle: game.status === "lobby" ? [...rows.map((r) => r.name), ...(rows[0] ? [rows[0].name] : [])] : circleNames(asTributes(rows)),
     canUndo: !!lastKill && game.status !== "lobby",
     cohosts: await listCohosts(game.id),
+    hasCohostPassword: !!game.cohostPassword,
+    archived: !!game.archivedAt,
   };
+}
+
+/** Everything about a finished game, for its archive page: results, every agent, every elimination. */
+export async function getArchiveView(game: KillerGame): Promise<ArchiveView> {
+  const rows = await loadPlayers(game.id);
+  const kills = await db.select().from(killerKill).where(eq(killerKill.gameId, game.id)).orderBy(asc(killerKill.createdAt));
+  const nameOf = new Map(rows.map((r) => [r.id, r.name]));
+  const missionOf = new Map(rows.map((r) => [r.id, r.mission]));
+  const killCount = new Map<string, number>();
+  for (const k of kills) killCount.set(k.killerId, (killCount.get(k.killerId) ?? 0) + 1);
+  return {
+    code: game.code,
+    title: game.title,
+    startedAt: game.startedAt?.toISOString() ?? null,
+    endedAt: game.endedAt?.toISOString() ?? null,
+    stats: game.status === "ended" ? endStats(asTributes(rows), game.startedAt, game.endedAt) : null,
+    agents: rows
+      .map((r) => ({
+        id: r.id,
+        name: r.name,
+        photoVersion: r.hasPhoto ? r.photoVersion : null,
+        alive: r.alive,
+        killedAt: r.killedAt?.toISOString() ?? null,
+        killedBy: r.killedById ? (nameOf.get(r.killedById) ?? null) : null,
+        kills: killCount.get(r.id) ?? 0,
+        mission: r.mission,
+      }))
+      .sort((a, b) => Number(b.alive) - Number(a.alive) || b.kills - a.kills || (b.killedAt ?? "").localeCompare(a.killedAt ?? "")),
+    kills: kills.map((k) => ({
+      at: k.createdAt.toISOString(),
+      killer: nameOf.get(k.killerId) ?? "?",
+      victim: nameOf.get(k.victimId) ?? "?",
+      mission: missionOf.get(k.victimId) ?? "",
+    })),
+  };
+}
+
+/** Every player's photo, for the organizers to send them out after the game. */
+export async function getAllPhotos(game: KillerGame): Promise<{ name: string; photo: Buffer }[]> {
+  const rows = await db
+    .select({ name: killerPlayer.name, photo: killerPlayer.photo })
+    .from(killerPlayer)
+    .where(eq(killerPlayer.gameId, game.id))
+    .orderBy(asc(killerPlayer.name));
+  return rows.filter((r): r is { name: string; photo: Buffer } => r.photo !== null);
 }
 
 /** The organizer's two sounds: one for each elimination, one for the launch countdown. */
@@ -304,6 +363,45 @@ export async function setPhoto(game: KillerGame, token: string, photo: Buffer): 
 export async function releaseSeat(game: KillerGame, playerId: string): Promise<Result> {
   await mutate(game.id, (tx) =>
     tx.update(killerPlayer).set({ token: null }).where(and(eq(killerPlayer.gameId, game.id), eq(killerPlayer.id, playerId))),
+  );
+  return { ok: true };
+}
+
+/** Sets or removes the co-organization password. */
+export async function setCohostPassword(game: KillerGame, password: string | null): Promise<Result> {
+  if (password !== null && password.trim().length < 4) return fail("Le mot de passe doit faire au moins 4 caractères.");
+  await mutate(game.id, (tx) =>
+    tx
+      .update(killerGame)
+      .set({ cohostPassword: password === null ? null : hashPassword(password) })
+      .where(eq(killerGame.id, game.id)),
+  );
+  return { ok: true };
+}
+
+/** A member types the game's co-organization password and joins its organization. */
+export async function joinOrganization(game: KillerGame, memberId: string, password: string): Promise<Result> {
+  if (memberId === game.hostMemberId) return { ok: true };
+  if (!game.cohostPassword) return fail("Cette partie n'a pas de mot de passe de co-organisation : demande à son organisateur de t'ajouter.");
+  if (!verifyPassword(password, game.cohostPassword)) return fail("Ce n'est pas le bon mot de passe.");
+  await mutate(game.id, (tx) => tx.insert(killerCohost).values({ gameId: game.id, memberId }).onConflictDoNothing());
+  return { ok: true };
+}
+
+/** Files a finished game away (read-only summary), or brings it back. */
+export async function setArchived(game: KillerGame, archived: boolean): Promise<Result> {
+  if (archived && game.status !== "ended") return fail("Seule une partie terminée peut être archivée.");
+  await mutate(game.id, (tx) => tx.update(killerGame).set({ archivedAt: archived ? new Date() : null }).where(eq(killerGame.id, game.id)));
+  return { ok: true };
+}
+
+/** Deletes every player's photo, keeping the game, its results and its history. */
+export async function removeAllPhotos(game: KillerGame): Promise<Result> {
+  await mutate(game.id, (tx) =>
+    tx
+      .update(killerPlayer)
+      .set({ photo: null, photoVersion: sql`${killerPlayer.photoVersion} + 1` })
+      .where(eq(killerPlayer.gameId, game.id)),
   );
   return { ok: true };
 }

@@ -253,6 +253,20 @@
       "when": 1792789402527,
       "tag": "0035_killer_countdown_sound",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792923147047,
+      "tag": "0036_killer_password_archive",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792923149262,
+      "tag": "0037_changelog_killer_public",
+      "breakpoints": true
     }
   ]
 }
