@@ -267,6 +267,20 @@
       "when": 1792923149262,
       "tag": "0037_changelog_killer_public",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793914806557,
+      "tag": "0038_santa",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793915651319,
+      "tag": "0039_changelog_santa",
+      "breakpoints": true
     }
   ]
 }

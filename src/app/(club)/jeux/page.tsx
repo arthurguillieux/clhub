@@ -28,6 +28,12 @@ const TOOLS = [
     name: "Killer",
     description: "Des agents, des missions secrètes, une cible à éliminer — et un grand écran qui suit la partie.",
   },
+  {
+    href: "/jeux/santa",
+    icon: "🎁",
+    name: "Secret Santa",
+    description: "Le tirage au sort des cadeaux, avec tes règles, un lien perso pour chacun et une lettre au Père Noël.",
+  },
 ];
 
 export default function JeuxPage() {

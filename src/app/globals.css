@@ -778,3 +778,198 @@ body {
     animation: none;
   }
 }
+
+/*
+ * Secret Santa (jeux/santa) — a futuristic Christmas: the club's dark ground and neon green, a neon
+ * red, and the warmth of a fire (gold light rising from below, cream text) so it never feels cold.
+ * Scoped to `.santa`.
+ */
+.santa {
+  --s-ground: #0a0f0c;
+  --s-surface: #121a15;
+  --s-raised: #1a251e;
+  --s-line: #2a3a30;
+  --s-ink: #f6efe2;
+  --s-muted: #a9b0a3;
+  --s-green: #39ffb0;
+  --s-red: #ff3b4e;
+  --s-gold: #ffcf7a;
+  background:
+    radial-gradient(ellipse 70% 40% at 12% -6%, rgba(57, 255, 176, 0.16), transparent 70%),
+    radial-gradient(ellipse 70% 40% at 88% -6%, rgba(255, 59, 78, 0.16), transparent 70%),
+    radial-gradient(ellipse 100% 50% at 50% 112%, rgba(255, 176, 92, 0.16), transparent 70%),
+    var(--s-ground);
+  color: var(--s-ink);
+}
+.santa-title {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  color: var(--s-ink);
+  text-shadow:
+    0 0 14px rgba(57, 255, 176, 0.5),
+    0 0 38px rgba(255, 59, 78, 0.28);
+  text-wrap: balance;
+}
+.santa-label {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--s-gold);
+}
+.santa-panel {
+  background: linear-gradient(180deg, rgba(26, 37, 30, 0.92), rgba(18, 26, 21, 0.92));
+  border: 1px solid var(--s-line);
+  border-radius: 18px;
+  box-shadow:
+    0 0 0 1px rgba(255, 207, 122, 0.04) inset,
+    0 12px 30px rgba(0, 0, 0, 0.35);
+}
+.santa-btn {
+  border-radius: 12px;
+  font-weight: 700;
+  background: var(--s-green);
+  color: #06140d;
+  box-shadow: 0 0 20px rgba(57, 255, 176, 0.35);
+}
+.santa-btn-red {
+  border-radius: 12px;
+  font-weight: 700;
+  background: var(--s-red);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(255, 59, 78, 0.35);
+}
+.santa-btn-ghost {
+  border-radius: 12px;
+  font-weight: 600;
+  border: 1px solid var(--s-line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--s-ink);
+}
+.santa-btn:disabled,
+.santa-btn-red:disabled,
+.santa-btn-ghost:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+.santa-field {
+  border-radius: 10px;
+  border: 1px solid var(--s-line);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--s-ink);
+}
+.santa-field::placeholder {
+  color: #7d857a;
+}
+.santa :is(.santa-btn, .santa-btn-red, .santa-btn-ghost, .santa-field):focus-visible {
+  outline: 2px solid var(--s-gold);
+  outline-offset: 2px;
+}
+.santa-bar {
+  border-top: 1px solid var(--s-line);
+  background: rgba(10, 15, 12, 0.94);
+}
+/* The garland across the top of the page: each bulb twinkles at its own pace. */
+.santa-garland {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 34px;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.santa-bulb {
+  width: 9px;
+  height: 12px;
+  border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+  background: currentColor;
+  box-shadow: 0 0 10px 2px currentColor;
+  animation: santa-twinkle 2.6s ease-in-out infinite;
+}
+@keyframes santa-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+/* Opening the gift: it shakes, the lid flies off, a burst of light, then the name lands. */
+@keyframes santa-shake {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20% {
+    transform: rotate(-5deg);
+  }
+  40% {
+    transform: rotate(5deg);
+  }
+  60% {
+    transform: rotate(-4deg);
+  }
+  80% {
+    transform: rotate(3deg);
+  }
+}
+@keyframes santa-float {
+  50% {
+    transform: translateY(-7px);
+  }
+}
+@keyframes santa-lid {
+  to {
+    transform: translateY(-90px) rotate(-24deg);
+    opacity: 0;
+  }
+}
+@keyframes santa-burst {
+  from {
+    transform: scale(0.2);
+    opacity: 0.95;
+  }
+  to {
+    transform: scale(3.4);
+    opacity: 0;
+  }
+}
+@keyframes santa-name {
+  from {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.santa-gift-idle {
+  animation: santa-float 3s ease-in-out infinite;
+}
+.santa-gift-opening {
+  animation: santa-shake 0.5s ease-in-out 2;
+}
+.santa-gift-opening .santa-lid {
+  animation: santa-lid 0.6s ease-in 0.7s both;
+}
+.santa-burst {
+  animation: santa-burst 0.9s ease-out both;
+  background: radial-gradient(circle, rgba(255, 207, 122, 0.9), rgba(57, 255, 176, 0.35) 45%, rgba(255, 59, 78, 0) 70%);
+}
+.santa-name {
+  animation: santa-name 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .santa-bulb,
+  .santa-gift-idle,
+  .santa-gift-opening,
+  .santa-gift-opening .santa-lid,
+  .santa-burst,
+  .santa-name {
+    animation: none;
+  }
+}

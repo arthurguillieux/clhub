@@ -23,3 +23,4 @@ export * from "./donListing";
 export * from "./serverErrorLog";
 export * from "./changelog";
 export * from "./killer";
+export * from "./santa";
