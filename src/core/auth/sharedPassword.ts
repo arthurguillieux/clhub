@@ -1,9 +1,10 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 /**
- * A game's co-organization password: whoever knows it can help run the game. Stored salted and
- * hashed (scrypt), "salt:hash" in hex — never as typed. Compared case-insensitively and without
- * surrounding spaces, since it gets passed on by word of mouth.
+ * A password shared between friends, like the co-organization password of a Killer game or a Secret
+ * Santa: whoever knows it can help run it. Stored salted and hashed (scrypt), "salt:hash" in hex —
+ * never as typed. Compared case-insensitively and without surrounding spaces, since it gets passed
+ * on by word of mouth.
  */
 const normalise = (password: string) => password.trim().toLowerCase();
 

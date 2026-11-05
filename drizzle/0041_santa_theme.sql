@@ -1,0 +1,1 @@
+ALTER TABLE "santa_event" ADD COLUMN "theme" text DEFAULT 'neon' NOT NULL;

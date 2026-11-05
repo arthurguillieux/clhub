@@ -5,7 +5,7 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { listForMember } from "@/modules/santa/data/events";
-import { CreateSantaForm } from "./CreateSantaForm";
+import { CreateSantaForm, JoinSantaForm } from "./SantaForms";
 
 export const metadata: Metadata = { title: "Secret Santa" };
 
@@ -72,6 +72,14 @@ export default async function SantaHomePage() {
           </div>
         </section>
       )}
+
+      <section className="mt-8">
+        <SectionTitle>Co-organiser un Secret Santa</SectionTitle>
+        <p className="mt-1 text-sm text-muted">Son organisateur te donne le code et le mot de passe de co-organisation.</p>
+        <Card className="mt-3 p-5">
+          <JoinSantaForm />
+        </Card>
+      </section>
 
       {archived.length > 0 && (
         <section className="mt-8">

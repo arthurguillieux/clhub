@@ -20,6 +20,11 @@ test("secret santa: setup, exclusion, launch, gift, unmask, archive, next year",
   await page.getByRole("button", { name: "Organiser un Secret Santa" }).click();
   await expect(page).toHaveURL(/\/santa\/[A-Z0-9]{6}\/panneau$/);
 
+  // The white theme changes the page at once, and follows the event everywhere from here on.
+  await expect(page.locator("main.santa-blanc")).toHaveCount(0);
+  await page.getByRole("radio", { name: /Noël blanc/ }).click();
+  await expect(page.locator("main.santa-blanc")).toBeVisible();
+
   await addGuest(page, "Alice", "alice@example.com");
   await addGuest(page, "Bob", "bob@example.com");
   await addGuest(page, "Chloé", "chloe@example.com");
@@ -45,6 +50,7 @@ test("secret santa: setup, exclusion, launch, gift, unmask, archive, next year",
   const guest = await guestContext.newPage();
   await guest.goto(link);
   await expect(guest.getByRole("heading", { name: "Salut Alice !" })).toBeVisible();
+  await expect(guest.locator("main.santa-blanc")).toBeVisible();
   await guest.getByRole("button", { name: "🎁 Ouvrir mon cadeau" }).click();
   await expect(guest.getByText("Alice, tu offres ton cadeau à")).toBeVisible();
   const drawn = (await guest.getByRole("heading", { level: 1 }).textContent())!.trim();
@@ -76,4 +82,27 @@ test("secret santa: setup, exclusion, launch, gift, unmask, archive, next year",
   await expect(page.getByRole("heading", { name: "Noël 2027" })).toBeVisible();
   await expect(page.getByText("Le tirage évitera de refaire celui de « Noël 2026 »")).toBeVisible();
   await expect(page.getByText("Alice et Bob ne peuvent pas se tirer")).toBeVisible();
+  await expect(page.locator("main.santa-blanc")).toBeVisible();
+});
+
+/** Who gets in is tested against the database in modules/santa/data; here, the organizer's side and the form on the club's page. */
+test("secret santa: the co-organization password", async ({ page }) => {
+  await page.goto("/jeux/santa");
+  await page.getByLabel("Nom du Secret Santa").fill("Noël du mot de passe");
+  await page.getByRole("button", { name: "Organiser un Secret Santa" }).click();
+  await expect(page).toHaveURL(/\/santa\/[A-Z0-9]{6}\/panneau$/);
+
+  await page.getByText("👥 Co-organisateurs").click();
+  await page.getByLabel("Nouveau mot de passe de co-organisation").fill("sapin");
+  await page.getByRole("button", { name: "Définir" }).click();
+  await expect(page.getByText("Défini. Un membre qui a le code")).toBeVisible();
+  await page.getByRole("button", { name: "Retirer le mot de passe" }).click();
+  await expect(page.getByText("Aucun. Avec un mot de passe")).toBeVisible();
+
+  await page.goto("/jeux/santa");
+  await page.getByLabel("Code").fill("ZZZZZZ");
+  await page.getByLabel("Mot de passe").fill("sapin");
+  await page.getByRole("button", { name: "Co-organiser ce Secret Santa" }).click();
+  await expect(page.getByText("Aucun Secret Santa ne porte ce code.")).toBeVisible();
+  await expect(page.getByLabel("Code")).toHaveValue("ZZZZZZ");
 });

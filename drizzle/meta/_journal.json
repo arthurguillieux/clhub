@@ -288,6 +288,27 @@
       "when": 1793917081773,
       "tag": "0040_killer_host_cascade",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793917643280,
+      "tag": "0041_santa_theme",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1793917646505,
+      "tag": "0042_changelog_santa_theme",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1793918025121,
+      "tag": "0043_santa_cohost_password",
+      "breakpoints": true
     }
   ]
 }

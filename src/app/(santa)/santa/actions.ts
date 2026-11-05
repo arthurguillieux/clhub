@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getSession } from "@/core/auth/session";
@@ -18,6 +19,7 @@ import {
   getEventByCode,
   getMeView,
   getOrgView,
+  joinOrganization,
   launchEvent,
   redoNextYear,
   removeCohost,
@@ -27,11 +29,14 @@ import {
   revealGift,
   saveLetter,
   setArchived,
+  setCohostPassword,
   unmaskParticipant,
   updateGuest,
   updateSettings,
+  updateTheme,
 } from "@/modules/santa/data/events";
 import { checkOrganizer } from "@/modules/santa/host";
+import { SANTA_THEME_IDS } from "@/modules/santa/themes";
 import type { MeView, OrgView } from "@/modules/santa/views";
 
 /** `values` puts back what was typed: React empties a form once its action has run, even on an error. */
@@ -44,6 +49,18 @@ export async function createSantaAction(_prev: FormState, formData: FormData): P
   if (!title) return { status: "error", message: "Donne-lui un nom." };
   const event = await createEvent(session.member.id, title);
   redirect(`/santa/${event.code}/panneau`);
+}
+
+/** A member joins the organization with the event's code and co-organization password. */
+export async function joinSantaAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const session = await getSession();
+  if (!session) redirect("/sign-in");
+  const code = String(formData.get("code") ?? "").trim().toUpperCase();
+  const event = code ? await getEventByCode(code) : null;
+  if (!event) return { status: "error", message: "Aucun Secret Santa ne porte ce code.", values: { code } };
+  const result = await joinOrganization(event, session.member.id, String(formData.get("password") ?? ""));
+  if (!result.ok) return { status: "error", message: result.error, values: { code } };
+  redirect(event.archivedAt ? `/santa/${event.code}/archive` : `/santa/${event.code}/panneau`);
 }
 
 const id = z.string().uuid();
@@ -61,6 +78,7 @@ const orgActionSchema = z.discriminatedUnion("type", [
       .nullable(),
     message: z.string().max(LIMITS.message, "Message trop long."),
   }),
+  z.object({ type: z.literal("theme"), theme: z.enum(SANTA_THEME_IDS) }),
   z.object({ type: z.literal("addMember"), memberId: id }),
   z.object({ type: z.literal("addGuest"), name, email }),
   z.object({ type: z.literal("updateGuest"), id, name, email }),
@@ -69,6 +87,7 @@ const orgActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("removeExclusion"), id }),
   z.object({ type: z.literal("addCohost"), memberId: id }),
   z.object({ type: z.literal("removeCohost"), memberId: id }),
+  z.object({ type: z.literal("cohostPassword"), password: z.string().max(100).nullable() }),
   z.object({ type: z.literal("launch") }),
   z.object({ type: z.literal("resend"), id }),
   z.object({ type: z.literal("backToPreparation") }),
@@ -85,13 +104,15 @@ export async function santaOrgAction(code: string, action: unknown): Promise<Org
 
   const event = check.event;
   const a = parsed.data;
-  if ((a.type === "addCohost" || a.type === "removeCohost") && check.role !== "host") {
-    return { ok: false, error: "Seule la personne qui l'a créé peut choisir ses co-organisateurs." };
+  if ((a.type === "addCohost" || a.type === "removeCohost" || a.type === "cohostPassword") && check.role !== "host") {
+    return { ok: false, error: "Seule la personne qui l'a créé gère la co-organisation." };
   }
   const result = await (() => {
     switch (a.type) {
       case "settings":
         return updateSettings(event, a);
+      case "theme":
+        return updateTheme(event, a.theme);
       case "addMember":
         return addMemberParticipant(event, a.memberId);
       case "addGuest":
@@ -108,6 +129,8 @@ export async function santaOrgAction(code: string, action: unknown): Promise<Org
         return addCohost(event, a.memberId);
       case "removeCohost":
         return removeCohost(event, a.memberId);
+      case "cohostPassword":
+        return setCohostPassword(event, a.password);
       case "launch":
         return launchEvent(event);
       case "resend":
@@ -119,6 +142,7 @@ export async function santaOrgAction(code: string, action: unknown): Promise<Org
     }
   })();
   if (!result.ok) return result;
+  if (a.type === "theme") revalidatePath(`/santa/${event.code}/panneau`); // the scene around the panel comes from the server
   const fresh = await getEventByCode(code);
   return fresh ? { ok: true, view: await getOrgView(fresh) } : { ok: false, error: "Ce Secret Santa n'existe plus." };
 }

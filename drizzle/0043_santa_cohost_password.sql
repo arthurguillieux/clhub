@@ -1,0 +1,1 @@
+ALTER TABLE "santa_event" ADD COLUMN "cohost_password" text;

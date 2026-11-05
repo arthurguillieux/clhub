@@ -35,7 +35,7 @@ export function MyPage({ token, initialView }: { token: string; initialView: MeV
       <div className="santa-panel mt-16 p-6 text-center">
         <p className="santa-label">{view.title}</p>
         <h1 className="santa-title mt-2 text-2xl">Le Père Noël prépare son tirage</h1>
-        <p className="mt-3 text-sm text-[var(--s-muted)]">{view.organizer} ajuste les derniers détails. Tu recevras un nouveau mail dès que ce sera prêt, {view.name} !</p>
+        <p className="mt-3 text-sm text-[var(--s-muted)]">Les derniers détails se règlent. Tu recevras un nouveau mail dès que ce sera prêt, {view.name} !</p>
       </div>
     );
   }
@@ -69,7 +69,7 @@ export function MyPage({ token, initialView }: { token: string; initialView: MeV
 
       {(view.budget || view.exchangeDate || view.message) && (
         <section className="santa-panel p-4">
-          <p className="santa-label">Le mot {de(view.organizer)}</p>
+          <p className="santa-label">Le mot de l&apos;organisation</p>
           {view.message && <p className="mt-2 whitespace-pre-wrap">{view.message}</p>}
           <p className="mt-2 text-sm text-[var(--s-gold)]">
             {view.budget && <>Budget : {view.budget}</>}
@@ -119,11 +119,13 @@ export function MyPage({ token, initialView }: { token: string; initialView: MeV
           {error}
         </p>
       )}
+
+      <p className="text-center text-xs text-[var(--s-muted)]">Une question sur l&apos;organisation ? Demande à {view.organizer}.</p>
     </div>
   );
 }
 
-/** The gift to open: a neon parcel that shakes, loses its lid, and only then asks the server for the name. */
+/** The gift to open: a parcel that shakes, loses its lid, and only then asks the server for the name. */
 function Gift({ view, error, onOpen }: { view: MeView; error: string; onOpen: () => Promise<void> }) {
   const [opening, setOpening] = useState(false);
   const open = () => {
@@ -135,19 +137,22 @@ function Gift({ view, error, onOpen }: { view: MeView; error: string; onOpen: ()
     <div className="mt-10 flex flex-col items-center text-center">
       <p className="santa-label">{view.title}</p>
       <h1 className="santa-title mt-2 text-3xl">Salut {view.name} !</h1>
-      <p className="mt-2 max-w-sm text-[var(--s-muted)]">{view.organizer} t&apos;a réservé une place sous le sapin. Ouvre ton cadeau pour découvrir à qui tu offres le tien.</p>
-      <button type="button" onClick={open} aria-label="Ouvrir mon cadeau" className={`mt-8 ${opening ? "santa-gift-opening" : "santa-gift-idle"}`}>
-        <svg viewBox="0 0 200 210" className="h-52 w-52" style={{ filter: "drop-shadow(0 0 10px rgba(57,255,176,0.55)) drop-shadow(0 0 22px rgba(255,59,78,0.3))" }}>
-          <rect x="34" y="92" width="132" height="104" rx="10" fill="rgba(57,255,176,0.07)" stroke="#39ffb0" strokeWidth="4" />
-          <rect x="90" y="92" width="20" height="104" fill="rgba(255,59,78,0.28)" stroke="#ff3b4e" strokeWidth="3" />
+      <p className="mt-2 max-w-sm text-[var(--s-muted)]">Une place t&apos;attend sous le sapin. Ouvre ton cadeau pour découvrir à qui tu offres le tien.</p>
+      <button type="button" onClick={open} aria-label="Ouvrir mon cadeau" className={`relative mt-8 ${opening ? "santa-gift-opening" : "santa-gift-idle"}`}>
+        <svg viewBox="0 0 200 210" className="santa-gift h-52 w-52">
+          <ellipse className="santa-gift-mound" cx="100" cy="197" rx="96" ry="11" />
+          <rect className="santa-gift-box" x="34" y="92" width="132" height="104" rx="10" strokeWidth="4" />
+          <rect className="santa-gift-band" x="90" y="92" width="20" height="104" strokeWidth="3" />
           <g className="santa-lid" style={{ transformOrigin: "100px 80px" }}>
-            <rect x="24" y="64" width="152" height="30" rx="8" fill="rgba(57,255,176,0.12)" stroke="#39ffb0" strokeWidth="4" />
-            <rect x="90" y="64" width="20" height="30" fill="rgba(255,59,78,0.28)" stroke="#ff3b4e" strokeWidth="3" />
-            <path d="M100 62 C70 20 42 40 62 56 C74 64 90 62 100 62 C110 62 126 64 138 56 C158 40 130 20 100 62 Z" fill="rgba(255,59,78,0.14)" stroke="#ff3b4e" strokeWidth="4" strokeLinejoin="round" />
+            <rect className="santa-gift-lid" x="24" y="64" width="152" height="30" rx="8" strokeWidth="4" />
+            <rect className="santa-gift-band" x="90" y="64" width="20" height="30" strokeWidth="3" />
+            <path className="santa-gift-bow" d="M100 62 C70 20 42 40 62 56 C74 64 90 62 100 62 C110 62 126 64 138 56 C158 40 130 20 100 62 Z" strokeWidth="4" strokeLinejoin="round" />
           </g>
         </svg>
+        {/* Where the snow settles in the white theme; it goes with the first shake. */}
+        {!opening && <span aria-hidden="true" className="santa-ledge absolute inset-x-[12%] top-[30.5%] h-px" />}
       </button>
-      <button type="button" onClick={open} disabled={opening} className="santa-btn mt-8 min-h-14 px-8 text-lg">
+      <button type="button" onClick={open} disabled={opening} className="santa-btn santa-ledge mt-8 min-h-14 px-8 text-lg">
         {opening ? "Ça s'ouvre…" : "🎁 Ouvrir mon cadeau"}
       </button>
       <p className="mt-3 text-xs text-[var(--s-muted)]">Assure-toi que personne ne regarde ton écran.</p>

@@ -13,7 +13,7 @@ import {
   type Patch,
   type Tribute,
 } from "../domain/circle";
-import { hashPassword, verifyPassword } from "../password";
+import { hashPassword, verifyPassword } from "@/core/auth/sharedPassword";
 import type { ArchiveView, GameStatus, HostGameView, PlayerGameView, PublicGameView, PublicTribute } from "../views";
 import { notifyGame } from "./notifier";
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getMeView } from "@/modules/santa/data/events";
-import { Garland, Snow } from "../../Snow";
+import { SantaScene } from "../../Scene";
 import { MyPage } from "./MyPage";
 
 // The link is the key to this page: keep it out of search engines and of the Referer sent to other sites.
@@ -11,9 +11,7 @@ export default async function SantaMePage({ params }: { params: Promise<{ token:
   const { token } = await params;
   const view = await getMeView(token);
   return (
-    <main className="santa relative min-h-dvh overflow-x-clip px-4 pt-12 pb-16">
-      <Snow />
-      <Garland />
+    <SantaScene theme={view?.theme ?? "neon"} className="pb-24">
       <div className="relative mx-auto max-w-xl">
         {view ? (
           <MyPage token={token} initialView={view} />
@@ -24,6 +22,6 @@ export default async function SantaMePage({ params }: { params: Promise<{ token:
           </div>
         )}
       </div>
-    </main>
+    </SantaScene>
   );
 }

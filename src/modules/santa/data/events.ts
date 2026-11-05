@@ -15,6 +15,8 @@ import {
 } from "@/core/db/schema";
 import { sendMail } from "@/core/mail/send";
 import { SantaInviteEmail, SantaNoticeEmail } from "@/core/mail/templates/SantaEmail";
+import { hashPassword, verifyPassword } from "@/core/auth/sharedPassword";
+import { asTheme, type SantaTheme } from "../themes";
 import { MIN_PARTICIPANTS, draw, forbiddenPairs, nextYearTitle, type DrawResult, type Pair } from "../domain/draw";
 import type { MeView, OrgView, SantaStatus } from "../views";
 
@@ -115,6 +117,7 @@ export async function getOrgView(event: SantaEvent): Promise<OrgView> {
     budget: event.budget,
     exchangeDate: event.exchangeDate,
     message: event.message,
+    theme: asTheme(event.theme),
     participants: participants.map((p) => ({
       id: p.id,
       name: p.name,
@@ -126,6 +129,7 @@ export async function getOrgView(event: SantaEvent): Promise<OrgView> {
     })),
     exclusions: rules.map((r) => ({ id: r.id, fromId: r.fromId, toId: r.toId, fromName: nameOf.get(r.fromId) ?? "?", toName: nameOf.get(r.toId) ?? "?", mutual: r.mutual })),
     cohosts,
+    hasCohostPassword: !!event.cohostPassword,
     unmasks: unmasks.map((u) => ({ who: u.who, whom: nameOf.get(u.participantId) ?? "?", at: u.at.toISOString() })),
     blocker: event.status === "preparation" ? blockerOf(participants, rules) : null,
     previousTitle: previous?.title ?? null,
@@ -147,6 +151,12 @@ export async function updateSettings(event: SantaEvent, s: { title: string; budg
     .update(santaEvent)
     .set({ title: s.title.trim(), budget: s.budget.trim(), exchangeDate: s.exchangeDate || null, message: s.message.trim() })
     .where(eq(santaEvent.id, event.id));
+  return { ok: true };
+}
+
+/** Allowed at any time, even after the draw: it only changes the look. */
+export async function updateTheme(event: SantaEvent, theme: SantaTheme): Promise<Result> {
+  await db.update(santaEvent).set({ theme }).where(eq(santaEvent.id, event.id));
   return { ok: true };
 }
 
@@ -245,6 +255,25 @@ export async function removeCohost(event: SantaEvent, memberId: string): Promise
 
 // ───────── The draw and the mails ─────────
 
+/** Sets or removes the co-organization password. */
+export async function setCohostPassword(event: SantaEvent, password: string | null): Promise<Result> {
+  if (password !== null && password.trim().length < 4) return fail("Le mot de passe doit faire au moins 4 caractères.");
+  await db
+    .update(santaEvent)
+    .set({ cohostPassword: password === null ? null : hashPassword(password) })
+    .where(eq(santaEvent.id, event.id));
+  return { ok: true };
+}
+
+/** A member types the co-organization password and joins the organization. */
+export async function joinOrganization(event: SantaEvent, memberId: string, password: string): Promise<Result> {
+  if (memberId === event.hostMemberId) return { ok: true };
+  if (!event.cohostPassword) return fail("Ce Secret Santa n'a pas de mot de passe de co-organisation : demande à son organisateur de t'ajouter.");
+  if (!verifyPassword(password, event.cohostPassword)) return fail("Ce n'est pas le bon mot de passe.");
+  await db.insert(santaCohost).values({ eventId: event.id, memberId }).onConflictDoNothing();
+  return { ok: true };
+}
+
 async function organizerName(event: SantaEvent): Promise<string> {
   const [row] = await db.select({ name: user.name }).from(member).innerJoin(user, eq(user.id, member.userId)).where(eq(member.id, event.hostMemberId)).limit(1);
   return row?.name ?? "Le CLHUB";
@@ -279,7 +308,7 @@ async function sendInvite(event: SantaEvent, p: SantaParticipant, organizer: str
     await sendMail({
       to,
       subject: `🎁 ${event.title} : découvre à qui tu offres ton cadeau`,
-      react: SantaInviteEmail({ name: p.name, title: event.title, organizer, link, budget: event.budget, date: longDate(event.exchangeDate), message: event.message }),
+      react: SantaInviteEmail({ name: p.name, title: event.title, organizer, link, budget: event.budget, date: longDate(event.exchangeDate), message: event.message, theme: asTheme(event.theme) }),
       devFallbackMessage: `Secret Santa link for ${to}:\n${link}`,
     });
     await db.update(santaParticipant).set({ mailSentAt: new Date(), mailError: null }).where(eq(santaParticipant.id, p.id));
@@ -374,10 +403,10 @@ export async function archivedDraw(event: SantaEvent): Promise<{ giver: string; 
   return participants.map((p) => ({ giver: p.name, recipient: (p.recipientId && nameOf.get(p.recipientId)) || "?" }));
 }
 
-/** Next year's event: same people, same rules, same co-organizers, and last year's draw to avoid. */
+/** Next year's event: same people, same rules, same organization, same look, and last year's draw to avoid. */
 export async function redoNextYear(event: SantaEvent, memberId: string): Promise<SantaEvent> {
   const next = await createEvent(memberId, nextYearTitle(event.title, new Date().getFullYear()).slice(0, LIMITS.title));
-  await db.update(santaEvent).set({ budget: event.budget, message: event.message, previousEventId: event.id }).where(eq(santaEvent.id, next.id));
+  await db.update(santaEvent).set({ budget: event.budget, message: event.message, theme: event.theme, cohostPassword: event.cohostPassword, previousEventId: event.id }).where(eq(santaEvent.id, next.id));
   const participants = await loadParticipants(event.id);
   const newIds = new Map<string, string>();
   for (const p of participants) {
@@ -435,6 +464,7 @@ export async function getMeView(token: string): Promise<MeView | null> {
     budget: event.budget,
     exchangeDate: event.exchangeDate,
     message: event.message,
+    theme: asTheme(event.theme),
     status: event.status as SantaStatus,
     archived: !!event.archivedAt,
     name: me.name,
@@ -455,7 +485,7 @@ async function notify(event: SantaEvent, to: SantaParticipant, heading: string, 
     await sendMail({
       to: address,
       subject: `🎁 ${heading}`,
-      react: SantaNoticeEmail({ title: event.title, heading, body, link, cta }),
+      react: SantaNoticeEmail({ title: event.title, heading, body, link, cta, theme: asTheme(event.theme) }),
       devFallbackMessage: `Secret Santa notice for ${address} (${heading}):\n${link}`,
     });
   } catch (error) {

@@ -27,7 +27,7 @@ export function SantaDialog({
   }, [onClose]);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label={title} className="santa-veil fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" onClick={onClose}>
       <div className="santa-panel w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
         <p className="font-display text-xl font-extrabold">{title}</p>
         {detail && <p className="mt-2 text-sm text-[var(--s-muted)]">{detail}</p>}

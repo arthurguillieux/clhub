@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hashPassword, verifyPassword } from "./password";
+import { hashPassword, verifyPassword } from "./sharedPassword";
 
 describe("co-organization password", () => {
   it("is never stored as typed, and two games with the same password get different hashes", () => {

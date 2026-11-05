@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getOrgView } from "@/modules/santa/data/events";
+import { getEventByCode, getOrgView } from "@/modules/santa/data/events";
 import { checkOrganizer } from "@/modules/santa/host";
+import { asTheme } from "@/modules/santa/themes";
 import { listMembers } from "@/modules/members/data/members";
-import { Garland, Snow } from "../../Snow";
+import { SantaScene } from "../../Scene";
+import { JoinPrompt } from "./JoinPrompt";
 import { OrgPanel } from "./OrgPanel";
 
 export const metadata: Metadata = { title: "Secret Santa — organisation", robots: { index: false, follow: false } };
@@ -15,11 +17,10 @@ export default async function SantaPanelPage({ params }: { params: Promise<{ cod
   const check = await checkOrganizer(code);
   if (!check.ok && check.reason === "signed-out") redirect("/sign-in");
   if (check.ok && check.event.archivedAt) redirect(`/santa/${check.event.code}/archive`);
+  const event = check.ok ? check.event : check.reason === "not-organizer" ? await getEventByCode(code) : null;
 
   return (
-    <main className="santa relative min-h-dvh overflow-x-clip px-4 pt-12 pb-32">
-      <Snow />
-      <Garland />
+    <SantaScene theme={asTheme(event?.theme ?? "neon")} className="pb-32">
       <div className="relative mx-auto max-w-2xl">
         {check.ok ? (
           <OrgPanel
@@ -28,16 +29,17 @@ export default async function SantaPanelPage({ params }: { params: Promise<{ cod
             isCreator={check.role === "host"}
             members={(await listMembers()).map((m) => ({ id: m.id, name: m.name, isHost: m.id === check.event.hostMemberId }))}
           />
+        ) : event ? (
+          <JoinPrompt code={event.code} title={event.title} hasPassword={!!event.cohostPassword} />
         ) : (
           <div className="santa-panel mt-16 p-6 text-center">
-            <h1 className="santa-title text-2xl">{check.reason === "missing" ? "Secret Santa introuvable" : "Ce n'est pas ton Secret Santa"}</h1>
-            <p className="mt-2 text-sm text-[var(--s-muted)]">Seuls ses organisateurs ont accès à cette page.</p>
+            <h1 className="santa-title text-2xl">Secret Santa introuvable</h1>
             <Link href="/jeux/santa" className="santa-btn-ghost mt-4 inline-flex min-h-11 items-center px-4">
               Retour
             </Link>
           </div>
         )}
       </div>
-    </main>
+    </SantaScene>
   );
 }

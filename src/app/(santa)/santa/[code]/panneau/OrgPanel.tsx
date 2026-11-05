@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { SANTA_THEMES, type SantaTheme } from "@/modules/santa/themes";
 import type { OrgParticipant, OrgView } from "@/modules/santa/views";
 import { de } from "@/modules/santa/words";
 import { deleteSantaAction, santaOrgAction, santaUnmaskAction } from "../../actions";
@@ -94,7 +95,7 @@ export function OrgPanel({
         </p>
       )}
 
-      <Settings view={view} busy={!!busy} onSave={(s) => send({ type: "settings", ...s })} />
+      <Settings view={view} busy={!!busy} onSave={(s) => send({ type: "settings", ...s })} onTheme={(theme) => void send({ type: "theme", theme })} />
 
       <Participants
         view={view}
@@ -124,6 +125,7 @@ export function OrgPanel({
           busy={!!busy}
           onAdd={(memberId) => send({ type: "addCohost", memberId })}
           onRemove={(memberId) => send({ type: "removeCohost", memberId })}
+          onPassword={(password) => send({ type: "cohostPassword", password })}
         />
       )}
 
@@ -235,10 +237,12 @@ function Settings({
   view,
   busy,
   onSave,
+  onTheme,
 }: {
   view: OrgView;
   busy: boolean;
   onSave: (s: { title: string; budget: string; exchangeDate: string | null; message: string }) => Promise<boolean>;
+  onTheme: (theme: SantaTheme) => void;
 }) {
   const [title, setTitle] = useState(view.title);
   const [budget, setBudget] = useState(view.budget);
@@ -284,6 +288,18 @@ function Settings({
             Enregistrer les réglages
           </button>
         )}
+        <div role="radiogroup" aria-label="Thème" className="text-sm text-[var(--s-muted)]">
+          Thème
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            {SANTA_THEMES.map((t) => (
+              <button key={t.id} type="button" role="radio" aria-checked={view.theme === t.id} disabled={busy} onClick={() => view.theme !== t.id && onTheme(t.id)} className="santa-theme p-2 text-left">
+                <span aria-hidden="true" className={`santa-swatch santa-swatch-${t.id}`} />
+                <span className="mt-1.5 block font-semibold text-[var(--s-ink)]">{t.name}</span>
+                <span className="block text-xs">{t.hint}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </details>
   );
@@ -554,14 +570,17 @@ function Cohosts({
   busy,
   onAdd,
   onRemove,
+  onPassword,
 }: {
   view: OrgView;
   members: { id: string; name: string }[];
   busy: boolean;
   onAdd: (memberId: string) => Promise<boolean>;
   onRemove: (memberId: string) => void;
+  onPassword: (password: string | null) => Promise<boolean>;
 }) {
   const [choice, setChoice] = useState("");
+  const [password, setPassword] = useState("");
   const candidates = members.filter((m) => !view.cohosts.some((c) => c.memberId === m.id));
   return (
     <details className="santa-panel p-4">
@@ -601,6 +620,40 @@ function Cohosts({
           </button>
         </div>
       )}
+      <div className="mt-4 border-t border-[var(--s-line)] pt-3">
+        <p className="text-sm font-semibold">Mot de passe de co-organisation</p>
+        <p className="mt-1 text-sm text-[var(--s-muted)]">
+          {view.hasCohostPassword
+            ? `Défini. Un membre qui a le code ${view.code} et ce mot de passe peut co-organiser (Jeux › Secret Santa › Co-organiser un Secret Santa).`
+            : "Aucun. Avec un mot de passe, un membre qui le connaît peut co-organiser sans que tu l'ajoutes toi-même. Personne d'autre n'entre ici."}
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            maxLength={100}
+            autoComplete="off"
+            aria-label="Nouveau mot de passe de co-organisation"
+            placeholder={view.hasCohostPassword ? "Nouveau mot de passe" : "Mot de passe (4 caractères au moins)"}
+            className="santa-field min-h-11 min-w-0 flex-1 px-3"
+          />
+          <button
+            type="button"
+            className="santa-btn-ghost min-h-11 px-3 text-sm"
+            disabled={busy || password.trim().length < 4}
+            onClick={async () => {
+              if (await onPassword(password)) setPassword("");
+            }}
+          >
+            {view.hasCohostPassword ? "Changer" : "Définir"}
+          </button>
+        </div>
+        {view.hasCohostPassword && (
+          <button type="button" className="mt-2 -mb-2 py-2 text-xs text-[var(--s-muted)] underline" disabled={busy} onClick={() => void onPassword(null)}>
+            Retirer le mot de passe
+          </button>
+        )}
+      </div>
     </details>
   );
 }

@@ -960,6 +960,64 @@ body {
   animation: santa-burst 0.9s ease-out both;
   background: radial-gradient(circle, rgba(255, 207, 122, 0.9), rgba(57, 255, 176, 0.35) 45%, rgba(255, 59, 78, 0) 70%);
 }
+.santa-gift {
+  filter: drop-shadow(0 0 10px rgba(57, 255, 176, 0.55)) drop-shadow(0 0 22px rgba(255, 59, 78, 0.3));
+}
+.santa-gift-box {
+  fill: rgba(57, 255, 176, 0.07);
+  stroke: #39ffb0;
+}
+.santa-gift-lid {
+  fill: rgba(57, 255, 176, 0.12);
+  stroke: #39ffb0;
+}
+.santa-gift-band {
+  fill: rgba(255, 59, 78, 0.28);
+  stroke: #ff3b4e;
+}
+.santa-gift-bow {
+  fill: rgba(255, 59, 78, 0.14);
+  stroke: #ff3b4e;
+}
+.santa-gift-mound {
+  display: none;
+}
+.santa-veil {
+  background: rgba(0, 0, 0, 0.7);
+}
+/* The theme picker in the settings. */
+.santa-theme {
+  border: 1px solid var(--s-line);
+  border-radius: 12px;
+  background: transparent;
+}
+.santa-theme[aria-checked="true"] {
+  border-color: var(--s-green);
+  box-shadow: 0 0 0 1px var(--s-green);
+}
+.santa-theme:focus-visible {
+  outline: 2px solid var(--s-gold);
+  outline-offset: 2px;
+}
+.santa-swatch {
+  display: block;
+  height: 46px;
+  border-radius: 8px;
+}
+.santa-swatch-neon {
+  background:
+    radial-gradient(ellipse 70% 90% at 12% 0%, rgba(57, 255, 176, 0.55), transparent 70%),
+    radial-gradient(ellipse 70% 90% at 88% 0%, rgba(255, 59, 78, 0.55), transparent 70%),
+    radial-gradient(ellipse 90% 60% at 50% 120%, rgba(255, 176, 92, 0.45), transparent 70%),
+    #0a0f0c;
+}
+.santa-swatch-blanc {
+  background:
+    radial-gradient(ellipse 62% 46% at 18% 112%, #fff 96%, transparent 100%),
+    radial-gradient(ellipse 74% 60% at 86% 118%, #fff 96%, transparent 100%),
+    linear-gradient(180deg, #9db6c8, #d6e3ea);
+  box-shadow: inset 0 0 0 1px rgba(23, 48, 60, 0.12);
+}
 .santa-name {
   animation: santa-name 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
@@ -972,4 +1030,91 @@ body {
   .santa-name {
     animation: none;
   }
+}
+
+/*
+ * « Noël blanc » — a snowy morning in the firs: a pale winter sky lit from the horizon, frosted white
+ * panels, spruce green and cranberry. Only what differs from the neon look; the snow itself is in
+ * WinterSnow.tsx and the woods in WinterScene.tsx.
+ */
+.santa-blanc {
+  --s-ground: #d6e3ea;
+  --s-surface: #ffffff;
+  --s-raised: #f3f7fa;
+  --s-line: #c7d6df;
+  --s-ink: #17303c;
+  --s-muted: #47626f;
+  --s-green: #17694c;
+  --s-red: #b4233a;
+  --s-gold: #875100;
+  background: var(--s-ground);
+  color-scheme: light;
+}
+.santa-sky {
+  background:
+    radial-gradient(ellipse 70% 30% at 64% 74%, rgba(255, 205, 150, 0.6), transparent 72%),
+    linear-gradient(180deg, #9fb8ca 0%, #bdd0dc 40%, #dbe6ec 74%, #f2ece4 100%);
+}
+.santa-blanc .santa-title {
+  text-shadow: 0 1px 16px rgba(255, 255, 255, 0.7);
+}
+.santa-blanc .santa-label {
+  color: #a01e33;
+}
+.santa-blanc .santa-panel {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #ffffff;
+  box-shadow: 0 14px 34px rgba(52, 84, 104, 0.2);
+}
+.santa-blanc .santa-btn {
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(23, 105, 76, 0.28);
+}
+.santa-blanc .santa-btn-red {
+  box-shadow: 0 8px 18px rgba(180, 35, 58, 0.26);
+}
+.santa-blanc .santa-btn-ghost {
+  background: rgba(255, 255, 255, 0.72);
+}
+.santa-blanc .santa-field {
+  background: #ffffff;
+  color-scheme: light;
+}
+.santa-blanc .santa-field::placeholder {
+  color: #66808d;
+}
+.santa-blanc .santa-bar {
+  background: rgba(255, 255, 255, 0.95);
+}
+.santa-blanc .santa-veil {
+  background: rgba(32, 54, 68, 0.55);
+}
+.santa-blanc .santa-gift-idle {
+  animation: none; /* it sits in the snow, collecting more of it */
+}
+.santa-blanc .santa-gift {
+  filter: drop-shadow(0 12px 12px rgba(44, 72, 92, 0.3));
+}
+.santa-blanc .santa-gift-box {
+  fill: #b4233a;
+  stroke: #8f1a2d;
+}
+.santa-blanc .santa-gift-lid {
+  fill: #c62a44;
+  stroke: #8f1a2d;
+}
+.santa-blanc .santa-gift-band {
+  fill: #f5e6c8;
+  stroke: #d8c195;
+}
+.santa-blanc .santa-gift-bow {
+  fill: #f5e6c8;
+  stroke: #cdb483;
+}
+.santa-blanc .santa-gift-mound {
+  display: inline;
+  fill: #ffffff;
+}
+.santa-blanc .santa-burst {
+  background: radial-gradient(circle, #ffffff, rgba(255, 255, 255, 0.75) 45%, rgba(255, 255, 255, 0) 70%);
 }

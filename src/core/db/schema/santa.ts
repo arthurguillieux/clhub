@@ -25,6 +25,10 @@ export const santaEvent = pgTable("santa_event", {
   exchangeDate: date("exchange_date", { mode: "string" }),
   /** The organizer's word, shown in the mail and on every personal page. */
   message: text("message").notNull().default(""),
+  /** The look of its pages and mails: see modules/santa/themes.ts. */
+  theme: text("theme").notNull().default("neon"),
+  /** Optional, as on a Killer game: a club member who knows it joins the organization. Salted scrypt hash, see core/auth/sharedPassword. */
+  cohostPassword: text("cohost_password"),
   previousEventId: uuid("previous_event_id").references((): AnyPgColumn => santaEvent.id, { onDelete: "set null" }),
   launchedAt: timestamp("launched_at", { withTimezone: true }),
   archivedAt: timestamp("archived_at", { withTimezone: true }),

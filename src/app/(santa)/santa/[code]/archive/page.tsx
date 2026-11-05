@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getOrgView } from "@/modules/santa/data/events";
 import { checkOrganizer } from "@/modules/santa/host";
-import { Garland, Snow } from "../../Snow";
+import { SantaScene } from "../../Scene";
 import { ArchiveTools } from "./ArchiveTools";
 
 export const metadata: Metadata = { title: "Secret Santa — archive", robots: { index: false, follow: false } };
@@ -19,9 +19,7 @@ export default async function SantaArchivePage({ params }: { params: Promise<{ c
 
   const v = await getOrgView(check.event);
   return (
-    <main className="santa relative min-h-dvh overflow-x-clip px-4 pt-12 pb-16">
-      <Snow />
-      <Garland />
+    <SantaScene theme={v.theme} className="pb-24">
       <div className="relative mx-auto flex max-w-2xl flex-col gap-5">
         <header>
           <Link href="/jeux/santa" className="text-sm text-[var(--s-muted)] hover:text-[var(--s-ink)]">
@@ -62,6 +60,6 @@ export default async function SantaArchivePage({ params }: { params: Promise<{ c
 
         <ArchiveTools code={v.code} isCreator={check.role === "host"} />
       </div>
-    </main>
+    </SantaScene>
   );
 }
