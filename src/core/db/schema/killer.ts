@@ -12,14 +12,14 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
  * when to refresh (the waiting itself happens in memory, see modules/killer).
  *
  * Status: 'lobby' (organizer edits players/missions/circle, guests claim their
- * name) → 'running' → 'ended'.
+ * name) → 'running' → 'ended'. Deleting the organizer takes their games with them.
  */
 export const killerGame = pgTable("killer_game", {
   id: uuid("id").primaryKey().defaultRandom(),
   code: text("code").notNull().unique(),
   hostMemberId: uuid("host_member_id")
     .notNull()
-    .references(() => member.id),
+    .references(() => member.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   status: text("status").notNull().default("lobby"),
   version: integer("version").notNull().default(0),

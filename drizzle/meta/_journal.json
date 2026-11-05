@@ -281,6 +281,13 @@
       "when": 1793915651319,
       "tag": "0039_changelog_santa",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793917081773,
+      "tag": "0040_killer_host_cascade",
+      "breakpoints": true
     }
   ]
 }
