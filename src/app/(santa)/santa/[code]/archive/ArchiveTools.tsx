@@ -45,7 +45,7 @@ export function ArchiveTools({ code, isCreator }: { code: string; isCreator: boo
       >
         {busy ? "Préparation…" : "🎄 Refaire pour l'année suivante"}
       </button>
-      <p className="-mt-3 text-center text-xs text-[var(--s-muted)]">Mêmes participants et mêmes exclusions, et le tirage évitera de refaire celui-ci.</p>
+      <p className="santa-note -mt-3 mx-auto w-fit text-center text-xs text-[var(--s-muted)]">Mêmes participants et mêmes exclusions, et le tirage évitera de refaire celui-ci.</p>
       <button
         type="button"
         className="santa-btn-ghost min-h-12 px-4"

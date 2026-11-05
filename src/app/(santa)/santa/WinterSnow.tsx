@@ -138,10 +138,7 @@ export function WinterSnow() {
     };
 
     const bar = () => page.querySelector(".santa-bar");
-    const driftHeight = () => {
-      const window = height || innerHeight;
-      return bar() ? 26 : Math.max(38, Math.min(84, window * 0.085));
-    };
+    const driftHeight = () => (bar() ? 26 : Math.max(38, Math.min(84, height * 0.085)));
 
     const paintPile = ({ x, y, width: w, pile }: Ledge) => {
       pilesCtx.clearRect(x - 8, y - LEDGE_HEIGHT - 10, w + 16, LEDGE_HEIGHT + OVERLAP + 20);
@@ -172,6 +169,7 @@ export function WinterSnow() {
     /** Follows the page: ledges that moved, came or went, and the size of what's drawn. */
     const check = () => {
       fitAir();
+      if (!width) return; // not laid out yet: the next check will do
       const box = page.getBoundingClientRect();
       const w = page.offsetWidth;
       const h = page.offsetHeight;
@@ -221,6 +219,7 @@ export function WinterSnow() {
     };
 
     const paintAir = () => {
+      if (!width) return;
       airCtx.clearRect(0, 0, width, height);
       for (const f of flakes) {
         airCtx.globalAlpha = f.alpha;
@@ -233,7 +232,7 @@ export function WinterSnow() {
       airCtx.globalAlpha = 1;
       // The drift: a pale rim behind, for the depth of the bank, and the snow itself in front.
       const top = floor - Math.max(...drift.caps);
-      airCtx.fillStyle = "rgba(206, 222, 233, 0.9)";
+      airCtx.fillStyle = "rgba(206, 222, 233, 0.5)";
       tracePile(airCtx, drift.heights, 0, floor - 2.5, 4);
       airCtx.fill();
       const snow = airCtx.createLinearGradient(0, top, 0, floor);
@@ -248,6 +247,7 @@ export function WinterSnow() {
     let last = performance.now();
     let checked = 0;
     const loop = (now: number) => {
+      frame = requestAnimationFrame(loop); // first, so a frame that fails can't stop the snow
       const step = Math.min(3, (now - last) / 16.7);
       last = now;
       if (now - checked > CHECK_EVERY_MS) {
@@ -298,7 +298,6 @@ export function WinterSnow() {
       dirty.forEach(paintPile);
       dirty.clear();
       paintAir();
-      frame = requestAnimationFrame(loop);
     };
 
     check();

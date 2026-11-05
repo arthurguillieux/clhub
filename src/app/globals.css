@@ -809,6 +809,7 @@ body {
     0 0 14px rgba(57, 255, 176, 0.5),
     0 0 38px rgba(255, 59, 78, 0.28);
   text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 .santa-label {
   text-transform: uppercase;
@@ -1062,7 +1063,7 @@ body {
   color: #a01e33;
 }
 .santa-blanc .santa-panel {
-  background: rgba(255, 255, 255, 0.95);
+  background: #fcfdfe;
   border-color: #ffffff;
   box-shadow: 0 14px 34px rgba(52, 84, 104, 0.2);
 }
@@ -1074,7 +1075,13 @@ body {
   box-shadow: 0 8px 18px rgba(180, 35, 58, 0.26);
 }
 .santa-blanc .santa-btn-ghost {
-  background: rgba(255, 255, 255, 0.72);
+  background: #ffffff;
+}
+/* Small lines straight on the page can land on the firs: on the snow they get a backing of their own. */
+.santa-blanc .santa-note {
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: #fcfdfe;
 }
 .santa-blanc .santa-field {
   background: #ffffff;
@@ -1084,7 +1091,7 @@ body {
   color: #66808d;
 }
 .santa-blanc .santa-bar {
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff; /* on white, any see-through shows the names scrolling behind it */
 }
 .santa-blanc .santa-veil {
   background: rgba(32, 54, 68, 0.55);

@@ -8,6 +8,12 @@ import { santaMeAction } from "../../actions";
 const longDate = (date: string) =>
   new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T00:00:00Z`));
 
+/** The big reveal, sized on the longest word: a word can't wrap, so it has to fit the width of a small phone. */
+function nameSize(name: string): string {
+  const longest = Math.max(...name.split(/[\s-]/).map((word) => word.length));
+  return longest > 13 ? "text-3xl" : longest > 9 ? "text-4xl" : "text-5xl";
+}
+
 export function MyPage({ token, initialView }: { token: string; initialView: MeView }) {
   const [view, setView] = useState(initialView);
   const [error, setError] = useState("");
@@ -59,7 +65,7 @@ export function MyPage({ token, initialView }: { token: string; initialView: MeV
         {justOpened && <span aria-hidden="true" className="santa-burst pointer-events-none absolute top-1/2 left-1/2 -mt-16 -ml-16 h-32 w-32 rounded-full" />}
         <p className="santa-label">{view.title}</p>
         <p className="mt-3 text-[var(--s-muted)]">{view.name}, tu offres ton cadeau à</p>
-        <h1 className={`santa-title mt-1 text-5xl ${justOpened ? "santa-name" : ""}`} style={{ color: "var(--s-green)" }}>
+        <h1 className={`santa-title mt-1 ${nameSize(recipient?.name ?? "")} ${justOpened ? "santa-name" : ""}`} style={{ color: "var(--s-green)" }}>
           {recipient?.name ?? "…"}
         </h1>
         <p className="mt-2 text-sm text-[var(--s-muted)]">Chut. Ça reste entre toi et le Père Noël.</p>
@@ -85,7 +91,9 @@ export function MyPage({ token, initialView }: { token: string; initialView: MeV
           {recipient.letter ? (
             <p className="mt-2 whitespace-pre-wrap">{recipient.letter}</p>
           ) : (
-            <p className="mt-2 text-sm text-[var(--s-muted)]">{recipient.name} n&apos;a pas encore écrit sa lettre. Tu recevras un mail dès qu&apos;elle arrivera.</p>
+            <p className="mt-2 text-sm text-[var(--s-muted)]">
+              {closed ? `${recipient.name} n'a pas écrit de lettre cette année.` : `${recipient.name} n'a pas encore écrit sa lettre. Tu recevras un mail dès qu'elle arrivera.`}
+            </p>
           )}
         </section>
       )}
@@ -120,7 +128,7 @@ export function MyPage({ token, initialView }: { token: string; initialView: MeV
         </p>
       )}
 
-      <p className="text-center text-xs text-[var(--s-muted)]">Une question sur l&apos;organisation ? Demande à {view.organizer}.</p>
+      <p className="santa-note mx-auto w-fit text-center text-xs text-[var(--s-muted)]">Une question sur l&apos;organisation ? Demande à {view.organizer}.</p>
     </div>
   );
 }
@@ -155,7 +163,7 @@ function Gift({ view, error, onOpen }: { view: MeView; error: string; onOpen: ()
       <button type="button" onClick={open} disabled={opening} className="santa-btn santa-ledge mt-8 min-h-14 px-8 text-lg">
         {opening ? "Ça s'ouvre…" : "🎁 Ouvrir mon cadeau"}
       </button>
-      <p className="mt-3 text-xs text-[var(--s-muted)]">Assure-toi que personne ne regarde ton écran.</p>
+      <p className="santa-note mt-3 text-xs text-[var(--s-muted)]">Assure-toi que personne ne regarde ton écran.</p>
       {error && (
         <p role="alert" className="mt-3 text-sm text-[var(--s-red)]">
           {error}

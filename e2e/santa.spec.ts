@@ -75,8 +75,13 @@ test("secret santa: setup, exclusion, launch, gift, unmask, archive, next year",
   await page.getByRole("button", { name: "📦 Archiver" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Archiver", exact: true }).click();
   await expect(page).toHaveURL(/\/santa\/[A-Z0-9]{6}\/archive$/);
-  await page.getByRole("button", { name: "🎭 Démasquer le tirage" }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: "Alice a offert à" })).toContainText(drawn);
+  // We land here from a redirect: on a cold build the button can show before it answers to clicks.
+  const unmaskDraw = page.getByRole("button", { name: "🎭 Démasquer le tirage" });
+  const aliceGave = page.getByRole("listitem").filter({ hasText: "Alice a offert à" });
+  await expect(async () => {
+    if (await unmaskDraw.isVisible()) await unmaskDraw.click({ timeout: 2_000 });
+    await expect(aliceGave).toContainText(drawn, { timeout: 3_000 });
+  }).toPass({ timeout: 30_000 });
 
   await page.getByRole("button", { name: "🎄 Refaire pour l'année suivante" }).click();
   await expect(page.getByRole("heading", { name: "Noël 2027" })).toBeVisible();
