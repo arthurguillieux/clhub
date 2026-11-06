@@ -184,9 +184,11 @@ export function WinterSnow() {
         redraw = true;
       }
 
+      const bare = ledges.size === 0;
       const seen = new Set<Element>();
       for (const el of page.querySelectorAll(LEDGES)) {
-        if (el.closest("[role='dialog']")) continue;
+        // Panels still coming in have no snow yet: it would hang in the air, a step behind them.
+        if (el.closest("[role='dialog'], .santa-arrive")) continue;
         const r = el.getBoundingClientRect();
         if (r.width < 24) continue;
         seen.add(el);
@@ -211,6 +213,7 @@ export function WinterSnow() {
         redraw = true;
       }
       if (redraw) paintAllPiles();
+      if (bare && ledges.size > 0 && !still) pilesCanvas.animate({ opacity: [0, 1] }, 900);
 
       const barTop = bar()?.getBoundingClientRect().top;
       floor = barTop ?? height;

@@ -8,6 +8,12 @@ import { santaMeAction } from "../../actions";
 const longDate = (date: string) =>
   new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T00:00:00Z`));
 
+/** How long the name has the screen to itself once the gift opens, before the rest of the page comes in. */
+const NAME_ALONE_MS = 3000;
+
+/** How long the rest takes to come in: `.santa-arrive` in globals.css. */
+const ARRIVING_MS = 800;
+
 /** The big reveal, sized on the longest word: a word can't wrap, so it has to fit the width of a small phone. */
 function nameSize(name: string): string {
   const longest = Math.max(...name.split(/[\s-]/).map((word) => word.length));
@@ -17,7 +23,7 @@ function nameSize(name: string): string {
 export function MyPage({ token, initialView }: { token: string; initialView: MeView }) {
   const [view, setView] = useState(initialView);
   const [error, setError] = useState("");
-  const [justOpened, setJustOpened] = useState(false);
+  const [reveal, setReveal] = useState<"name" | "arriving" | null>(null);
   const closed = view.archived;
 
   async function send(action: Record<string, unknown>): Promise<boolean> {
@@ -52,7 +58,10 @@ export function MyPage({ token, initialView }: { token: string; initialView: MeV
         view={view}
         error={error}
         onOpen={async () => {
-          if (await send({ type: "reveal" })) setJustOpened(true);
+          if (!(await send({ type: "reveal" }))) return;
+          setReveal("name");
+          setTimeout(() => setReveal("arriving"), NAME_ALONE_MS);
+          setTimeout(() => setReveal(null), NAME_ALONE_MS + ARRIVING_MS);
         }}
       />
     );
@@ -61,74 +70,78 @@ export function MyPage({ token, initialView }: { token: string; initialView: MeV
   const recipient = view.recipient;
   return (
     <div className="flex flex-col gap-5">
-      <header className="relative mt-6 text-center">
-        {justOpened && <span aria-hidden="true" className="santa-burst pointer-events-none absolute top-1/2 left-1/2 -mt-16 -ml-16 h-32 w-32 rounded-full" />}
+      <header className={`relative text-center transition-[margin-top] duration-700 ease-out motion-reduce:transition-none ${reveal === "name" ? "mt-[18dvh]" : "mt-6"}`}>
+        {reveal === "name" && <span aria-hidden="true" className="santa-burst pointer-events-none absolute top-1/2 left-1/2 -mt-16 -ml-16 h-32 w-32 rounded-full" />}
         <p className="santa-label">{view.title}</p>
         <p className="mt-3 text-[var(--s-muted)]">{view.name}, tu offres ton cadeau à</p>
-        <h1 className={`santa-title mt-1 ${nameSize(recipient?.name ?? "")} ${justOpened ? "santa-name" : ""}`} style={{ color: "var(--s-green)" }}>
+        <h1 className={`santa-title mt-1 ${nameSize(recipient?.name ?? "")} ${reveal === "name" ? "santa-name" : ""}`} style={{ color: "var(--s-green)" }}>
           {recipient?.name ?? "…"}
         </h1>
         <p className="mt-2 text-sm text-[var(--s-muted)]">Chut. Ça reste entre toi et le Père Noël.</p>
       </header>
 
-      {closed && <p className="santa-panel p-3 text-center text-sm text-[var(--s-gold)]">Ce Secret Santa est terminé : cette page est gardée en souvenir.</p>}
+      {reveal !== "name" && (
+        <div className={`flex flex-col gap-5 ${reveal === "arriving" ? "santa-arrive" : ""}`}>
+          {closed && <p className="santa-panel p-3 text-center text-sm text-[var(--s-gold)]">Ce Secret Santa est terminé : cette page est gardée en souvenir.</p>}
 
-      {(view.budget || view.exchangeDate || view.message) && (
-        <section className="santa-panel p-4">
-          <p className="santa-label">Le mot de l&apos;organisation</p>
-          {view.message && <p className="mt-2 whitespace-pre-wrap">{view.message}</p>}
-          <p className="mt-2 text-sm text-[var(--s-gold)]">
-            {view.budget && <>Budget : {view.budget}</>}
-            {view.budget && view.exchangeDate && " · "}
-            {view.exchangeDate && <>Échange le {longDate(view.exchangeDate)}</>}
-          </p>
-        </section>
-      )}
+          {(view.budget || view.exchangeDate || view.message) && (
+            <section className="santa-panel p-4">
+              <p className="santa-label">Le mot de l&apos;organisation</p>
+              {view.message && <p className="mt-2 whitespace-pre-wrap">{view.message}</p>}
+              <p className="mt-2 text-sm text-[var(--s-gold)]">
+                {view.budget && <>Budget : {view.budget}</>}
+                {view.budget && view.exchangeDate && " · "}
+                {view.exchangeDate && <>Échange le {longDate(view.exchangeDate)}</>}
+              </p>
+            </section>
+          )}
 
-      {recipient && (
-        <section className="santa-panel p-4">
-          <p className="santa-label">La lettre {de(recipient.name)} au Père Noël</p>
-          {recipient.letter ? (
-            <p className="mt-2 whitespace-pre-wrap">{recipient.letter}</p>
-          ) : (
-            <p className="mt-2 text-sm text-[var(--s-muted)]">
-              {closed ? `${recipient.name} n'a pas écrit de lettre cette année.` : `${recipient.name} n'a pas encore écrit sa lettre. Tu recevras un mail dès qu'elle arrivera.`}
+          {recipient && (
+            <section className="santa-panel p-4">
+              <p className="santa-label">La lettre {de(recipient.name)} au Père Noël</p>
+              {recipient.letter ? (
+                <p className="mt-2 whitespace-pre-wrap">{recipient.letter}</p>
+              ) : (
+                <p className="mt-2 text-sm text-[var(--s-muted)]">
+                  {closed ? `${recipient.name} n'a pas écrit de lettre cette année.` : `${recipient.name} n'a pas encore écrit sa lettre. Tu recevras un mail dès qu'elle arrivera.`}
+                </p>
+              )}
+            </section>
+          )}
+
+          {recipient && (
+            <AskSection
+              name={recipient.name}
+              asked={view.asked}
+              closed={closed}
+              onAsk={(question) => send({ type: "ask", question })}
+            />
+          )}
+
+          <hr className="border-[var(--s-line)]" />
+
+          <Letter letter={view.letter} closed={closed} onSave={(letter) => send({ type: "letter", letter })} />
+
+          {view.toAnswer.length > 0 && (
+            <section className="santa-panel p-4">
+              <p className="santa-label">Ton Père Noël secret te demande</p>
+              <ul className="mt-2 flex flex-col gap-4">
+                {view.toAnswer.map((q) => (
+                  <Answer key={q.id} q={q} closed={closed} onAnswer={(answer) => send({ type: "answer", id: q.id, answer })} />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {error && (
+            <p role="alert" className="text-center text-sm text-[var(--s-red)]">
+              {error}
             </p>
           )}
-        </section>
+
+          <p className="santa-note mx-auto w-fit text-center text-xs text-[var(--s-muted)]">Une question sur l&apos;organisation ? Demande à {view.organizer}.</p>
+        </div>
       )}
-
-      {recipient && (
-        <AskSection
-          name={recipient.name}
-          asked={view.asked}
-          closed={closed}
-          onAsk={(question) => send({ type: "ask", question })}
-        />
-      )}
-
-      <hr className="border-[var(--s-line)]" />
-
-      <Letter letter={view.letter} closed={closed} onSave={(letter) => send({ type: "letter", letter })} />
-
-      {view.toAnswer.length > 0 && (
-        <section className="santa-panel p-4">
-          <p className="santa-label">Ton Père Noël secret te demande</p>
-          <ul className="mt-2 flex flex-col gap-4">
-            {view.toAnswer.map((q) => (
-              <Answer key={q.id} q={q} closed={closed} onAnswer={(answer) => send({ type: "answer", id: q.id, answer })} />
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {error && (
-        <p role="alert" className="text-center text-sm text-[var(--s-red)]">
-          {error}
-        </p>
-      )}
-
-      <p className="santa-note mx-auto w-fit text-center text-xs text-[var(--s-muted)]">Une question sur l&apos;organisation ? Demande à {view.organizer}.</p>
     </div>
   );
 }
