@@ -95,7 +95,14 @@ export function OrgPanel({
         </p>
       )}
 
-      <Settings view={view} busy={!!busy} onSave={(s) => send({ type: "settings", ...s })} onTheme={(theme) => void send({ type: "theme", theme })} />
+      <Settings
+        view={view}
+        busy={!!busy}
+        isCreator={isCreator}
+        onSave={(s) => send({ type: "settings", ...s })}
+        onTheme={(theme) => void send({ type: "theme", theme })}
+        onPassword={(password) => send({ type: "cohostPassword", password })}
+      />
 
       <Participants
         view={view}
@@ -125,7 +132,6 @@ export function OrgPanel({
           busy={!!busy}
           onAdd={(memberId) => send({ type: "addCohost", memberId })}
           onRemove={(memberId) => send({ type: "removeCohost", memberId })}
-          onPassword={(password) => send({ type: "cohostPassword", password })}
         />
       )}
 
@@ -236,13 +242,17 @@ export function OrgPanel({
 function Settings({
   view,
   busy,
+  isCreator,
   onSave,
   onTheme,
+  onPassword,
 }: {
   view: OrgView;
   busy: boolean;
+  isCreator: boolean;
   onSave: (s: { title: string; budget: string; exchangeDate: string | null; message: string }) => Promise<boolean>;
   onTheme: (theme: SantaTheme) => void;
+  onPassword: (password: string | null) => Promise<boolean>;
 }) {
   const [title, setTitle] = useState(view.title);
   const [budget, setBudget] = useState(view.budget);
@@ -300,8 +310,50 @@ function Settings({
             ))}
           </div>
         </div>
+        {isCreator && <Access view={view} busy={busy} onPassword={onPassword} />}
       </div>
     </details>
+  );
+}
+
+/** Who gets into this page. It's closed from the start: the password lets someone in, it doesn't keep anyone out. */
+function Access({ view, busy, onPassword }: { view: OrgView; busy: boolean; onPassword: (password: string | null) => Promise<boolean> }) {
+  const [password, setPassword] = useState("");
+  return (
+    <div className="border-t border-[var(--s-line)] pt-3">
+      <p className="text-sm font-semibold">🔒 Accès à cette page</p>
+      <p className="mt-1 text-sm text-[var(--s-muted)]">
+        {view.hasCohostPassword
+          ? `Mot de passe défini. Un membre qui a le code ${view.code} et ce mot de passe peut co-organiser (Jeux › Secret Santa › Co-organiser un Secret Santa). Personne d'autre n'entre ici.`
+          : "Déjà fermée : seuls toi et tes co-organisateurs l'ouvrent, aucun autre membre du club, même administrateur. Un mot de passe sert seulement à laisser entrer quelqu'un sans l'ajouter toi-même."}
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          maxLength={100}
+          autoComplete="off"
+          aria-label="Nouveau mot de passe de co-organisation"
+          placeholder={view.hasCohostPassword ? "Nouveau mot de passe" : "Mot de passe (4 caractères au moins)"}
+          className="santa-field min-h-11 min-w-0 flex-1 px-3"
+        />
+        <button
+          type="button"
+          className="santa-btn-ghost min-h-11 px-3 text-sm"
+          disabled={busy || password.trim().length < 4}
+          onClick={async () => {
+            if (await onPassword(password)) setPassword("");
+          }}
+        >
+          {view.hasCohostPassword ? "Changer" : "Définir"}
+        </button>
+      </div>
+      {view.hasCohostPassword && (
+        <button type="button" className="mt-2 -mb-2 py-2 text-xs text-[var(--s-muted)] underline" disabled={busy} onClick={() => void onPassword(null)}>
+          Retirer le mot de passe
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -570,17 +622,14 @@ function Cohosts({
   busy,
   onAdd,
   onRemove,
-  onPassword,
 }: {
   view: OrgView;
   members: { id: string; name: string }[];
   busy: boolean;
   onAdd: (memberId: string) => Promise<boolean>;
   onRemove: (memberId: string) => void;
-  onPassword: (password: string | null) => Promise<boolean>;
 }) {
   const [choice, setChoice] = useState("");
-  const [password, setPassword] = useState("");
   const candidates = members.filter((m) => !view.cohosts.some((c) => c.memberId === m.id));
   return (
     <details className="santa-panel p-4">
@@ -620,40 +669,6 @@ function Cohosts({
           </button>
         </div>
       )}
-      <div className="mt-4 border-t border-[var(--s-line)] pt-3">
-        <p className="text-sm font-semibold">Mot de passe de co-organisation</p>
-        <p className="mt-1 text-sm text-[var(--s-muted)]">
-          {view.hasCohostPassword
-            ? `Défini. Un membre qui a le code ${view.code} et ce mot de passe peut co-organiser (Jeux › Secret Santa › Co-organiser un Secret Santa).`
-            : "Aucun. Avec un mot de passe, un membre qui le connaît peut co-organiser sans que tu l'ajoutes toi-même. Personne d'autre n'entre ici."}
-        </p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            maxLength={100}
-            autoComplete="off"
-            aria-label="Nouveau mot de passe de co-organisation"
-            placeholder={view.hasCohostPassword ? "Nouveau mot de passe" : "Mot de passe (4 caractères au moins)"}
-            className="santa-field min-h-11 min-w-0 flex-1 px-3"
-          />
-          <button
-            type="button"
-            className="santa-btn-ghost min-h-11 px-3 text-sm"
-            disabled={busy || password.trim().length < 4}
-            onClick={async () => {
-              if (await onPassword(password)) setPassword("");
-            }}
-          >
-            {view.hasCohostPassword ? "Changer" : "Définir"}
-          </button>
-        </div>
-        {view.hasCohostPassword && (
-          <button type="button" className="mt-2 -mb-2 py-2 text-xs text-[var(--s-muted)] underline" disabled={busy} onClick={() => void onPassword(null)}>
-            Retirer le mot de passe
-          </button>
-        )}
-      </div>
     </details>
   );
 }

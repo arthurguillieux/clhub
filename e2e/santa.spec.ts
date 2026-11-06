@@ -97,12 +97,12 @@ test("secret santa: the co-organization password", async ({ page }) => {
   await page.getByRole("button", { name: "Organiser un Secret Santa" }).click();
   await expect(page).toHaveURL(/\/santa\/[A-Z0-9]{6}\/panneau$/);
 
-  await page.getByText("👥 Co-organisateurs").click();
+  await expect(page.getByText("Déjà fermée : seuls toi et tes co-organisateurs")).toBeVisible();
   await page.getByLabel("Nouveau mot de passe de co-organisation").fill("sapin");
   await page.getByRole("button", { name: "Définir" }).click();
-  await expect(page.getByText("Défini. Un membre qui a le code")).toBeVisible();
+  await expect(page.getByText("Mot de passe défini. Un membre qui a le code")).toBeVisible();
   await page.getByRole("button", { name: "Retirer le mot de passe" }).click();
-  await expect(page.getByText("Aucun. Avec un mot de passe")).toBeVisible();
+  await expect(page.getByText("Déjà fermée : seuls toi et tes co-organisateurs")).toBeVisible();
 
   await page.goto("/jeux/santa");
   await page.getByLabel("Code").fill("ZZZZZZ");
