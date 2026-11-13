@@ -44,6 +44,13 @@ test("secret santa: setup, exclusion, launch, gift, unmask, archive, next year",
   await page.getByRole("dialog").getByRole("button", { name: "Tirer au sort et envoyer les mails" }).click();
   await expect(page.getByText("Tirage effectué")).toBeVisible();
 
+  // The meals can be turned on after the draw: everyone finds them on their page.
+  await page.getByText("⚙️ Réglages").click();
+  await page.getByLabel("Premier jour").fill("2026-12-23");
+  await page.getByLabel("Dernier jour").fill("2026-12-24");
+  await page.getByRole("button", { name: "Activer les repas sur ces dates" }).click();
+  await expect(page.getByRole("link", { name: "🍽️ Ouvrir les repas" })).toBeVisible();
+
   // Alice has no account: her mail's link is all she needs.
   const link = await waitForLoggedUrl("Secret Santa link for alice@example.com:");
   const guestContext = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
@@ -59,6 +66,16 @@ test("secret santa: setup, exclusion, launch, gift, unmask, archive, next year",
   await guest.getByLabel("Ta lettre au Père Noël").fill("Cher Père Noël, un bon livre.");
   await guest.getByRole("button", { name: "Envoyer ma lettre" }).click();
   await expect(guest.getByText("Bien reçue au pôle Nord")).toBeVisible();
+
+  await guest.getByRole("link", { name: /Qu'est-ce qu'on mange/ }).click();
+  await guest.getByRole("button", { name: "＋ J'apporte un plat" }).first().click();
+  await guest.getByLabel("Le plat").fill("Bûche aux marrons");
+  await guest.getByLabel("Nombre de parts").fill("8");
+  await guest.getByRole("button", { name: "Ajouter le plat" }).click();
+  await expect(guest.getByText("Bûche aux marrons")).toBeVisible();
+  await guest.getByRole("tab", { name: "Qui est là" }).click();
+  await guest.locator("td button").first().click();
+  await expect(guest.locator("td button").first()).toHaveText("✓");
   await guestContext.close();
 
   // The organizer sees who opened their gift, not who drew whom — until they unmask it.

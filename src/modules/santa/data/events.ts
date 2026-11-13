@@ -19,6 +19,7 @@ import { hashPassword, verifyPassword } from "@/core/auth/sharedPassword";
 import { asTheme, type SantaTheme } from "../themes";
 import { MIN_PARTICIPANTS, draw, forbiddenPairs, nextYearTitle, type DrawResult, type Pair } from "../domain/draw";
 import type { MeView, OrgView, SantaStatus } from "../views";
+import { getMealsSettings } from "./meals";
 
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
@@ -48,7 +49,7 @@ export async function isCohost(event: SantaEvent, memberId: string): Promise<boo
   return !!row;
 }
 
-const loadParticipants = (eventId: string) => db.select().from(santaParticipant).where(eq(santaParticipant.eventId, eventId)).orderBy(asc(santaParticipant.createdAt));
+export const loadParticipants = (eventId: string) => db.select().from(santaParticipant).where(eq(santaParticipant.eventId, eventId)).orderBy(asc(santaParticipant.createdAt));
 
 /** What a member sees on Jeux › Secret Santa: what they organize, and what they take part in. */
 export async function listForMember(memberId: string) {
@@ -156,6 +157,7 @@ export async function getOrgView(event: SantaEvent): Promise<OrgView> {
     unmasks: unmasks.map((u) => ({ who: u.who, whom: nameOf.get(u.participantId) ?? "?", at: u.at.toISOString() })),
     blocker: event.status === "preparation" ? blockerOf(participants, rules) : null,
     previousTitle: previous?.title ?? null,
+    meals: await getMealsSettings(event),
   };
 }
 
@@ -458,7 +460,7 @@ export async function deleteEvent(event: SantaEvent): Promise<void> {
 
 // ───────── A participant's personal page ─────────
 
-async function findByToken(token: string) {
+export async function findByToken(token: string) {
   const [row] = await db
     .select({ me: santaParticipant, event: santaEvent })
     .from(santaParticipant)
@@ -498,6 +500,7 @@ export async function getMeView(token: string): Promise<MeView | null> {
     recipient: recipient ? { name: recipient.name, letter: recipient.letter } : null,
     asked: questions.filter((q) => q.askerId === me.id).map(view),
     toAnswer: questions.filter((q) => q.targetId === me.id).map(view),
+    meals: event.mealsEnabled,
   };
 }
 

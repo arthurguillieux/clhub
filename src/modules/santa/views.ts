@@ -1,3 +1,4 @@
+import type { MealKind, Presence } from "./domain/meals";
 import type { SantaTheme } from "./themes";
 
 /** What each kind of person gets to see of a Secret Santa. Organizers never get who drew whom here. */
@@ -35,6 +36,30 @@ export interface OrgView {
   blocker: string | null;
   /** Last year's event, whose draw this one avoids. */
   previousTitle: string | null;
+  meals: MealsSettingsView;
+}
+
+/** The organizers' side of « 🍽️ Les repas »: on or off, the days, and each meal of the range. */
+export interface MealsSettingsView {
+  enabled: boolean;
+  from: string | null;
+  to: string | null;
+  note: string;
+  slots: { id: string; day: string; meal: MealKind; off: boolean }[];
+}
+
+/** The meals page, the same for everyone; `me` is who the viewer is among the participants, if anyone. */
+export interface MealsView {
+  title: string;
+  theme: SantaTheme;
+  archived: boolean;
+  note: string;
+  days: { day: string; meals: { id: string; meal: MealKind }[] }[];
+  people: { id: string; name: string; diet: string; guests: number; presence: Record<string, Presence> }[];
+  dishes: { id: string; mealId: string; who: string; withId: string | null; what: string; category: string; parts: number | null; veg: boolean; note: string; idea: boolean }[];
+  drinks: { id: string; who: string; type: string; quantity: number; unit: string; what: string }[];
+  me: string | null;
+  organizer: boolean;
 }
 
 export interface QuestionView {
@@ -61,4 +86,6 @@ export interface MeView {
   asked: QuestionView[];
   /** What their own Santa asks them. */
   toAnswer: QuestionView[];
+  /** The organizers turned on « 🍽️ Les repas ». */
+  meals: boolean;
 }

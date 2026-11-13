@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { SANTA_THEMES, type SantaTheme } from "@/modules/santa/themes";
 import type { OrgParticipant, OrgView } from "@/modules/santa/views";
 import { de } from "@/modules/santa/words";
@@ -102,6 +102,8 @@ export function OrgPanel({
         onSave={(s) => send({ type: "settings", ...s })}
         onTheme={(theme) => void send({ type: "theme", theme })}
         onPassword={(password) => send({ type: "cohostPassword", password })}
+        onMeals={(meals) => send({ type: "mealsSettings", ...meals })}
+        onToggleMeal={(id) => void send({ type: "toggleMeal", id })}
       />
 
       <Participants
@@ -266,6 +268,8 @@ function Settings({
   onSave,
   onTheme,
   onPassword,
+  onMeals,
+  onToggleMeal,
 }: {
   view: OrgView;
   busy: boolean;
@@ -273,6 +277,8 @@ function Settings({
   onSave: (s: { title: string; budget: string; exchangeDate: string | null; message: string }) => Promise<boolean>;
   onTheme: (theme: SantaTheme) => void;
   onPassword: (password: string | null) => Promise<boolean>;
+  onMeals: (meals: { enabled: boolean; from: string | null; to: string | null; note: string }) => Promise<boolean>;
+  onToggleMeal: (id: string) => void;
 }) {
   const [title, setTitle] = useState(view.title);
   const [budget, setBudget] = useState(view.budget);
@@ -330,9 +336,115 @@ function Settings({
             ))}
           </div>
         </div>
+        <Meals view={view} busy={busy} onMeals={onMeals} onToggleMeal={onToggleMeal} />
         {isCreator && <Access view={view} busy={busy} onPassword={onPassword} />}
       </div>
     </details>
+  );
+}
+
+const mealDay = new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
+
+/** « 🍽️ Les repas »: off by default, can be turned on even after the draw; everyone then finds it on their page. */
+function Meals({
+  view,
+  busy,
+  onMeals,
+  onToggleMeal,
+}: {
+  view: OrgView;
+  busy: boolean;
+  onMeals: (meals: { enabled: boolean; from: string | null; to: string | null; note: string }) => Promise<boolean>;
+  onToggleMeal: (id: string) => void;
+}) {
+  const m = view.meals;
+  const [from, setFrom] = useState(m.from ?? "");
+  const [to, setTo] = useState(m.to ?? "");
+  const [note, setNote] = useState(m.note);
+  const changed = from !== (m.from ?? "") || to !== (m.to ?? "") || note !== m.note;
+  const days = [...new Set(m.slots.map((s) => s.day))];
+  return (
+    <div className="border-t border-[var(--s-line)] pt-3">
+      <div className="flex items-start justify-between gap-3">
+        <span className="text-sm">
+          <b>🍽️ Les repas</b>
+          <br />
+          <span className="text-[var(--s-muted)]">Pour organiser qui apporte quoi quand vous êtes réunis plusieurs jours. Tout le monde le retrouve sur sa page, même après le tirage.</span>
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={m.enabled}
+          aria-label="Activer les repas"
+          disabled={busy || view.archived}
+          onClick={() => void onMeals({ enabled: !m.enabled, from: m.from ?? (from || null), to: m.to ?? (to || null), note: m.note })}
+          className={`relative h-8 w-14 shrink-0 rounded-full transition-colors motion-reduce:transition-none ${m.enabled ? "bg-[var(--s-green)]" : "bg-[var(--s-line)]"}`}
+        >
+          <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-[left] motion-reduce:transition-none ${m.enabled ? "left-7" : "left-1"}`} />
+        </button>
+      </div>
+      {(m.enabled || !m.from) && (
+        <div className="mt-3 flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-sm text-[var(--s-muted)]">
+              Premier jour
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="santa-field mt-1 block min-h-11 w-full px-3" />
+            </label>
+            <label className="text-sm text-[var(--s-muted)]">
+              Dernier jour
+              <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className="santa-field mt-1 block min-h-11 w-full px-3" />
+            </label>
+          </div>
+          <label className="text-sm text-[var(--s-muted)]">
+            Un mot pour tout le monde
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={500}
+              rows={2}
+              placeholder="Celui ou celle qui prépare gère les courses, la cuisine et la vaisselle."
+              className="santa-field mt-1 block w-full px-3 py-2"
+            />
+          </label>
+          {changed && (
+            <button type="button" className="santa-btn min-h-11 self-start px-4 text-sm" disabled={busy || !from || !to} onClick={() => void onMeals({ enabled: m.enabled || !m.from, from: from || null, to: to || null, note })}>
+              {m.from ? "Enregistrer les repas" : "Activer les repas sur ces dates"}
+            </button>
+          )}
+          {m.enabled && days.length > 0 && (
+            <div>
+              <p className="text-sm text-[var(--s-muted)]">Les repas à prévoir (touche pour en retirer un)</p>
+              <div className="mt-2 grid grid-cols-[1fr_auto_auto] items-center gap-x-2 gap-y-1.5 text-sm">
+                {days.map((day) => (
+                  <Fragment key={day}>
+                    <span className="first-letter:uppercase">{mealDay.format(new Date(`${day}T00:00:00Z`))}</span>
+                    {m.slots
+                      .filter((s) => s.day === day)
+                      .map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          aria-pressed={!s.off}
+                          disabled={busy}
+                          onClick={() => onToggleMeal(s.id)}
+                          className={`min-h-9 rounded-full border px-3 text-xs capitalize ${s.off ? "border-[var(--s-line)] text-[var(--s-muted)] line-through" : "border-[var(--s-green)] bg-[var(--s-green)] text-[var(--s-surface)]"}`}
+                        >
+                          {s.meal}
+                        </button>
+                      ))}
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+          )}
+          {m.enabled && (
+            <Link href={`/santa/${view.code}/repas`} className="santa-btn-ghost flex min-h-11 items-center justify-center px-4 text-sm">
+              🍽️ Ouvrir les repas
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

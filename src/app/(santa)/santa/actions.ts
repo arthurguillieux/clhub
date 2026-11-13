@@ -35,6 +35,7 @@ import {
   updateSettings,
   updateTheme,
 } from "@/modules/santa/data/events";
+import { toggleMeal, updateMealsSettings } from "@/modules/santa/data/meals";
 import { checkOrganizer } from "@/modules/santa/host";
 import { SANTA_THEME_IDS } from "@/modules/santa/themes";
 import type { MeView, OrgView } from "@/modules/santa/views";
@@ -92,6 +93,20 @@ const orgActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("resend"), id }),
   z.object({ type: z.literal("backToPreparation") }),
   z.object({ type: z.literal("archive"), archived: z.boolean() }),
+  z.object({
+    type: z.literal("mealsSettings"),
+    enabled: z.boolean(),
+    from: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .nullable(),
+    to: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .nullable(),
+    note: z.string().max(500, "Le mot est trop long."),
+  }),
+  z.object({ type: z.literal("toggleMeal"), id }),
 ]);
 
 export type OrgResult = { ok: true; view: OrgView } | { ok: false; error: string };
@@ -139,6 +154,10 @@ export async function santaOrgAction(code: string, action: unknown): Promise<Org
         return backToPreparation(event);
       case "archive":
         return setArchived(event, a.archived);
+      case "mealsSettings":
+        return updateMealsSettings(event, a);
+      case "toggleMeal":
+        return toggleMeal(event, a.id);
     }
   })();
   if (!result.ok) return result;

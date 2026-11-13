@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { MeView, QuestionView } from "@/modules/santa/views";
 import { de } from "@/modules/santa/words";
@@ -13,6 +14,16 @@ const NAME_ALONE_MS = 3000;
 
 /** How long the rest takes to come in: `.santa-arrive` in globals.css. */
 const ARRIVING_MS = 800;
+
+/** The way into « 🍽️ Les repas », when the organizers turned them on. */
+function MealsLink({ token }: { token: string }) {
+  return (
+    <Link href={`/santa/moi/${token}/repas`} className="santa-panel block p-4 text-left">
+      <span className="santa-title block text-xl">🍽️ Qu&apos;est-ce qu&apos;on mange ?</span>
+      <span className="mt-1 block text-sm text-[var(--s-muted)]">Dis quand tu es là, ce que tu apportes, et vois ce que les autres ont prévu.</span>
+    </Link>
+  );
+}
 
 /** The big reveal, sized on the longest word: a word can't wrap, so it has to fit the width of a small phone. */
 function nameSize(name: string): string {
@@ -48,6 +59,11 @@ export function MyPage({ token, initialView }: { token: string; initialView: MeV
         <p className="santa-label">{view.title}</p>
         <h1 className="santa-title mt-2 text-2xl">Le Père Noël prépare son tirage</h1>
         <p className="mt-3 text-sm text-[var(--s-muted)]">Les derniers détails se règlent. Tu recevras un nouveau mail dès que ce sera prêt, {view.name} !</p>
+        {view.meals && (
+          <div className="mt-5">
+            <MealsLink token={token} />
+          </div>
+        )}
       </div>
     );
   }
@@ -83,6 +99,8 @@ export function MyPage({ token, initialView }: { token: string; initialView: MeV
       {reveal !== "name" && (
         <div className={`flex flex-col gap-5 ${reveal === "arriving" ? "santa-arrive" : ""}`}>
           {closed && <p className="santa-panel p-3 text-center text-sm text-[var(--s-gold)]">Ce Secret Santa est terminé : cette page est gardée en souvenir.</p>}
+
+          {view.meals && <MealsLink token={token} />}
 
           {(view.budget || view.exchangeDate || view.message) && (
             <section className="santa-panel p-4">
