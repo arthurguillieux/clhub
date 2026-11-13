@@ -5,7 +5,8 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { Button } from "@/core/ui/components/Button";
-import { listGamesForMember } from "@/modules/killer/data/games";
+import { listGamesForMember, listOtherGames } from "@/modules/killer/data/games";
+import { DEMO_TITLE } from "@/modules/killer/data/demo";
 import { createKillerDemoAction } from "@/app/(killer)/killer/actions";
 import { DeleteGameButton } from "./DeleteGameButton";
 import { CreateGameForm, JoinOrganizationForm } from "./KillerForms";
@@ -23,6 +24,7 @@ export default async function KillerHomePage() {
   if (!session) return null; // guarded by (club)/layout.tsx
 
   const all = await listGamesForMember(session.member.id);
+  const others = await listOtherGames(session.member.id, [DEMO_TITLE, "Test — 12 tributs"]);
   const games = all.filter((g) => !g.archivedAt);
   const archived = all.filter((g) => g.archivedAt).sort((a, b) => b.archivedAt!.getTime() - a.archivedAt!.getTime());
   const day = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "long", year: "numeric" });
@@ -89,6 +91,23 @@ export default async function KillerHomePage() {
           <JoinOrganizationForm />
         </Card>
       </section>
+
+      {others.length > 0 && (
+        <section className="mt-8">
+          <SectionTitle>Ailleurs au CLHUB</SectionTitle>
+          <div className="mt-3 flex flex-col gap-2">
+            {others.map((g) => (
+              <Card key={g.id} className="p-4">
+                <p className="font-display font-bold text-ink">{g.title}</p>
+                <p className="text-xs text-muted">
+                  Organisée par {g.organizer} · {g.players} agent{g.players > 1 ? "s" : ""} ·{" "}
+                  {g.archivedAt || g.status === "ended" ? (g.startedAt ? `jouée le ${day.format(g.startedAt)}` : "terminée") : (STATUS_LABELS[g.status] ?? g.status)}
+                </p>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       {archived.length > 0 && (
         <section className="mt-8">

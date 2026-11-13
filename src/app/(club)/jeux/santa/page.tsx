@@ -4,7 +4,7 @@ import { getSession } from "@/core/auth/session";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
-import { listForMember } from "@/modules/santa/data/events";
+import { listForMember, listOthers } from "@/modules/santa/data/events";
 import { CreateSantaForm, JoinSantaForm } from "./SantaForms";
 
 export const metadata: Metadata = { title: "Secret Santa" };
@@ -14,6 +14,7 @@ export default async function SantaHomePage() {
   if (!session) return null; // guarded by (club)/layout.tsx
 
   const { organized, participating } = await listForMember(session.member.id);
+  const others = await listOthers(session.member.id);
   const current = organized.filter((e) => !e.archivedAt);
   const archived = organized.filter((e) => e.archivedAt);
   const link = "-my-2.5 py-2.5 text-sm font-semibold text-primary hover:underline";
@@ -80,6 +81,23 @@ export default async function SantaHomePage() {
           <JoinSantaForm />
         </Card>
       </section>
+
+      {others.length > 0 && (
+        <section className="mt-8">
+          <SectionTitle>Ailleurs au CLHUB</SectionTitle>
+          <div className="mt-3 flex flex-col gap-2">
+            {others.map((e) => (
+              <Card key={e.id} className="p-4">
+                <p className="font-display font-bold text-ink">{e.title}</p>
+                <p className="text-xs text-muted">
+                  Organisé par {e.organizer} · {e.people} participant{e.people > 1 ? "s" : ""} ·{" "}
+                  {e.archivedAt ? "terminé" : e.status === "launched" ? "tirage effectué" : "en préparation"}
+                </p>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       {archived.length > 0 && (
         <section className="mt-8">

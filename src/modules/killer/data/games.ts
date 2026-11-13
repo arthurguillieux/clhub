@@ -1,5 +1,5 @@
 import { randomBytes, randomInt } from "node:crypto";
-import { and, asc, desc, eq, getTableColumns, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/core/db/client";
 import { killerCohost, killerGame, killerKill, killerPlayer, member, user, type KillerGame } from "@/core/db/schema";
 import {
@@ -84,6 +84,27 @@ export async function listGamesForMember(memberId: string): Promise<(KillerGame 
     .where(or(eq(killerGame.hostMemberId, memberId), inArray(killerGame.id, cohosted)))
     .orderBy(desc(killerGame.createdAt));
   return games.map((g) => ({ ...g, role: g.hostMemberId === memberId ? "host" : "cohost" }));
+}
+
+/** The club's other games, to show it's alive: title, organizer, size and stage. Test games stay out. */
+export async function listOtherGames(memberId: string, testTitles: string[]) {
+  const cohosted = db.select({ gameId: killerCohost.gameId }).from(killerCohost).where(eq(killerCohost.memberId, memberId));
+  return db
+    .select({
+      id: killerGame.id,
+      title: killerGame.title,
+      status: killerGame.status,
+      archivedAt: killerGame.archivedAt,
+      startedAt: killerGame.startedAt,
+      organizer: user.name,
+      players: sql<number>`(select count(*)::int from ${killerPlayer} where ${killerPlayer.gameId} = ${killerGame.id})`,
+    })
+    .from(killerGame)
+    .innerJoin(member, eq(member.id, killerGame.hostMemberId))
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(and(ne(killerGame.hostMemberId, memberId), notInArray(killerGame.id, cohosted), notInArray(killerGame.title, testTitles)))
+    .orderBy(desc(killerGame.createdAt))
+    .limit(30);
 }
 
 export async function isCohost(game: KillerGame, memberId: string): Promise<boolean> {

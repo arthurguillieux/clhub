@@ -5,7 +5,7 @@ import { useState } from "react";
 import { SANTA_THEMES, type SantaTheme } from "@/modules/santa/themes";
 import type { OrgParticipant, OrgView } from "@/modules/santa/views";
 import { de } from "@/modules/santa/words";
-import { deleteSantaAction, santaOrgAction, santaUnmaskAction } from "../../actions";
+import { deleteSantaAction, santaNextYearAction, santaOrgAction, santaUnmaskAction } from "../../actions";
 import { SantaDialog } from "../../SantaDialog";
 
 type Dialog = { title: string; detail?: string; confirmLabel?: string; cancelLabel: string; danger?: boolean; onConfirm?: () => void };
@@ -188,6 +188,26 @@ export function OrgPanel({
           </button>
         </section>
       )}
+
+      <button
+        type="button"
+        className="santa-btn-ghost min-h-12 px-4"
+        disabled={!!busy}
+        onClick={() =>
+          setDialog({
+            title: "Dupliquer ce Secret Santa ?",
+            detail: `Un nouveau Secret Santa est créé, en préparation, avec les mêmes participants, exclusions, réglages et co-organisateurs. ${launched ? "Son tirage évitera les duos de celui-ci, qui ne change pas." : "Celui-ci ne change pas."}`,
+            confirmLabel: "Dupliquer",
+            cancelLabel: "Annuler",
+            onConfirm: () => {
+              setBusy("…");
+              void santaNextYearAction(code);
+            },
+          })
+        }
+      >
+        📄 Dupliquer
+      </button>
 
       {isCreator && (
         <button

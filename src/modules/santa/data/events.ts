@@ -1,5 +1,5 @@
 import { randomBytes, randomInt } from "node:crypto";
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/core/db/client";
 import {
   member,
@@ -65,6 +65,29 @@ export async function listForMember(memberId: string) {
     .where(and(eq(santaParticipant.memberId, memberId), eq(santaEvent.status, "launched"), isNull(santaEvent.archivedAt)))
     .orderBy(desc(santaEvent.launchedAt));
   return { organized: organized.map((e) => ({ ...e, role: e.hostMemberId === memberId ? ("host" as const) : ("cohost" as const) })), participating };
+}
+
+/**
+ * The club's other Secret Santas, to show it's alive: title, organizer, size and stage, nothing
+ * more. No code, no participants, no way in.
+ */
+export async function listOthers(memberId: string) {
+  const cohosted = db.select({ eventId: santaCohost.eventId }).from(santaCohost).where(eq(santaCohost.memberId, memberId));
+  return db
+    .select({
+      id: santaEvent.id,
+      title: santaEvent.title,
+      status: santaEvent.status,
+      archivedAt: santaEvent.archivedAt,
+      organizer: user.name,
+      people: sql<number>`(select count(*)::int from ${santaParticipant} where ${santaParticipant.eventId} = ${santaEvent.id})`,
+    })
+    .from(santaEvent)
+    .innerJoin(member, eq(member.id, santaEvent.hostMemberId))
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(and(ne(santaEvent.hostMemberId, memberId), notInArray(santaEvent.id, cohosted)))
+    .orderBy(desc(santaEvent.createdAt))
+    .limit(30);
 }
 
 /** Why the draw can't run, in plain words; null when it can. */
