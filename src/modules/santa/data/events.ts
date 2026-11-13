@@ -209,9 +209,11 @@ export async function updateGuest(event: SantaEvent, id: string, name: string, e
   const address = email.trim().toLowerCase();
   if (participants.some((p) => p.id !== id && p.email?.toLowerCase() === address)) return fail("Cette adresse participe déjà.");
   if (participants.some((p) => p.id !== id && p.name.trim().toLowerCase() === name.trim().toLowerCase())) return fail(`Il y a déjà un·e ${name.trim()}.`);
+  // A new address hasn't had its mail yet: the panel says so until it's sent again.
+  const addressChanged = participants.find((p) => p.id === id)?.email?.toLowerCase() !== address;
   await db
     .update(santaParticipant)
-    .set({ name: name.trim(), email: address, mailError: null })
+    .set({ name: name.trim(), email: address, mailError: null, ...(addressChanged && { mailSentAt: null }) })
     .where(and(eq(santaParticipant.id, id), eq(santaParticipant.eventId, event.id), isNull(santaParticipant.memberId)));
   return { ok: true };
 }

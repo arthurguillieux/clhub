@@ -375,7 +375,7 @@ function Participants({
   onAddGuest: (name: string, email: string) => Promise<boolean>;
   onUpdateGuest: (id: string, name: string, email: string) => Promise<boolean>;
   onRemove: (id: string) => void;
-  onResend: (id: string) => void;
+  onResend: (id: string) => Promise<boolean>;
   onUnmask: (p: OrgParticipant) => void;
 }) {
   const launched = view.status === "launched";
@@ -474,10 +474,11 @@ function ParticipantRow({
   busy: boolean;
   onUpdate: (id: string, name: string, email: string) => Promise<boolean>;
   onRemove: (id: string) => void;
-  onResend: (id: string) => void;
+  onResend: (id: string) => Promise<boolean>;
   onUnmask: (p: OrgParticipant) => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [resend, setResend] = useState<"sending" | "sent" | null>(null);
   const [name, setName] = useState(p.name);
   const [email, setEmail] = useState(p.email ?? "");
 
@@ -512,7 +513,13 @@ function ParticipantRow({
           {launched && (
             <>
               {" · "}
-              {p.mailError ? <span className="text-[var(--s-red)]">{p.mailError}</span> : p.revealed ? <span className="text-[var(--s-green)]">cadeau ouvert 🎁</span> : p.mailSent ? "mail envoyé" : "mail en attente"}
+              {p.mailError ? (
+                <span className="text-[var(--s-red)]">{p.mailError}</span>
+              ) : resend === "sent" ? (
+                <span role="status" className="text-[var(--s-green)]">
+                  mail renvoyé ✓
+                </span>
+              ) : p.revealed ? <span className="text-[var(--s-green)]">cadeau ouvert 🎁</span> : p.mailSent ? "mail envoyé" : "mail en attente"}
             </>
           )}
         </p>
@@ -525,8 +532,16 @@ function ParticipantRow({
         )}
         {launched ? (
           <>
-            <button type="button" className={link} disabled={busy} onClick={() => onResend(p.id)}>
-              Renvoyer le mail
+            <button
+              type="button"
+              className={link}
+              disabled={busy}
+              onClick={async () => {
+                setResend("sending");
+                setResend((await onResend(p.id)) ? "sent" : null);
+              }}
+            >
+              {resend === "sending" ? "Envoi…" : "Renvoyer le mail"}
             </button>
             <button type="button" className={link} onClick={() => onUnmask(p)}>
               Démasquer
