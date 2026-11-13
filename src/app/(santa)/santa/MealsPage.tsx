@@ -135,7 +135,6 @@ export function MealsPage({ initialView, act, back }: { initialView: MealsView; 
           )}
           {view.days.map(({ day, meals }) => {
             const open = !closed.has(day);
-            const empty = meals.filter((m) => !view.dishes.some((d) => d.mealId === m.id && !d.idea)).length;
             return (
               <section key={day} className="flex flex-col gap-3">
                 <button type="button" aria-expanded={open} onClick={() => toggleDay(day)} className="santa-panel flex items-center justify-between gap-3 px-4 py-3 text-left">
@@ -143,7 +142,6 @@ export function MealsPage({ initialView, act, back }: { initialView: MealsView; 
                     <span className="santa-title block text-lg">{dayLabel(day)}</span>
                     <span className="text-xs text-[var(--s-muted)]">
                       Couverts : {meals.map((m) => `${m.meal} ${headcount(view.people, m.id).sure}`).join(" · ")}
-                      {empty > 0 && <span className="text-[var(--s-red)]"> · {empty} sans plat</span>}
                     </span>
                   </span>
                   <span aria-hidden="true" className={`text-sm text-[var(--s-muted)] transition-transform motion-reduce:transition-none ${open ? "" : "-rotate-90"}`}>
@@ -258,7 +256,7 @@ function MealCard({
           ))}
         </ul>
       ) : (
-        <p className="mt-3 rounded-xl bg-[color-mix(in_srgb,var(--s-red)_10%,transparent)] px-3 py-2 text-sm text-[var(--s-red)]">Rien n&apos;est encore prévu pour ce repas.</p>
+        <p className="mt-3 text-sm text-[var(--s-muted)]">Rien de prévu pour l&apos;instant.</p>
       )}
       {dishes.length > 0 && (
         <div className="mt-2 flex items-center gap-2 text-sm text-[var(--s-muted)]">
