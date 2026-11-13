@@ -16,6 +16,8 @@ const dayLabel = (day: string) => {
 };
 const shortDay = (day: string) => new Date(`${day}T00:00:00Z`).getUTCDate();
 const NEXT: Record<string, Presence | null> = { none: "x", x: "?", "?": null };
+/** Today in France, as the days are written: YYYY-MM-DD. */
+const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date());
 
 const chip = "rounded-full px-2.5 py-0.5 text-xs";
 const dietChip = `${chip} bg-[color-mix(in_srgb,var(--s-gold)_16%,transparent)] text-[var(--s-gold)]`;
@@ -28,7 +30,8 @@ const dietChip = `${chip} bg-[color-mix(in_srgb,var(--s-gold)_16%,transparent)] 
 export function MealsPage({ initialView, act, back }: { initialView: MealsView; act: (action: Record<string, unknown>) => Promise<MealsResult>; back: { href: string; label: string } }) {
   const [view, setView] = useState(initialView);
   const [tab, setTab] = useState<Tab>("repas");
-  const [closed, setClosed] = useState<Set<string>>(new Set());
+  // During the stay, the days already gone start folded: you land on today.
+  const [closed, setClosed] = useState<Set<string>>(() => new Set(initialView.days.map((d) => d.day).filter((d) => d < today())));
   const [adding, setAdding] = useState<{ mealId: string; idea: boolean } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -136,10 +139,19 @@ export function MealsPage({ initialView, act, back }: { initialView: MealsView; 
           {view.days.map(({ day, meals }) => {
             const open = !closed.has(day);
             return (
-              <section key={day} className="flex flex-col gap-3">
-                <button type="button" aria-expanded={open} onClick={() => toggleDay(day)} className="santa-panel flex items-center justify-between gap-3 px-4 py-3 text-left">
+              // One card per day, lunch and dinner inside; while open, its name stays under the tabs as you scroll through it.
+              <section key={day} className="santa-panel mt-2">
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  onClick={() => toggleDay(day)}
+                  className={`flex w-full items-center justify-between gap-3 rounded-[inherit] bg-[var(--s-surface)] px-4 py-3.5 text-left ${open ? "sticky top-[60px] z-[5] rounded-b-none border-b-2 border-[var(--s-line)] shadow-[0_8px_14px_-12px_rgba(23,48,60,0.35)]" : ""}`}
+                >
                   <span>
-                    <span className="santa-title block text-lg">{dayLabel(day)}</span>
+                    <span className="santa-title block text-xl">
+                      {dayLabel(day)}
+                      {day === today() && <span className="ml-2 inline-block rounded-full bg-[var(--s-red)] px-2 py-0.5 align-[3px] font-sans text-[11px] font-bold tracking-wider text-[var(--s-surface)] uppercase">Aujourd&apos;hui</span>}
+                    </span>
                     <span className="text-xs text-[var(--s-muted)]">
                       Couverts : {meals.map((m) => `${m.meal} ${headcount(view.people, m.id).sure}`).join(" · ")}
                     </span>
@@ -207,9 +219,11 @@ function MealCard({
   const subjectBrings = dishes.some((d) => d.who === subject || d.withId === subject);
 
   return (
-    <article className="santa-panel p-4">
+    <div className="border-t border-dashed border-[var(--s-line)] p-4 first-of-type:border-t-0">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="font-bold capitalize">{meal.meal}</h3>
+        <h3 className="font-bold capitalize">
+          {meal.meal === "midi" ? "☀️" : "🌙"} {meal.meal}
+        </h3>
         <span className="font-bold whitespace-nowrap text-[var(--s-green)] tabular-nums">
           {sure} couvert{sure > 1 ? "s" : ""}
           {maybe > 0 && <span className="font-normal text-[var(--s-muted)]"> + {maybe} peut-être</span>}
@@ -303,7 +317,7 @@ function MealCard({
             </button>
           </div>
         ))}
-    </article>
+    </div>
   );
 }
 
