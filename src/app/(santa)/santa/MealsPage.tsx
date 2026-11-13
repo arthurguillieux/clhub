@@ -517,7 +517,8 @@ function Drinks({
   const [unit, setUnit] = useState<string>(DRINK_UNITS[0]);
   const [what, setWhat] = useState("");
   const totals = drinkTotals(view.drinks);
-  const listed = view.organizer ? view.drinks : view.drinks.filter((d) => d.who === view.me);
+  // Who brings what, person by person, in the order of the list.
+  const byPerson = view.people.map((p) => ({ person: p, drinks: view.drinks.filter((d) => d.who === p.id) })).filter((g) => g.drinks.length > 0);
 
   return (
     <>
@@ -536,29 +537,38 @@ function Drinks({
           </ul>
         )}
       </section>
-      <section className="santa-panel p-4">
-        <p className="santa-label">{view.organizer ? "Toutes les boissons" : "Ce que tu apportes"}</p>
-        {listed.length > 0 && (
+      {byPerson.length > 0 && (
+        <section className="santa-panel p-4">
+          <p className="santa-label">Qui apporte quoi</p>
           <ul className="mt-2 flex flex-col divide-y divide-[var(--s-line)]">
-            {listed.map((d) => (
-              <li key={d.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <span>
-                  <b className="tabular-nums">
-                    {d.quantity} {d.unit}
-                  </b>{" "}
-                  · {d.type}
-                  {d.what && <span className="text-[var(--s-muted)]"> ({d.what})</span>}
-                  {view.organizer && <span className="block text-xs text-[var(--s-muted)]">{nameOf.get(d.who)}</span>}
-                </span>
-                {!readOnly && (
-                  <button type="button" className="-my-2 py-2 text-xs text-[var(--s-muted)] underline" disabled={busy} onClick={() => void send({ type: "removeDrink", id: d.id })}>
-                    Retirer
-                  </button>
-                )}
+            {byPerson.map(({ person, drinks }) => (
+              <li key={person.id} className="py-2.5 text-sm">
+                <b>{person.id === view.me ? `${person.name} (toi)` : person.name}</b>
+                <ul className="mt-1 flex flex-col gap-1">
+                  {drinks.map((d) => (
+                    <li key={d.id} className="flex items-center justify-between gap-3">
+                      <span>
+                        <span className="tabular-nums">
+                          {d.quantity} {d.unit}
+                        </span>{" "}
+                        · {d.type}
+                        {d.what && <span className="text-[var(--s-muted)]"> ({d.what})</span>}
+                      </span>
+                      {!readOnly && (d.who === view.me || view.organizer) && (
+                        <button type="button" className="-my-2 py-2 text-xs text-[var(--s-muted)] underline" disabled={busy} onClick={() => void send({ type: "removeDrink", id: d.id })}>
+                          Retirer
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
           </ul>
-        )}
+        </section>
+      )}
+      <section className={`santa-panel p-4 ${readOnly || !subject ? "hidden" : ""}`}>
+        <p className="santa-label">{view.organizer && subject !== view.me ? `Ce que ${nameOf.get(subject ?? "") ?? ""} apporte` : "Ce que tu apportes"}</p>
         {!readOnly && subject && (
           <form
             className="mt-3 flex flex-col gap-2 border-t border-dashed border-[var(--s-line)] pt-3"
