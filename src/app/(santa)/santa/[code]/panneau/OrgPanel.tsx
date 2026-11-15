@@ -457,7 +457,7 @@ function Access({ view, busy, onPassword }: { view: OrgView; busy: boolean; onPa
       <p className="mt-1 text-sm text-[var(--s-muted)]">
         {view.hasCohostPassword
           ? `Mot de passe défini. Un membre qui a le code ${view.code} et ce mot de passe peut co-organiser (Jeux › Secret Santa › Co-organiser un Secret Santa). Personne d'autre n'entre ici.`
-          : "Déjà fermée : seuls toi et tes co-organisateurs l'ouvrent, aucun autre membre du club, même administrateur. Un mot de passe sert seulement à laisser entrer quelqu'un sans l'ajouter toi-même."}
+          : "Déjà fermée : personne d'autre que toi et tes co-organisateurs ne l'ouvre, pas même un administrateur du club. Un mot de passe sert seulement à laisser entrer quelqu'un sans l'ajouter toi-même."}
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
         <input

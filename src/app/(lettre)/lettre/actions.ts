@@ -114,6 +114,7 @@ const giftFields = {
 };
 
 const orgActionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("refresh") }),
   z.object({
     type: z.literal("letter"),
     childName: childNameSchema,
@@ -141,7 +142,7 @@ export type OrgResult = { ok: true; view: OrgView } | { ok: false; error: string
 
 const CREATOR_ONLY = new Set(["cohostPassword", "addCohost", "removeCohost"]);
 
-/** Everything the organizers do on the letter's page; each call answers with the page as it now is. */
+/** Everything the organizers do on the letter's page; each call answers with the page as it now is (`refresh` only asks for it). */
 export async function letterOrgAction(code: string, action: unknown): Promise<OrgResult> {
   const check = await checkOrganizer(code);
   if (!check.ok) return { ok: false, error: "Tu n'organises pas cette lettre." };
@@ -165,6 +166,8 @@ export async function letterOrgAction(code: string, action: unknown): Promise<Or
 
   const result: Result = await (async () => {
     switch (a.type) {
+      case "refresh":
+        return { ok: true };
       case "letter":
         return updateLetter(l, { childName: a.childName, year: a.year, words: a.words, advice: a.advice, payNote: a.payNote });
       case "photo":

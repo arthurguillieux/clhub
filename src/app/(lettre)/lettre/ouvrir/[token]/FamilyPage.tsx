@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { SantaDialog } from "@/app/(santa)/santa/SantaDialog";
-import { euros, frenchSpaces, parseEuros, siteOf } from "@/modules/lettre/domain/letter";
+import { euros, frenchSpaces, joinNames, parseEuros, participation, siteOf, wellReceived } from "@/modules/lettre/domain/letter";
 import type { FamilyView, GiftView, OfferView } from "@/modules/lettre/views";
 import { de } from "@/modules/santa/words";
 import { letterFamilyAction } from "../../actions";
@@ -18,7 +18,6 @@ const REFRESH_MS = 40_000;
 const ARRIVING_MS = 800;
 
 const openedKey = (letterId: string) => `lettre-ouverte:${letterId}`;
-const names = (list: string[]) => [...new Set(list)].join(", ").replace(/, ([^,]*)$/, " et $1");
 
 /** Whether this browser already opened the letter: undefined while the page comes from the server. */
 function useOpenedBefore(letterId: string): boolean | undefined {
@@ -101,7 +100,7 @@ export function FamilyPage({ token, initialView, childMode }: { token: string; i
   const withdraw = (gift: GiftView, offer: OfferView) =>
     setDialog({
       title: gift.pot ? `Retirer votre part de ${euros(offer.amountCents ?? 0)} ?` : `Ne plus offrir « ${gift.title} » ?`,
-      detail: gift.pot ? "Elle ne comptera plus dans la cagnotte." : "Il redevient libre pour les autres.",
+      detail: gift.pot ? "Elle ne comptera plus dans la cagnotte." : "Quelqu'un d'autre pourra l'offrir à votre place.",
       confirmLabel: gift.pot ? "Retirer ma part" : "Je ne l'offre plus",
       cancelLabel: gift.pot ? "Je la garde" : "Je l'offre toujours",
       danger: true,
@@ -176,7 +175,7 @@ export function FamilyPage({ token, initialView, childMode }: { token: string; i
           Aperçu : la famille verra cette page une fois la lettre envoyée. On ne peut pas encore réserver.
         </p>
       )}
-      {view.stage === "closed" && <p className="santa-panel p-3 text-center text-sm">Noël est passé : les réservations sont fermées. La lettre reste ici, en souvenir.</p>}
+      {view.stage === "closed" && <p className="santa-panel p-3 text-center text-sm">Les réservations sont fermées. La lettre reste ici, en souvenir.</p>}
 
       {view.thanks && (
         <section className="santa-panel lettre-paper px-5 pt-5 pb-7 sm:px-8">
@@ -262,7 +261,7 @@ export function FamilyPage({ token, initialView, childMode }: { token: string; i
           role={toast.error ? "alert" : "status"}
           className={`fixed inset-x-4 bottom-4 z-40 mx-auto max-w-md rounded-2xl border bg-[var(--s-surface)] p-3 text-center text-sm shadow-xl ${toast.error ? "border-[var(--s-red)] text-[var(--s-red)]" : "border-[var(--s-line)]"}`}
         >
-          {toast.text}
+          {frenchSpaces(toast.text)}
         </p>
       )}
     </div>
@@ -298,7 +297,7 @@ function MyGifts({ view, gifts }: { view: FamilyView; gifts: GiftView[] }) {
             .map((o) => (
               <li key={o.id}>
                 {g.pot ? "💶" : "🎁"} <b>{g.title}</b>
-                {g.pot ? ` : ${euros(o.amountCents ?? 0)} promis, ${o.received ? "bien reçus, merci ✓" : "à envoyer"}` : g.priceCents !== null ? ` · ≈ ${euros(g.priceCents)}` : ""}
+                {g.pot ? ` : ${euros(o.amountCents ?? 0)} promis, ${o.received ? `${wellReceived(o.amountCents ?? 0)}, merci ✓` : "à envoyer"}` : g.priceCents !== null ? ` · ≈ ${euros(g.priceCents)}` : ""}
                 {!g.pot && g.url && (
                   <>
                     {" · "}
@@ -313,7 +312,7 @@ function MyGifts({ view, gifts }: { view: FamilyView; gifts: GiftView[] }) {
       </ul>
       {owing && view.payNote && (
         <p className="mt-3 text-sm">
-          Pour envoyer votre part : <b>{view.payNote}</b>
+          Pour envoyer votre part : <b>{frenchSpaces(view.payNote)}</b>
         </p>
       )}
     </section>
@@ -368,7 +367,7 @@ function GiftCard({ gift, view, open, onOffer, onWithdraw }: CardProps) {
             )}
           </div>
         ))}
-        {others.length > 0 && <p className="text-sm font-semibold text-[var(--s-green)]">🎁 Offert par {names(others)}</p>}
+        {others.length > 0 && <p className="text-sm font-semibold text-[var(--s-green)]">🎁 Offert par {joinNames(others)}</p>}
         {!gift.full && view.stage !== "closed" && (
           <button type="button" className="santa-btn min-h-12 px-4" disabled={!open} onClick={() => onOffer(gift)}>
             🎁 {gift.offers.length > 0 ? "Je l'offre aussi" : "Je l'offre"}
@@ -384,7 +383,7 @@ function PotCard({ gift, view, open, onOffer, onWithdraw }: CardProps) {
   const percent = target > 0 ? Math.min(100, Math.floor((gift.totalCents * 100) / target)) : 0;
   const remaining = Math.max(0, target - gift.totalCents);
   const mine = gift.offers.filter((o) => o.mine);
-  const people = gift.offers.map((o) => (o.mine ? "vous" : o.name));
+  const together = participation(gift.offers);
   return (
     <article className="santa-panel overflow-hidden">
       <GiftHead gift={gift} />
@@ -396,15 +395,15 @@ function PotCard({ gift, view, open, onOffer, onWithdraw }: CardProps) {
           <b>
             {euros(gift.totalCents)} sur {euros(target)}
           </b>
-          <span className="text-[var(--s-muted)]">{percent} %</span>
+          <span className="text-[var(--s-muted)]">{`${percent} %`}</span>
         </p>
-        <p className="text-sm">{gift.full ? "🎉 Objectif atteint : merci à tous !" : `Il manque encore ${euros(remaining)}.`}</p>
-        {people.length > 0 && <p className="text-sm text-[var(--s-muted)]">Avec la participation {de(names(people))}.</p>}
+        <p className="text-sm">{frenchSpaces(gift.full ? "🎉 Objectif atteint : merci à tous !" : `Il manque encore ${euros(remaining)}.`)}</p>
+        {together && <p className="text-sm text-[var(--s-muted)]">{together}</p>}
         {mine.map((o) => (
           <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span>
               Vous avez promis <b>{euros(o.amountCents ?? 0)}</b>
-              {o.received ? " : bien reçus, merci ✓" : view.payNote ? `. Pour l'envoyer : ${view.payNote}` : ""}
+              {o.received ? ` : ${wellReceived(o.amountCents ?? 0)}, merci ✓` : view.payNote ? `. Pour l'envoyer : ${frenchSpaces(view.payNote)}` : ""}
             </span>
             {open && !o.received && (
               <button type="button" className="-my-2 py-2 text-sm text-[var(--s-muted)] underline" onClick={() => onWithdraw(gift, o)}>
@@ -496,7 +495,7 @@ function OfferSheet({
               ))}
               {remaining > 0 && (
                 <button type="button" className="santa-btn-ghost min-h-10 px-3 text-sm" onClick={() => setAmount((remaining / 100).toFixed(2).replace(".", ",").replace(",00", ""))}>
-                  Le reste : {euros(remaining)}
+                  {gift.totalCents > 0 ? "Le reste" : "Tout"} : {euros(remaining)}
                 </button>
               )}
             </div>
@@ -506,7 +505,7 @@ function OfferSheet({
         <p className="mt-4 rounded-xl bg-[var(--s-raised)] p-3 text-sm">
           {gift.pot
             ? view.payNote
-              ? `Rien à payer ici. Pour envoyer votre part : ${view.payNote}`
+              ? `Rien à payer ici. Pour envoyer votre part : ${frenchSpaces(view.payNote)}`
               : "Rien à payer ici : la personne qui vous a envoyé la lettre vous dira comment lui envoyer votre part."
             : "Vous l'achetez de votre côté, où vous voulez : le lien n'est qu'un exemple."}
         </p>

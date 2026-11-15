@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SantaDialog } from "@/app/(santa)/santa/SantaDialog";
-import { STAGE_LABELS, euros, siteOf } from "@/modules/lettre/domain/letter";
+import { STAGE_LABELS, euros, giftCount, isTaken, joinNames, siteOf } from "@/modules/lettre/domain/letter";
 import type { GiftView, OrgView } from "@/modules/lettre/views";
-import { de } from "@/modules/santa/words";
+import { de, que } from "@/modules/santa/words";
 import { deleteLetterAction, letterNextYearAction, letterOrgAction } from "../../actions";
 import { ImagePicker } from "../../ImagePicker";
 import { GiftEditor, type GiftPayload } from "./GiftEditor";
@@ -13,23 +13,21 @@ import { GiftEditor, type GiftPayload } from "./GiftEditor";
 type Dialog = Omit<Parameters<typeof SantaDialog>[0], "onClose">;
 type Send = (action: Record<string, unknown>, options?: { quiet?: boolean }) => Promise<string | null>;
 
+/** How often an open page asks for the list again: what the family reserves meanwhile shows up. */
+const REFRESH_MS = 40_000;
+
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
-const names = (list: string[]) => list.join(", ").replace(/, ([^,]*)$/, " et $1");
 
 export function LetterPanel({
   code,
   initialView,
   isCreator,
-  untaken,
   members,
 }: {
   code: string;
   initialView: OrgView;
   /** The creator picks co-organizers and can delete the letter; co-organizers do everything else. */
   isCreator: boolean;
-  /** Gifts nobody gave: what « Dupliquer » offers to bring along. */
-  untaken: number;
   members: { id: string; name: string; isHost: boolean }[];
 }) {
   const [view, setView] = useState(initialView);
@@ -37,9 +35,12 @@ export function LetterPanel({
   const [error, setError] = useState("");
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [nextYear, setNextYear] = useState(false);
+  /** Moves at the start and the end of every action: a refresh that crossed one is older than what's shown, and dropped. */
+  const actions = useRef(0);
 
   /** Runs an action; answers with its error, or null. `quiet` leaves the error to the caller, shown next to what failed. */
   const send: Send = async (action, options) => {
+    actions.current += 1;
     setBusy(true);
     setError("");
     try {
@@ -55,13 +56,34 @@ export function LetterPanel({
       if (!options?.quiet) setError(message);
       return message;
     } finally {
+      actions.current += 1;
       setBusy(false);
     }
   };
 
-  const gifts = view.gifts.filter((g) => !g.pot);
+  // The family reserves while this page is open: it catches up every 40 s, and when it comes back to the screen.
+  useEffect(() => {
+    const refresh = async () => {
+      if (document.visibilityState !== "visible") return;
+      const before = actions.current;
+      try {
+        const result = await letterOrgAction(code, { type: "refresh" });
+        if (result.ok && actions.current === before) setView(result.view);
+      } catch {
+        // Offline for a moment: the next round will do.
+      }
+    };
+    const timer = setInterval(() => void refresh(), REFRESH_MS);
+    const onVisible = () => void refresh();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [code]);
+
   const pots = view.gifts.filter((g) => g.pot);
-  const taken = gifts.filter((g) => g.offers.length > 0).length;
+  const taken = view.gifts.filter(isTaken).length;
 
   return (
     <div className="flex flex-col gap-5">
@@ -75,10 +97,11 @@ export function LetterPanel({
         </p>
         <h1 className="santa-title mt-1 text-3xl">{view.title}</h1>
         <p className="santa-note mt-2 inline-block text-sm text-[var(--s-muted)]">
-          {plural(gifts.length, "cadeau")}
-          {gifts.length > 0 && ` · ${taken} déjà pris`}
+          {capitalize(giftCount(view.gifts.length))}
+          {taken > 0 && ` · ${taken} déjà pris`}
           {pots.map((p) => ` · 💶 ${p.title} : ${euros(p.totalCents)} sur ${euros(p.priceCents ?? 0)}`).join("")}
         </p>
+        {view.previousTitle && view.stage === "preparation" && <p className="santa-note mt-1 text-xs text-[var(--s-muted)]">Dupliquée de « {view.previousTitle} ».</p>}
       </header>
 
       {error && (
@@ -93,7 +116,8 @@ export function LetterPanel({
         onShare={() =>
           setDialog({
             title: "Envoyer la lettre ?",
-            detail: `Le lien est créé : partage-le à la famille par WhatsApp, SMS ou mail. Tu pourras toujours changer la lettre et les cadeaux, et la liste se mettra à jour pour tout le monde.`,
+            detail:
+              "Un seul lien est créé pour toute la famille : tu l'envoies par WhatsApp, SMS ou mail, et chacun peut réserver dès qu'il l'ouvre. Tu pourras toujours changer la lettre et les cadeaux : la liste se met à jour pour tout le monde.",
             confirmLabel: "Créer le lien",
             cancelLabel: "Pas encore",
             onConfirm: () => void send({ type: "share" }),
@@ -138,7 +162,7 @@ export function LetterPanel({
         </div>
       </details>
 
-      {nextYear && <NextYearDialog code={code} year={view.year + 1} untaken={untaken} onClose={() => setNextYear(false)} />}
+      {nextYear && <NextYearDialog code={code} year={view.year + 1} untaken={view.gifts.filter((g) => g.offers.length === 0).length} onClose={() => setNextYear(false)} />}
       {dialog && <SantaDialog {...dialog} onClose={() => setDialog(null)} />}
     </div>
   );
@@ -243,7 +267,7 @@ function LetterDetails({ view, busy, send }: { view: OrgView; busy: boolean; sen
           </label>
         </div>
         <label className={label}>
-          {/^[aeiouyhàâäéèêëîïôöùûü]/i.test(view.childName) ? `Ce qu'${view.childName}` : `Ce que ${view.childName}`} écrit au Père Noël
+          Ce {que(view.childName)} écrit au Père Noël
           <textarea value={words} onChange={(e) => setWords(e.target.value)} rows={7} maxLength={3000} placeholder="Cher Père Noël, cette année j'ai été très sage…" className={`${field} lettre-hand py-2 text-base`} />
           <span className={help}>Écrivez-la ensemble, avec ses mots : elle s&apos;affiche en haut de la page, comme une vraie lettre.</span>
         </label>
@@ -328,7 +352,7 @@ function Gauge({ total, target }: { total: number; target: number }) {
         <b>
           {euros(total)} sur {euros(target)}
         </b>
-        <span className="text-[var(--s-muted)]">{total >= target ? "🎉 complète" : `${percent} %`}</span>
+        <span className="text-[var(--s-muted)]">{total >= target ? "🎉 complète" : `${percent} %`}</span>
       </p>
     </div>
   );
@@ -350,10 +374,10 @@ function GiftRow({ gift, busy, send, ask, onEdit }: { gift: GiftView; busy: bool
   const link = "-my-2 py-2 text-xs text-[var(--s-muted)] underline";
   const free = (offerId: string, who: string, amount: number | null) =>
     ask({
-      title: amount !== null ? `Retirer la part de ${who} ?` : `Libérer « ${gift.title} » ?`,
+      title: amount !== null ? `Retirer la part ${de(who)} ?` : `Libérer « ${gift.title} » ?`,
       detail:
         amount !== null
-          ? `Les ${euros(amount)} promis par ${who} ne comptent plus dans la cagnotte.`
+          ? `Sa part de ${euros(amount)} ne comptera plus dans la cagnotte.`
           : `${who} ne l'offrira plus : le cadeau redevient libre pour tout le monde.`,
       confirmLabel: amount !== null ? "Retirer la part" : "Libérer le cadeau",
       cancelLabel: "Laisser comme ça",
@@ -459,7 +483,7 @@ function GiftRow({ gift, busy, send, ask, onEdit }: { gift: GiftView; busy: bool
           onClick={() =>
             ask({
               title: `Supprimer « ${gift.title} » ?`,
-              detail: gift.offers.length > 0 ? `${names(gift.offers.map((o) => o.name))} l'avai${gift.offers.length > 1 ? "ent" : "t"} déjà pris : ce sera effacé aussi.` : "Il disparaît de la liste.",
+              detail: removalDetail(gift),
               confirmLabel: "Supprimer le cadeau",
               cancelLabel: "Garder le cadeau",
               danger: true,
@@ -473,6 +497,18 @@ function GiftRow({ gift, busy, send, ask, onEdit }: { gift: GiftView; busy: bool
       {noting && <NoteOffer gift={gift} busy={busy} send={send} onClose={() => setNoting(false)} />}
     </li>
   );
+}
+
+/** What deleting a gift also deletes, and who should hear it from the organizers: the site tells nobody. */
+function removalDetail(gift: GiftView): string {
+  const people = [...new Set(gift.offers.map((o) => o.name))];
+  if (people.length === 0) return "Le cadeau disparaît de la liste.";
+  const several = people.length > 1;
+  const who = joinNames(people);
+  const tell = `Le CLHUB ne prévient personne : pense à le ${several ? "leur" : "lui"} dire.`;
+  return gift.pot
+    ? `${who} y particip${several ? "aient" : "ait"} déjà : ${several ? "leurs parts seront effacées" : "sa part sera effacée"} aussi. ${tell}`
+    : `${who} l'av${several ? "aient" : "ait"} déjà réservé : ${several ? "leurs réservations seront effacées" : "sa réservation sera effacée"} aussi. ${tell}`;
 }
 
 /** Someone said it on the phone, or at the table: an organizer notes it for them. */
@@ -587,7 +623,9 @@ function Cohosts({ view, members, busy, send }: { view: OrgView; members: { id: 
   return (
     <div>
       <p className="text-sm font-semibold">👥 Co-organisateurs{view.cohosts.length > 0 && ` (${view.cohosts.length})`}</p>
-      <p className="mt-1 text-sm text-[var(--s-muted)]">Ils font tout avec toi, sauf supprimer la lettre, et reçoivent les mêmes notifications.</p>
+      <p className="mt-1 text-sm text-[var(--s-muted)]">
+        Ils font tout avec toi et reçoivent les mêmes notifications. Les co-organisateurs, l&apos;accès à la page et la suppression de la lettre restent entre tes mains.
+      </p>
       {view.cohosts.length > 0 && (
         <ul className="mt-2 flex flex-col gap-2">
           {view.cohosts.map((c) => (
@@ -634,7 +672,7 @@ function Access({ view, busy, send }: { view: OrgView; busy: boolean; send: Send
       <p className="mt-1 text-sm text-[var(--s-muted)]">
         {view.hasCohostPassword
           ? `Mot de passe défini. Un membre qui a le code ${view.code} et ce mot de passe peut co-organiser (Jeux › Ma lettre au Père Noël › Co-organiser une lettre). Personne d'autre n'entre ici.`
-          : "Déjà fermée : seuls toi et tes co-organisateurs l'ouvrent, aucun autre membre du club, même administrateur. Un mot de passe sert seulement à laisser entrer quelqu'un sans l'ajouter toi-même."}
+          : "Déjà fermée : personne d'autre que toi et tes co-organisateurs ne l'ouvre, pas même un administrateur du club. Un mot de passe sert seulement à laisser entrer quelqu'un sans l'ajouter toi-même."}
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
         <input
@@ -691,7 +729,8 @@ function NextYearDialog({ code, year, untaken, onClose }: { code: string; year: 
             disabled={going}
             onClick={() => {
               setGoing(true);
-              void letterNextYearAction(code, carry);
+              // Success leaves for the new letter's page; only a failure comes back here.
+              letterNextYearAction(code, carry).catch(() => setGoing(false));
             }}
           >
             {going ? "Création…" : `Créer la lettre de ${year}`}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { siteOf } from "@/modules/lettre/domain/letter";
+import { joinNames, siteOf } from "@/modules/lettre/domain/letter";
 import { de } from "@/modules/santa/words";
 import type { GiftView } from "@/modules/lettre/views";
 import { letterPreviewAction } from "../../actions";
@@ -80,10 +80,13 @@ export function GiftEditor({
       setPhoto({ kind: "stored", id: result.photo.id, url: result.photo.url });
       filled.push("la photo");
     }
+    const found = !!(result.title || result.price || result.photo);
     setHint(
       filled.length > 0
-        ? `Repris de ${siteOf(url)} : ${filled.join(", ").replace(/, ([^,]*)$/, " et $1")}. Vérifie avant d'enregistrer.`
-        : "Rien de neuf sur cette page : ce qui est déjà rempli est gardé.",
+        ? `Repris de ${siteOf(url)} : ${joinNames(filled)}. Vérifie avant d'enregistrer.`
+        : found
+          ? "Ce que tu avais déjà rempli est gardé : rien n'a été remplacé."
+          : `${siteOf(url)} ne donne ni nom, ni prix, ni photo : remplis la fiche à la main, le lien sera gardé.`,
     );
   }
 

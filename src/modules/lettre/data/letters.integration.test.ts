@@ -19,6 +19,7 @@ import {
   getFamilyView,
   getLetterByCode,
   getOrgView,
+  listForMember,
   noteOffer,
   offerFromFamily,
   removeOffer,
@@ -26,7 +27,6 @@ import {
   setPhoto,
   setReceived,
   shareLetter,
-  untakenCount,
   updateLetter,
   withdrawFromFamily,
   type GiftInput,
@@ -127,6 +127,8 @@ describe("Ma lettre au Père Noël", () => {
     expect(asSophie.gifts[0]!.title).toBe("Draisienne");
     const org = await getOrgView(await fresh());
     expect(org.gifts.find((g) => g.id === bike)!.offers.map((o) => o.amountCents)).toEqual([12000, 6000, 2000]);
+    // Jeux › Ma lettre au Père Noël counts « déjà pris » as the letter's page does: the full cagnotte too.
+    expect((await listForMember(hostId)).find((x) => x.id === l.id)).toMatchObject({ gifts: 3, taken: 3 });
   });
 
   it("lets only the author take a promise back, and not once the money came", async () => {
@@ -140,6 +142,8 @@ describe("Ma lettre au Père Noël", () => {
     const after = (await getOrgView(await fresh())).gifts.find((g) => g.id === bike)!;
     expect(after.totalCents).toBe(14000);
     expect(after.full).toBe(false);
+    // A cagnotte on its way isn't « pris ».
+    expect((await listForMember(hostId)).find((x) => x.id === l.id)).toMatchObject({ gifts: 3, taken: 2 });
   });
 
   it("lets an organizer note a gift for someone, and tells the other organizers", async () => {
@@ -152,10 +156,18 @@ describe("Ma lettre au Père Noël", () => {
       .from(notification)
       .where(and(eq(notification.entityRef, `lettre:${l.code}`), sql`${notification.payload}->>'giftTitle' = 'Puzzle'`));
     expect(about.map((n) => n.memberId)).toEqual([cohostId]);
+    // The other organizer reads who noted it, so they don't think Julien did it from the link.
+    const hostName = `Test ${userIds[0]!.slice(0, 4)}`;
+    expect(about[0]!.payload).toMatchObject({ name: "Julien", by: hostName });
     const org = await getOrgView(await fresh());
     const puzzle = org.gifts.find((g) => g.title === "Puzzle")!;
     expect(puzzle.offers[0]!.name).toBe("Julien");
     expect((await removeOffer(await fresh(), puzzle.offers[0]!.id, cohostId)).ok).toBe(true);
+    const [freed] = await db
+      .select()
+      .from(notification)
+      .where(and(eq(notification.memberId, hostId), eq(notification.kind, "lettre.withdraw"), sql`${notification.payload}->>'giftTitle' = 'Puzzle'`));
+    expect(freed?.payload).toMatchObject({ name: "Julien", by: `Test ${userIds[1]!.slice(0, 4)}` });
   });
 
   it("refuses anything new once closed", async () => {
@@ -178,7 +190,7 @@ describe("Ma lettre au Père Noël", () => {
 
   it("starts next year's letter from this one, with the gifts nobody gave", async () => {
     const current = await fresh();
-    expect(await untakenCount(current)).toBe(1); // the puzzle; the others were given or promised
+    // Only the puzzle comes along: the others were given, or have parts promised.
     const next = await duplicateLetter(current, cohostId, true);
     expect(next.year).toBe(2027);
     const org = await getOrgView((await getLetterByCode(next.code))!);

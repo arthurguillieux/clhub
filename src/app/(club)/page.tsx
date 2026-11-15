@@ -176,13 +176,14 @@ function describeNotification(n: Notification): string {
     }
     case "lettre.offer":
     case "lettre.withdraw": {
-      const p = n.payload as { name?: string; giftTitle?: string; childName?: string; amountCents?: number | null };
+      const p = n.payload as { name?: string; giftTitle?: string; childName?: string; amountCents?: number | null; by?: string | null };
       return offerSentence({
         type: n.kind === "lettre.offer" ? "offer" : "withdraw",
         name: p.name ?? "Quelqu'un",
         giftTitle: p.giftTitle ?? "?",
         childName: p.childName ?? "l'enfant",
         amountCents: typeof p.amountCents === "number" ? p.amountCents : null,
+        by: typeof p.by === "string" ? p.by : null,
       });
     }
     case "don.reserved": {

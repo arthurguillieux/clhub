@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { byWish, cleanName, euros, frenchSpaces, letterTitle, offerSentence, parseEuros, pledgeError, progressOf, siteOf, stageOf, untaken } from "./letter";
+import {
+  byWish,
+  cleanName,
+  euros,
+  frenchSpaces,
+  giftCount,
+  isTaken,
+  joinNames,
+  letterTitle,
+  offerSentence,
+  parseEuros,
+  participation,
+  pledgeError,
+  progressOf,
+  siteOf,
+  stageOf,
+  untaken,
+  wellReceived,
+} from "./letter";
 
 describe("letterTitle", () => {
   it("elides before a vowel or an h, not before a consonant", () => {
@@ -108,11 +126,61 @@ describe("untaken", () => {
 
 describe("offerSentence", () => {
   const base = { name: "Claire", giftTitle: "Draisienne", childName: "Arès" };
+  const plain = (s: string) => s.replace(/\s/g, " ");
   it("tells a gift, a promise, and taking either back", () => {
     expect(offerSentence({ ...base, type: "offer", amountCents: null })).toBe("Claire offre « Draisienne » à Arès.");
-    expect(offerSentence({ ...base, type: "withdraw", amountCents: null })).toBe("Claire n'offre plus « Draisienne » : il est de nouveau libre.");
-    expect(offerSentence({ ...base, type: "offer", amountCents: 3000 }).replace(/\s/g, " ")).toBe("Claire promet 30 € pour la cagnotte « Draisienne ».");
-    expect(offerSentence({ ...base, type: "withdraw", amountCents: 3000 }).replace(/\s/g, " ")).toBe("Claire retire sa part de 30 € pour la cagnotte « Draisienne ».");
+    expect(offerSentence({ ...base, type: "withdraw", amountCents: null })).toBe("Claire n'offre plus « Draisienne » : quelqu'un d'autre peut l'offrir.");
+    expect(plain(offerSentence({ ...base, type: "offer", amountCents: 3000 }))).toBe("Claire promet 30 € pour la cagnotte « Draisienne ».");
+    expect(plain(offerSentence({ ...base, type: "withdraw", amountCents: 3000 }))).toBe("Claire retire sa part de 30 € de la cagnotte « Draisienne ».");
+  });
+
+  it("says which organizer noted it or took it back, so the others don't think the person did", () => {
+    expect(offerSentence({ ...base, type: "offer", amountCents: null, by: "Hugo" })).toBe("Claire offre « Draisienne » à Arès (noté par Hugo).");
+    expect(plain(offerSentence({ ...base, type: "offer", amountCents: 3000, by: "Hugo" }))).toBe("Claire promet 30 € pour la cagnotte « Draisienne » (noté par Hugo).");
+    expect(offerSentence({ ...base, type: "withdraw", amountCents: null, by: "Hugo" })).toBe("Hugo a libéré « Draisienne », que Claire offrait.");
+    expect(offerSentence({ ...base, name: "Inès", type: "withdraw", amountCents: null, by: "Hugo" })).toBe("Hugo a libéré « Draisienne », qu'Inès offrait.");
+    expect(plain(offerSentence({ ...base, name: "Inès", type: "withdraw", amountCents: 3000, by: "Hugo" }))).toBe("Hugo a retiré la part d'Inès (30 €) de la cagnotte « Draisienne ».");
+  });
+});
+
+describe("giftCount", () => {
+  it("writes the plural out: never « cadeaus »", () => {
+    expect(giftCount(0)).toBe("aucun cadeau");
+    expect(giftCount(1)).toBe("1 cadeau");
+    expect(giftCount(2)).toBe("2 cadeaux");
+    expect(giftCount(11)).toBe("11 cadeaux");
+  });
+});
+
+describe("isTaken", () => {
+  it("counts a gift once someone gives it, a cagnotte only once it's complete", () => {
+    expect(isTaken({ pot: false, full: false, offers: [] })).toBe(false);
+    expect(isTaken({ pot: false, full: false, offers: [{}] })).toBe(true); // books: one given, more welcome
+    expect(isTaken({ pot: true, full: false, offers: [{}] })).toBe(false);
+    expect(isTaken({ pot: true, full: true, offers: [{}] })).toBe(true);
+  });
+});
+
+describe("joinNames and participation", () => {
+  it("joins names the French way, each once", () => {
+    expect(joinNames([])).toBe("");
+    expect(joinNames(["Claire"])).toBe("Claire");
+    expect(joinNames(["Claire", "Hugo"])).toBe("Claire et Hugo");
+    expect(joinNames(["Claire", "Inès", "Claire", "Hugo"])).toBe("Claire, Inès et Hugo");
+  });
+
+  it("says « votre participation » to its author, and « de »/« d' » before each name", () => {
+    expect(participation([])).toBeNull();
+    expect(participation([{ name: "Inès", mine: true }])).toBe("Avec votre participation.");
+    expect(participation([{ name: "Inès", mine: true }, { name: "Hugo", mine: false }])).toBe("Avec votre participation et celle d'Hugo.");
+    expect(participation([{ name: "Hugo", mine: false }, { name: "Inès", mine: true }, { name: "Claire", mine: false }])).toBe("Avec votre participation et celles d'Hugo et de Claire.");
+    expect(participation([{ name: "Claire", mine: false }, { name: "Inès", mine: false }, { name: "Hugo", mine: false }])).toBe("Avec la participation de Claire, d'Inès et d'Hugo.");
+  });
+
+  it("agrees « reçu » with the amount: the plural starts at 2 €", () => {
+    expect(wellReceived(3000)).toBe("bien reçus");
+    expect(wellReceived(200)).toBe("bien reçus");
+    expect(wellReceived(150)).toBe("bien reçu");
   });
 });
 
@@ -120,6 +188,11 @@ describe("frenchSpaces", () => {
   it("binds the punctuation to its word, and leaves the rest alone", () => {
     expect(frenchSpaces("Merci à tous ! Tu viens ? « Oui » : bien ; ok!")).toBe("Merci à tous ! Tu viens ? « Oui » : bien ; ok!");
     expect(frenchSpaces("Cher Père Noël,\nvoici ma liste")).toBe("Cher Père Noël,\nvoici ma liste");
+  });
+
+  it("keeps a phone number and a big amount on one line", () => {
+    expect(frenchSpaces("Par Wero au 06 12 34 56 78")).toBe("Par Wero au 06 12 34 56 78");
+    expect(frenchSpaces("1 200 € pour 3 livres")).toBe("1 200 € pour 3 livres");
   });
 });
 

@@ -46,10 +46,7 @@ export async function shrinkImage(file: File): Promise<string> {
   return url;
 }
 
-/**
- * Choose a photo, shown at once; `onPick` gets it ready to send. `round` frames it like the child's
- * portrait, otherwise like a gift on white.
- */
+/** Choose a photo, shown at once; `onPick` gets it ready to send. */
 export function ImagePicker({
   current,
   label,

@@ -26,7 +26,7 @@ export function Envelope({ childName, onOpened }: { childName: string; onOpened:
     <div className="mt-8 flex flex-col items-center text-center">
       <p className="santa-label santa-note">Une lettre pour le Père Noël</p>
       <h1 className="santa-title mt-2 text-3xl">{childName} a écrit sa lettre</h1>
-      <p className="santa-note mt-2 max-w-sm text-[var(--s-muted)]">Elle est pour le Père Noël, mais il a besoin d&apos;un coup de main. Ouvrez-la !</p>
+      <p className="santa-note mt-2 max-w-sm text-[var(--s-muted)]">Elle est pour le Père Noël, mais il a besoin d&apos;un coup de main. Ouvrez-la&#8239;!</p>
       <button type="button" onClick={open} aria-label="Ouvrir la lettre" data-phase={phase} className="lettre-envelope mt-10">
         <span aria-hidden="true" className="lettre-env-back" />
         <span aria-hidden="true" className="lettre-env-paper lettre-hand">

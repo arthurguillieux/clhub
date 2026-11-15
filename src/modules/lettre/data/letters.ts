@@ -42,7 +42,19 @@ export async function isCohost(l: Letter, memberId: string): Promise<boolean> {
   return !!row;
 }
 
-const giftCount = sql<number>`(select count(*)::int from ${letterGift} where ${letterGift.letterId} = ${letter.id})`;
+// Written out in full: in a select on one table, Drizzle leaves the table's name off `${letter.id}`, and
+// the bare "id" inside the subquery would be the gift's own id (every letter counted 0 gifts).
+const giftCount = sql<number>`(select count(*)::int from letter_gift g where g.letter_id = "letter"."id")`;
+
+/** « déjà pris », as isTaken counts it on the letter's page: a gift someone gives, a cagnotte that reached its amount. */
+const takenCount = sql<number>`(
+  select count(*)::int from letter_gift g
+  where g.letter_id = "letter"."id"
+    and case
+      when g.pot then g.price_cents > 0 and (select coalesce(sum(o.amount_cents), 0) from letter_offer o where o.gift_id = g.id) >= g.price_cents
+      else exists (select 1 from letter_offer o where o.gift_id = g.id)
+    end
+)`;
 
 /** Jeux › Ma lettre au Père Noël: the letters a member organizes, alone or with others. */
 export async function listForMember(memberId: string) {
@@ -57,7 +69,7 @@ export async function listForMember(memberId: string) {
       sharedAt: letter.sharedAt,
       closedAt: letter.closedAt,
       gifts: giftCount,
-      given: sql<number>`(select count(distinct ${letterOffer.giftId})::int from ${letterOffer} where ${letterOffer.letterId} = ${letter.id})`,
+      taken: takenCount,
     })
     .from(letter)
     .where(or(eq(letter.hostMemberId, memberId), inArray(letter.id, cohosted)))
@@ -442,12 +454,6 @@ export async function duplicateLetter(l: Letter, memberId: string, carry: boolea
   const team = [...cohosts.map((c) => c.memberId), l.hostMemberId].filter((id) => id !== memberId);
   for (const id of team) await db.insert(letterCohost).values({ letterId: next.id, memberId: id }).onConflictDoNothing();
   return next;
-}
-
-/** How many gifts nobody gave: what « Dupliquer » offers to bring along. */
-export async function untakenCount(l: Letter): Promise<number> {
-  const [gifts, offers] = await Promise.all([loadGifts(l.id), loadOffers(l.id)]);
-  return untaken(gifts, offers).length;
 }
 
 export async function deleteLetter(l: Letter): Promise<void> {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SantaScene } from "@/app/(santa)/santa/Scene";
-import { getLetterByCode, getOrgView, titleOf, untakenCount } from "@/modules/lettre/data/letters";
+import { getLetterByCode, getOrgView, titleOf } from "@/modules/lettre/data/letters";
 import { checkOrganizer } from "@/modules/lettre/host";
 import { listMembers } from "@/modules/members/data/members";
 import { JoinPrompt } from "./JoinPrompt";
@@ -25,7 +25,6 @@ export default async function LetterPanelPage({ params }: { params: Promise<{ co
             code={check.letter.code}
             initialView={await getOrgView(check.letter)}
             isCreator={check.role === "host"}
-            untaken={await untakenCount(check.letter)}
             members={(await listMembers()).map((m) => ({ id: m.id, name: m.name, isHost: m.id === check.letter.hostMemberId }))}
           />
         ) : found ? (

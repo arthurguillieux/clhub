@@ -5,12 +5,12 @@ import { Card } from "@/core/ui/components/Card";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { listForMember, listOthers } from "@/modules/lettre/data/letters";
-import { STAGE_LABELS } from "@/modules/lettre/domain/letter";
+import { STAGE_LABELS, giftCount } from "@/modules/lettre/domain/letter";
 import { CreateLetterForm, JoinLetterForm } from "./LetterForms";
 
 export const metadata: Metadata = { title: "Ma lettre au Père Noël" };
 
-const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export default async function LetterHomePage() {
   const session = await getSession();
@@ -48,8 +48,8 @@ export default async function LetterHomePage() {
                 <div>
                   <p className="font-display font-bold text-ink">{l.title}</p>
                   <p className="text-xs text-muted">
-                    {plural(l.gifts, "cadeau")}
-                    {l.given > 0 && ` · ${l.given} déjà pris`} · {STAGE_LABELS[l.stage]}
+                    {capitalize(giftCount(l.gifts))}
+                    {l.taken > 0 && ` · ${l.taken} déjà pris`} · {STAGE_LABELS[l.stage]}
                     {l.role === "cohost" && " · tu la co-organises"}
                   </p>
                 </div>
@@ -78,7 +78,7 @@ export default async function LetterHomePage() {
               <Card key={l.id} className="p-4">
                 <p className="font-display font-bold text-ink">{l.title}</p>
                 <p className="text-xs text-muted">
-                  Organisée par {l.organizer} · {plural(l.gifts, "cadeau")} · {STAGE_LABELS[l.stage]}
+                  Organisée par {l.organizer} · {giftCount(l.gifts)} · {STAGE_LABELS[l.stage]}
                 </p>
               </Card>
             ))}
