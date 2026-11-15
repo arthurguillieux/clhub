@@ -32,7 +32,13 @@ const TOOLS = [
     href: "/jeux/santa",
     icon: "🎁",
     name: "Secret Santa",
-    description: "Le tirage au sort des cadeaux, avec tes règles, un lien perso pour chacun et une lettre au Père Noël.",
+    description: "Le tirage au sort des cadeaux, avec tes règles, un lien perso pour chacun et ses idées de cadeaux.",
+  },
+  {
+    href: "/jeux/lettre",
+    icon: "💌",
+    name: "Ma lettre au Père Noël",
+    description: "La liste de Noël d'un enfant pour toute la famille : un seul lien, chacun réserve ce qu'il offre, et une cagnotte pour le gros cadeau.",
   },
 ];
 

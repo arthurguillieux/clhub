@@ -1134,3 +1134,266 @@ body {
 .santa-blanc .santa-burst {
   background: radial-gradient(circle, #ffffff, rgba(255, 255, 255, 0.75) 45%, rgba(255, 255, 255, 0) 70%);
 }
+
+/*
+ * « Ma lettre au Père Noël » — dressed in « Noël blanc »: its pages live inside SantaScene. A kraft
+ * envelope sealed with cranberry wax, the child's words in pen on lined paper, the photo as a taped
+ * polaroid, and the gauge of a cagnotte. The handwriting is the device's own (Segoe Print, Bradley
+ * Hand, Chalkboard…): no font file to fetch for a few lines.
+ */
+.lettre {
+  --l-paper: #fffdf6;
+  --l-line: rgba(70, 110, 150, 0.2);
+  --l-margin: rgba(180, 35, 58, 0.32);
+  --l-ink: #1f3f66;
+  --l-kraft: #f1e4c8;
+  --l-kraft-deep: #e2cda2;
+  --l-wax: #b4233a;
+  --font-hand: "Segoe Print", "Bradley Hand", "Chalkboard SE", "Comic Sans MS", "Comic Neue", cursive;
+}
+.lettre-hand {
+  font-family: var(--font-hand);
+  color: var(--l-ink);
+}
+
+/* The envelope: tap it, the seal pops, the flap opens, the letter slides out. */
+.lettre-envelope {
+  position: relative;
+  display: block;
+  width: min(300px, 82vw);
+  aspect-ratio: 3 / 2;
+  perspective: 900px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.lettre-envelope:focus-visible {
+  outline: 2px solid var(--s-gold);
+  outline-offset: 6px;
+}
+.lettre-envelope[data-phase="idle"] {
+  animation: lettre-nudge 4.5s ease-in-out 1.5s infinite;
+}
+.lettre-env-back {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: var(--l-kraft-deep);
+  box-shadow: 0 16px 34px rgba(52, 84, 104, 0.28);
+}
+.lettre-env-paper {
+  position: absolute;
+  top: 6%;
+  left: 7%;
+  right: 7%;
+  height: 86%;
+  z-index: 1;
+  padding: 9% 8% 0;
+  border-radius: 6px;
+  text-align: left;
+  font-size: 0.95rem;
+  line-height: 26px;
+  background-color: var(--l-paper);
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 25px, var(--l-line) 25px, var(--l-line) 26px);
+  background-position: 0 14px;
+  box-shadow: 0 1px 3px rgba(52, 84, 104, 0.2);
+  transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.lettre-env-front {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 8%;
+  border-radius: 12px;
+  background:
+    linear-gradient(to top right, transparent calc(50% - 1px), rgba(120, 88, 40, 0.2) 50%, transparent calc(50% + 1px)),
+    linear-gradient(to top left, transparent calc(50% - 1px), rgba(120, 88, 40, 0.2) 50%, transparent calc(50% + 1px)),
+    var(--l-kraft);
+  clip-path: polygon(0 0, 50% 56%, 100% 0, 100% 100%, 0 100%);
+}
+.lettre-env-flap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  z-index: 3;
+  transform-origin: 50% 0;
+  background: linear-gradient(180deg, #f6ecd6, #e8d4ab);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.lettre-env-seal {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin: -29px 0 0 -29px;
+  border-radius: 50%;
+  color: #f6e3c1;
+  font: 700 1.6rem/1 var(--font-hand);
+  background: radial-gradient(circle at 34% 30%, #e0546a, var(--l-wax) 55%, #7d1426);
+  box-shadow:
+    0 3px 8px rgba(80, 20, 30, 0.35),
+    inset 0 0 0 4px rgba(125, 20, 38, 0.35);
+  transition:
+    transform 0.45s cubic-bezier(0.3, 1.6, 0.5, 1),
+    opacity 0.35s ease 0.1s;
+}
+.lettre-envelope:not([data-phase="idle"]) .lettre-env-seal {
+  transform: scale(1.4) rotate(-14deg);
+  opacity: 0;
+}
+.lettre-envelope:is([data-phase="flap"], [data-phase="letter"]) .lettre-env-flap {
+  transform: rotateX(180deg);
+}
+.lettre-envelope[data-phase="letter"] .lettre-env-flap {
+  z-index: 0;
+}
+.lettre-envelope[data-phase="letter"] .lettre-env-paper {
+  transform: translateY(-62%);
+}
+@keyframes lettre-nudge {
+  0%,
+  86%,
+  100% {
+    transform: rotate(0);
+  }
+  89% {
+    transform: rotate(-2deg);
+  }
+  93% {
+    transform: rotate(2deg);
+  }
+  96% {
+    transform: rotate(-1deg);
+  }
+}
+
+/* The child's letter, on lined paper with a red margin. */
+.santa-blanc .santa-panel.lettre-paper {
+  background-color: var(--l-paper);
+  background-image:
+    linear-gradient(to right, transparent 30px, var(--l-margin) 30px, var(--l-margin) 31px, transparent 31px),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 31px, var(--l-line) 31px, var(--l-line) 32px);
+  background-position:
+    0 0,
+    0 8px;
+}
+.lettre-words {
+  font-family: var(--font-hand);
+  color: var(--l-ink);
+  font-size: 1.2rem;
+  line-height: 32px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.lettre-polaroid {
+  position: relative;
+  padding: 8px 8px 34px;
+  border-radius: 3px;
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(40, 60, 80, 0.25);
+  transform: rotate(-3deg);
+}
+.lettre-polaroid::before {
+  content: "";
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 72px;
+  height: 22px;
+  margin-left: -36px;
+  background: rgba(255, 243, 210, 0.88);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  transform: rotate(3deg);
+}
+.lettre-polaroid img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+.lettre-polaroid figcaption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  text-align: center;
+  font-family: var(--font-hand);
+  color: var(--l-ink);
+}
+
+/* A gift's picture: shop photos often have a white background, so they sit on white, whole. */
+.lettre-photo {
+  overflow: hidden;
+  border: 1px solid var(--s-line);
+  border-radius: 12px;
+  background: #ffffff;
+}
+.lettre-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.lettre-row {
+  border: 1px solid var(--s-line);
+  border-radius: 14px;
+  background: var(--s-raised);
+}
+.lettre-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #eaf1f5;
+  color: var(--s-ink);
+}
+.lettre-chip-star {
+  background: #fbefd2;
+  color: #6f4300;
+}
+.lettre-chip-green {
+  background: #e2f1ea;
+  color: #155f45;
+}
+.lettre-chip-red {
+  background: #f8e3e7;
+  color: #8f1a2d;
+}
+.lettre-gauge {
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e3edf2;
+  box-shadow: inset 0 1px 2px rgba(23, 48, 60, 0.18);
+}
+.lettre-gauge > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #17694c, #3a9a6e);
+  transition: width 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.lettre-gauge[data-full="true"] > span {
+  background: linear-gradient(90deg, #a86a00, #e2a33a);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lettre-envelope,
+  .lettre-envelope * {
+    animation: none !important;
+    transition: none !important;
+  }
+  .lettre-gauge > span {
+    transition: none;
+  }
+}

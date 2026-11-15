@@ -223,6 +223,15 @@ effectuée pour de vrai au moins une fois.
       club : un compteur de points (joueurs, couleurs, +/-, persistant en local) et un
       lanceur de dés (d4 à d100, plusieurs dés, animation) — première version, aucune donnée
       persistée en base
+- [x] **Ma lettre au Père Noël** (`/jeux/lettre`, 15/11/2026) — la liste de Noël d'un enfant
+      pour la famille, sur le thème « Noël blanc » du Secret Santa. Un seul lien secret, sans
+      compte : une enveloppe à ouvrir, la lettre et la photo de l'enfant, puis la liste. Chacun
+      réserve un cadeau à son prénom (une clé aléatoire en cookie lui permet de se désister), ou
+      promet une part d'une cagnotte dont la jauge s'arrête au montant ; l'argent ne passe
+      jamais par le CLHUB (Wero hors application, case « reçu » pour l'organisation). Photos en
+      base (`letter_image`), servies seulement derrière le lien. Verrou `FOR UPDATE` sur le
+      cadeau contre deux réservations simultanées. À cette occasion, le garde SSRF
+      (`core/net/urlSafety.ts`) vérifie aussi les adresses résolues et chaque redirection
 - [x] **Easter eggs** — code Konami (bannière + écusson secret « L'œuf caché », référence
       Ready Player One), page 404 sur le thème Star Wars, message caché dans la console
       (ASCII), bannière du 4 mai, et deux écussons secrets liés au lanceur de dés (20 et 1

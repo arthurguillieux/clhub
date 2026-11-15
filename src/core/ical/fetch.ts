@@ -1,4 +1,4 @@
-import { isSafeExternalUrl } from "@/core/net/urlSafety";
+import { readLimited, safeFetch } from "@/core/net/urlSafety";
 import { parseBusyDays } from "./parse";
 import type { CalendarDate } from "@/core/date";
 
@@ -13,22 +13,13 @@ export async function fetchBusyDays(
   windowStart: CalendarDate,
   windowEnd: CalendarDate,
 ): Promise<Set<CalendarDate> | null> {
-  let url: URL;
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    return null;
-  }
-  if (!isSafeExternalUrl(url)) return null;
-
   let text: string;
   try {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(8000),
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; LeCLHUBBot/1.0)" },
-    });
-    if (!res.ok) return null;
-    text = await res.text();
+    const res = await safeFetch(rawUrl, { timeoutMs: 8000 });
+    if (!res?.ok) return null;
+    const body = await readLimited(res, 20_000_000);
+    if (!body) return null;
+    text = body.toString("utf8");
   } catch {
     return null;
   }

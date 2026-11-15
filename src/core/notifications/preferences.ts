@@ -23,6 +23,11 @@ export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
     label: "Retard de retour",
     description: "Un mail si un emprunt en cours dépasse sa date de retour prévue.",
   },
+  {
+    key: "lettre",
+    label: "Lettre au Père Noël",
+    description: "Un mail quand quelqu'un réserve un cadeau ou promet une part de cagnotte sur une lettre que tu organises, ou se désiste.",
+  },
 ];
 
 /** Opt-out model: absent or anything but an explicit `false` counts as "wants it". */

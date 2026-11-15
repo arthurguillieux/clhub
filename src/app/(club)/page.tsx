@@ -10,6 +10,7 @@ import { categoryLabel } from "@/core/ui/categories";
 import { CLUB_SECTIONS } from "@/core/ui/sections";
 import { formatFrench, type CalendarDate } from "@/core/date";
 import { getLatestChangelogDay } from "@/modules/changelog/data/entries";
+import { offerSentence } from "@/modules/lettre/domain/letter";
 import { RelativeTime } from "@/core/ui/components/RelativeTime";
 import { markAllNotificationsReadAction } from "./actions";
 
@@ -86,6 +87,12 @@ function describeActivity(a: ActivityEntry): string {
     default:
       return a.kind;
   }
+}
+
+/** Where a notification leads, for those that lead somewhere. */
+function notificationHref(n: Notification): string | null {
+  const code = (n.payload as { code?: unknown }).code;
+  return n.kind.startsWith("lettre.") && typeof code === "string" && /^[A-Z0-9]{6}$/.test(code) ? `/lettre/${code}/panneau` : null;
 }
 
 function describeNotification(n: Notification): string {
@@ -166,6 +173,17 @@ function describeNotification(n: Notification): string {
     case "don.interest": {
       const p = n.payload as { memberName?: string; title?: string };
       return `${p.memberName ?? "Quelqu'un"} est intéressé·e par ton annonce « ${p.title ?? "?"} ».`;
+    }
+    case "lettre.offer":
+    case "lettre.withdraw": {
+      const p = n.payload as { name?: string; giftTitle?: string; childName?: string; amountCents?: number | null };
+      return offerSentence({
+        type: n.kind === "lettre.offer" ? "offer" : "withdraw",
+        name: p.name ?? "Quelqu'un",
+        giftTitle: p.giftTitle ?? "?",
+        childName: p.childName ?? "l'enfant",
+        amountCents: typeof p.amountCents === "number" ? p.amountCents : null,
+      });
     }
     case "don.reserved": {
       const p = n.payload as { title?: string };
@@ -302,11 +320,20 @@ export default async function HomePage() {
 }
 
 function NotificationRow({ notification: n }: { notification: Notification }) {
+  const href = notificationHref(n);
   return (
     <div className="flex items-start gap-3 px-4 py-3 text-sm">
       {!n.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />}
       <div className={n.readAt ? "pl-5" : ""}>
-        <p className={n.readAt ? "text-muted" : "text-ink"}>{describeNotification(n)}</p>
+        <p className={n.readAt ? "text-muted" : "text-ink"}>
+          {href ? (
+            <Link href={href} className="hover:underline">
+              {describeNotification(n)}
+            </Link>
+          ) : (
+            describeNotification(n)
+          )}
+        </p>
         <p className="mt-0.5 text-xs text-muted">
           <RelativeTime date={n.createdAt} />
         </p>
