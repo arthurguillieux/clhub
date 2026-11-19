@@ -195,7 +195,7 @@ export function GiftEditor({
         {mode === "several" && <span className={help}>Pour des livres, des Lego… : chacun en offre un.</span>}
         <label className="flex min-h-11 items-center gap-3">
           <input type="radio" name={`${ids}-mode`} checked={mode === "pot"} disabled={taken && !gift?.pot} onChange={() => setMode("pot")} className="h-5 w-5 accent-[var(--s-green)]" />
-          💶 Tout le monde participe : une cagnotte
+          💶 Tout le monde peut participer : une cagnotte
         </label>
         {mode === "pot" && (
           <span className={help}>

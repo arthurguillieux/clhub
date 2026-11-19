@@ -334,7 +334,7 @@ function GiftHead({ gift }: { gift: GiftView }) {
         <h3 className="text-lg leading-snug font-bold break-words">{gift.title}</h3>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {gift.favorite && <span className="lettre-chip lettre-chip-star">⭐ Un de ses préférés</span>}
-          {gift.pot && <span className="lettre-chip lettre-chip-green">💶 Cagnotte : tout le monde participe</span>}
+          {gift.pot && <span className="lettre-chip lettre-chip-green">💶 Cagnotte : tout le monde peut participer</span>}
           {!gift.pot && gift.copies !== 1 && <span className="lettre-chip">{gift.copies === null ? "Plusieurs personnes peuvent l'offrir" : `Jusqu'à ${gift.copies} personnes peuvent l'offrir`}</span>}
           {gift.secondHand && <span className="lettre-chip">♻️ L&apos;occasion, c&apos;est très bien</span>}
         </div>
