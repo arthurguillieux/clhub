@@ -29,6 +29,12 @@ const TOOLS = [
     description: "Des agents, des missions secrètes, une cible à éliminer — et un grand écran qui suit la partie.",
   },
   {
+    href: "/jeux/loups",
+    icon: "🐺",
+    name: "Loups-garous",
+    description: "L'aide du meneur : le deck selon le nombre de joueurs, les cartes tirées au sort, les appels de la nuit et la mémoire de la partie.",
+  },
+  {
     href: "/jeux/santa",
     icon: "🎁",
     name: "Secret Santa",

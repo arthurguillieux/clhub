@@ -1,0 +1,272 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { CAUSE_LABELS, WINNER_LABELS, isNight, phaseLabel, type Cause } from "@/modules/loups/domain/game";
+import { roleName, roleOf } from "@/modules/loups/domain/roles";
+import type { HostView } from "@/modules/loups/views";
+import { deleteGameAction, meneurAction, replayAction } from "../../actions";
+import { Setup } from "./Setup";
+import { Tracker } from "./Tracker";
+import { LoupsDialog, type Send } from "./ui";
+
+/** The meneur's phone, from the setup to the end of the game. */
+export function MeneurPanel({
+  code,
+  initialView,
+  book,
+  members,
+  qrSvg,
+}: {
+  code: string;
+  initialView: HostView;
+  book: { id: string; name: string; memberId: string | null }[];
+  members: { id: string; name: string }[];
+  qrSvg: string;
+}) {
+  const [view, setView] = useState(initialView);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const actions = useRef(0);
+
+  const send: Send = async (action) => {
+    actions.current += 1;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await meneurAction(code, action);
+      if (!result.ok) {
+        setError(result.error);
+        return result.error;
+      }
+      setView(result.view);
+      return null;
+    } catch {
+      setError("Pas de connexion — réessaie.");
+      return "Pas de connexion";
+    } finally {
+      actions.current += 1;
+      setBusy(false);
+    }
+  };
+
+  // While the phones look at their cards, who has seen theirs shows up by itself.
+  useEffect(() => {
+    if (view.status !== "dealing") return;
+    const timer = setInterval(async () => {
+      const before = actions.current;
+      try {
+        const result = await meneurAction(code, { type: "refresh" });
+        if (result.ok && actions.current === before) setView(result.view);
+      } catch {
+        // The next round will do.
+      }
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [code, view.status]);
+
+  const addPlayer = async (who: { name: string } | { memberId: string }) => {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await meneurAction(code, { type: "addPlayer", ...who });
+      if (!result.ok || !result.playerId) {
+        setError(result.ok ? "Impossible d'ajouter ce joueur." : result.error);
+        return null;
+      }
+      const name = "name" in who ? who.name.replace(/\s+/g, " ").trim() : (members.find((m) => m.id === who.memberId)?.name ?? "?");
+      return { id: result.playerId, name: book.find((p) => p.id === result.playerId)?.name ?? name };
+    } catch {
+      setError("Pas de connexion — réessaie.");
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const night = view.status === "playing" && isNight(view.tracker.turn);
+
+  return (
+    <div className={`loups ${night ? "loups-night" : ""} px-4 pt-6 pb-24`}>
+      <div className="mx-auto flex max-w-xl flex-col gap-5">
+        <header>
+          <Link href="/jeux/loups" className="loups-muted text-sm">
+            ← Loups-garous
+          </Link>
+          <p className="loups-label mt-3">
+            Partie {code} · {view.seats.length} joueurs
+          </p>
+          {view.status === "setup" && <h1 className="loups-title mt-1 text-3xl">Nouvelle partie</h1>}
+        </header>
+        {error && (
+          <p role="alert" className="loups-panel border-[var(--w-blood)] p-3 text-sm text-[var(--w-blood)]">
+            {error}
+          </p>
+        )}
+        {view.status === "setup" && <Setup view={view} book={book} members={members} busy={busy} send={send} addPlayer={addPlayer} />}
+        {view.status === "dealing" && <ShareRules key="dealing" view={view} qrSvg={qrSvg} />}
+        {view.status === "dealing" && <Dealing view={view} busy={busy} send={send} />}
+        {view.status === "playing" && <Tracker view={view} busy={busy} send={send} />}
+        {/* Folded during the game: a white QR code lights up the room at night. */}
+        {view.status === "playing" && <ShareRules key="playing" view={view} qrSvg={qrSvg} />}
+        {view.status === "done" && <Done view={view} code={code} />}
+        {view.status === "setup" && (
+          <button type="button" className="py-2 text-sm text-[var(--w-blood)] underline" onClick={() => void deleteGameAction(code)}>
+            Supprimer cette partie
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The link to the deck and its rules, for the players to read on their phones. */
+function ShareRules({ view, qrSvg }: { view: HostView; qrSvg: string }) {
+  const [copied, setCopied] = useState(false);
+  const [qr, setQr] = useState(view.status === "dealing");
+  const share = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Loups-garous", text: "Les cartes de la partie et leurs règles :", url: view.link });
+        return;
+      } catch {
+        return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(view.link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <section className="loups-panel p-4" data-player-link={view.link}>
+      <p className="loups-label">Le lien des joueurs</p>
+      <p className="loups-muted mt-1 text-sm">
+        {view.dealMode === "app" ? "Chacun y découvre sa carte, et les règles de toutes les cartes du deck." : "Les cartes du deck et leurs règles, pour qui ne connaît pas la sienne."}
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button type="button" className="loups-btn-ghost min-h-11 px-3 text-sm" onClick={() => void share()}>
+          {copied ? "Lien copié ✓" : "📤 Partager le lien"}
+        </button>
+        <button type="button" className="loups-btn-ghost min-h-11 px-3 text-sm" onClick={() => setQr(!qr)}>
+          {qr ? "Cacher le QR code" : "▦ QR code"}
+        </button>
+      </div>
+      {qr && <div className="mx-auto mt-3 w-full max-w-64 rounded-2xl bg-white p-3" aria-label="QR code du lien des joueurs" dangerouslySetInnerHTML={{ __html: qrSvg }} />}
+    </section>
+  );
+}
+
+/** The CLHUB dealt: each player sees their card on their phone, or on the meneur's passed around. */
+function Dealing({ view, busy, send }: { view: HostView; busy: boolean; send: Send }) {
+  const [passing, setPassing] = useState<string | null>(null);
+  const seen = view.seats.filter((s) => s.seen).length;
+  const seat = view.seats.find((s) => s.id === passing);
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="loups-panel p-4">
+        <p className="loups-label">
+          Les cartes · {seen} sur {view.seats.length} vues
+        </p>
+        <p className="loups-muted mt-1 text-sm">Chacun scanne le QR code et touche son prénom. Sans téléphone, fais passer le tien : « Montrer ».</p>
+        <ul className="mt-3 flex flex-col gap-1.5">
+          {view.seats.map((s) => (
+            <li key={s.id} className="loups-raised flex items-center gap-2 py-1 pr-1 pl-3">
+              <span className="min-w-0 flex-1 truncate font-semibold">{s.name}</span>
+              <span className={`text-xs ${s.seen ? "text-[var(--w-village)]" : "loups-muted"}`}>{s.seen ? (s.claimed ? "sur son téléphone ✓" : "vue ✓") : "pas encore"}</span>
+              {s.seen ? (
+                <button type="button" className="loups-muted min-h-10 px-2 text-xs underline" disabled={busy} onClick={() => void send({ type: "seen", seat: s.id, seen: false })}>
+                  Libérer
+                </button>
+              ) : (
+                <button type="button" className="loups-btn-ghost min-h-10 px-3 text-xs" disabled={busy} onClick={() => setPassing(s.id)}>
+                  Montrer
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <button type="button" className="loups-btn min-h-14 px-6 text-lg" disabled={busy} onClick={() => void send({ type: "startNight" })}>
+        🌙 Tout le monde a sa carte : la nuit tombe
+      </button>
+      {seat && <PassPhone name={seat.name} role={seat.role} onDone={() => void send({ type: "seen", seat: seat.id, seen: true }).then(() => setPassing(null))} onClose={() => setPassing(null)} />}
+    </section>
+  );
+}
+
+/** The meneur's phone in a player's hands: their name first, the card only once they tap. */
+function PassPhone({ name, role, onDone, onClose }: { name: string; role: string | null; onDone: () => void; onClose: () => void }) {
+  const [shown, setShown] = useState(false);
+  return (
+    <LoupsDialog title={shown ? name : `Passe le téléphone à ${name}`} onClose={onClose}>
+      {shown ? (
+        <>
+          <div className="loups-card loups-card-face flex flex-col items-center justify-center p-6 text-center">
+            <p className="loups-label">Ta carte</p>
+            <p className="loups-title mt-2 text-3xl">{roleName(role)}</p>
+            <p className="loups-muted mt-3 text-sm">{role ? roleOf(role)?.rule : ""}</p>
+          </div>
+          <button type="button" className="loups-btn min-h-12 px-4" onClick={onDone}>
+            J&apos;ai vu, je cache et je rends le téléphone
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="text-sm">Seul·e {name} regarde l&apos;écran.</p>
+          <button type="button" className="loups-btn min-h-12 px-4" onClick={() => setShown(true)}>
+            Je suis {name} : voir ma carte
+          </button>
+          <button type="button" className="loups-btn-ghost min-h-12 px-4" onClick={onClose}>
+            Pas maintenant
+          </button>
+        </>
+      )}
+    </LoupsDialog>
+  );
+}
+
+/** The game is over: who won, who was who, and the next one. */
+function Done({ view, code }: { view: HostView; code: string }) {
+  const [going, setGoing] = useState(false);
+  const go = (adjust: boolean) => {
+    setGoing(true);
+    replayAction(code, adjust).catch(() => setGoing(false));
+  };
+  return (
+    <section className="flex flex-col gap-4">
+      <div className="loups-panel p-5 text-center">
+        <p className="loups-label">{phaseLabel(view.tracker.turn)}</p>
+        <h1 className="loups-title mt-2 text-3xl">🏁 {view.winner ? WINNER_LABELS[view.winner] : "Partie terminée"}</h1>
+        {view.blackPlague && <p className="loups-muted mt-1 text-sm">☣️ C&apos;était une peste noire.</p>}
+      </div>
+      <ul className="loups-panel flex flex-col gap-1.5 p-4">
+        {view.seats.map((s) => (
+          <li key={s.id} className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
+            <span className={s.alive ? "font-semibold" : "loups-muted line-through"}>{s.name}</span>
+            <span>
+              {roleName(s.startRole ?? s.role)}
+              {s.startRole && s.role && s.startRole !== s.role && ` → ${roleName(s.role)}`}
+              <span className="loups-muted">
+                {" · "}
+                {s.alive ? "en vie" : `${s.diedTurn ? phaseLabel(s.diedTurn) : ""}, ${CAUSE_LABELS[(s.cause ?? "autre") as Cause] ?? "mort"}`}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="loups-btn min-h-14 px-6 text-lg" disabled={going} onClick={() => go(false)}>
+        🔁 Relancer la même partie
+      </button>
+      <button type="button" className="loups-btn-ghost min-h-12 px-4" disabled={going} onClick={() => go(true)}>
+        🃏 Ajuster les joueurs ou le deck
+      </button>
+      <Link href="/jeux/loups" className="loups-muted py-2 text-center text-sm underline">
+        Voir les stats
+      </Link>
+    </section>
+  );
+}

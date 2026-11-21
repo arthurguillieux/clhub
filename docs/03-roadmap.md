@@ -223,6 +223,12 @@ effectuée pour de vrai au moins une fois.
       club : un compteur de points (joueurs, couleurs, +/-, persistant en local) et un
       lanceur de dés (d4 à d100, plusieurs dés, animation) — première version, aucune donnée
       persistée en base
+- [x] **Loups-garous** (`/jeux/loups`, 22/11/2026) — l'aide du meneur : deck proposé selon le
+  nombre de joueurs (ordre d'Arthur, peste noire en option), vraies cartes ou tirage par le CLHUB
+  (QR code par joueur, ou téléphone qu'on fait passer), appels de la nuit réordonnables, morts
+  proposées puis confirmées (amoureux, ancien, barbier, idiot, servante…), victoire devinée,
+  « Annuler », relancer la même partie, règles réécrivables, stats du meneur et carnet des joueurs
+  (ordre alphabétique, sans podium). Règles pures dans `modules/loups/domain`.
 - [x] **Ma lettre au Père Noël** (`/jeux/lettre`, 15/11/2026) — la liste de Noël d'un enfant
       pour la famille, sur le thème « Noël blanc » du Secret Santa. Un seul lien secret, sans
       compte : une enveloppe à ouvrir, la lettre et la photo de l'enfant, puis la liste. Chacun

@@ -1397,3 +1397,151 @@ body {
     transition: none;
   }
 }
+
+/*
+ * « Loups-garous »: a village under the moon. The meneur's phone lies on the table while everyone has
+ * their eyes shut, so the pages are dark and warm, and darker still at night (`.loups-night`): no
+ * white, only parchment and moonlight, and red for what the wolves do.
+ */
+.loups {
+  --w-bg: #0e1220;
+  --w-surface: #161b2c;
+  --w-raised: #1e2539;
+  --w-line: #2e3653;
+  --w-ink: #ece5d3;
+  --w-muted: #9aa1b9;
+  --w-moon: #e6cf8f;
+  --w-moon-ink: #1b1608;
+  --w-blood: #e0675a;
+  --w-village: #86c194;
+  min-height: 100dvh;
+  color: var(--w-ink);
+  background:
+    radial-gradient(circle at 82% -8%, rgba(230, 207, 143, 0.16), transparent 34%),
+    radial-gradient(ellipse at 50% 120%, rgba(36, 48, 84, 0.9), transparent 60%),
+    var(--w-bg);
+  transition: background-color 0.8s ease;
+}
+.loups-night {
+  --w-bg: #05060a;
+  --w-surface: #0c0e16;
+  --w-raised: #121521;
+  --w-line: #1f2433;
+  --w-ink: #c9b994;
+  --w-muted: #7d7a72;
+  --w-moon: #b89b5b;
+  background: var(--w-bg);
+}
+.loups-panel {
+  border: 1px solid var(--w-line);
+  border-radius: 18px;
+  background: var(--w-surface);
+}
+.loups-raised {
+  border: 1px solid var(--w-line);
+  border-radius: 14px;
+  background: var(--w-raised);
+}
+.loups-title {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.loups-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--w-moon);
+}
+.loups-muted {
+  color: var(--w-muted);
+}
+.loups-btn,
+.loups-btn-ghost,
+.loups-btn-red {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  font-weight: 700;
+  text-align: center;
+  transition:
+    transform 0.12s ease,
+    opacity 0.12s ease;
+}
+.loups-btn {
+  background: var(--w-moon);
+  color: var(--w-moon-ink);
+}
+.loups-btn-ghost {
+  border: 1px solid var(--w-line);
+  background: var(--w-raised);
+  color: var(--w-ink);
+}
+.loups-btn-red {
+  background: var(--w-blood);
+  color: #1b0806;
+}
+.loups-btn:active,
+.loups-btn-ghost:active,
+.loups-btn-red:active {
+  transform: scale(0.98);
+}
+.loups-btn:disabled,
+.loups-btn-ghost:disabled,
+.loups-btn-red:disabled {
+  opacity: 0.45;
+}
+.loups :focus-visible {
+  outline: 2px solid var(--w-moon);
+  outline-offset: 2px;
+}
+.loups-field {
+  border: 1px solid var(--w-line);
+  border-radius: 12px;
+  background: var(--w-bg);
+  color: var(--w-ink);
+}
+.loups-field::placeholder {
+  color: var(--w-muted);
+}
+.loups-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--w-raised);
+  border: 1px solid var(--w-line);
+}
+.loups-chip-wolf {
+  color: var(--w-blood);
+  border-color: color-mix(in srgb, var(--w-blood) 45%, transparent);
+}
+.loups-chip-village {
+  color: var(--w-village);
+  border-color: color-mix(in srgb, var(--w-village) 45%, transparent);
+}
+.loups-veil {
+  background: rgba(3, 4, 8, 0.78);
+}
+/* The card a player turns over on their phone. */
+.loups-card {
+  aspect-ratio: 5 / 7;
+  border-radius: 22px;
+  border: 1px solid var(--w-line);
+  background:
+    radial-gradient(circle at 50% 30%, rgba(230, 207, 143, 0.22), transparent 55%),
+    linear-gradient(160deg, #222a45, #10142a);
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.45);
+}
+.loups-card-face {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(230, 207, 143, 0.28), transparent 50%),
+    linear-gradient(160deg, #2a2316, #14110b);
+}
