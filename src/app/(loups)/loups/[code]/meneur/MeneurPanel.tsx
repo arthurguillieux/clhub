@@ -110,11 +110,7 @@ export function MeneurPanel({
         {/* Folded during the game: a white QR code lights up the room at night. */}
         {view.status === "playing" && <ShareRules key="playing" view={view} qrSvg={qrSvg} />}
         {view.status === "done" && <Done view={view} code={code} />}
-        {view.status === "setup" && (
-          <button type="button" className="py-2 text-sm text-[var(--w-blood)] underline" onClick={() => void deleteGameAction(code)}>
-            Supprimer cette partie
-          </button>
-        )}
+        <DeleteGame code={code} done={view.status === "done"} />
       </div>
     </div>
   );
@@ -268,5 +264,39 @@ function Done({ view, code }: { view: HostView; code: string }) {
         Voir les stats
       </Link>
     </section>
+  );
+}
+
+/** A test game, a game abandoned: gone, and out of the stats. */
+function DeleteGame({ code, done }: { code: string; done: boolean }) {
+  const [asking, setAsking] = useState(false);
+  const [going, setGoing] = useState(false);
+  return (
+    <>
+      <button type="button" className="py-2 text-sm text-[var(--w-blood)] underline" onClick={() => setAsking(true)}>
+        Supprimer cette partie
+      </button>
+      {asking && (
+        <LoupsDialog title="Supprimer cette partie ?" onClose={() => setAsking(false)}>
+          <p className="text-sm">
+            {done ? "Elle disparaît de ta liste et ne compte plus dans tes stats ni dans le carnet des joueurs." : "Elle disparaît de ta liste, et le lien des joueurs ne mènera plus nulle part."} C&apos;est définitif.
+          </p>
+          <button
+            type="button"
+            className="loups-btn-red min-h-12 px-4"
+            disabled={going}
+            onClick={() => {
+              setGoing(true);
+              deleteGameAction(code).catch(() => setGoing(false));
+            }}
+          >
+            {going ? "Suppression…" : "Supprimer définitivement"}
+          </button>
+          <button type="button" className="loups-btn-ghost min-h-12 px-4" onClick={() => setAsking(false)}>
+            Garder la partie
+          </button>
+        </LoupsDialog>
+      )}
+    </>
   );
 }

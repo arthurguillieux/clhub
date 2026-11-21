@@ -61,4 +61,10 @@ test("loups-garous: table, deck, draw, a night, a day, the end", async ({ page, 
   await page.goto("/jeux/loups");
   await expect(page.getByText(/parties? menées?/)).toBeVisible();
   await expect(page.getByRole("cell", { name: wolfName })).toBeVisible();
+
+  // A test game can go, and leaves the stats with it.
+  await page.getByRole("link", { name: "Revoir" }).first().click();
+  await page.getByRole("button", { name: "Supprimer cette partie" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Supprimer définitivement" }).click();
+  await expect(page).toHaveURL(/\/jeux\/loups$/);
 });
