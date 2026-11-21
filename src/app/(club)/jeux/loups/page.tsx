@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getSession } from "@/core/auth/session";
-import { Button } from "@/core/ui/components/Button";
 import { Card } from "@/core/ui/components/Card";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { getStats, listGames } from "@/modules/loups/data/games";
 import { WINNER_LABELS, type Winner } from "@/modules/loups/domain/game";
 import { newGameAction } from "@/app/(loups)/loups/actions";
+import { NewGameButton } from "./NewGameButton";
 
 export const metadata: Metadata = { title: "Loups-garous" };
 
@@ -34,9 +34,7 @@ export default async function LoupsHomePage() {
         tout ce qui s&apos;est passé (amoureux, potions, protections…). Les joueurs reçoivent un lien avec les règles de leurs cartes.
       </p>
       <form action={newGameAction} className="mt-5">
-        <Button type="submit" variant="accent" className="min-h-12 px-6 text-base">
-          🐺 Nouvelle partie
-        </Button>
+        <NewGameButton />
       </form>
 
       {games.length > 0 && (
