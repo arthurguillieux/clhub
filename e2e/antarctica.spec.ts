@@ -44,6 +44,7 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
   const reader = page.getByRole("dialog", { name: "Texte à lire" });
   await tap("❄️ Lancer la soirée");
   await tap("Commencer : prologue du bus");
+  await expect(page.getByText("Prologue du bus", { exact: true }).first()).toBeVisible(); // written down before reading
   // The text of the moment, full screen on the phone, never on the projection.
   await bar.getByRole("button", { name: /Texte/ }).click();
   await expect(reader.getByText("PRO-01", { exact: false }).first()).toBeVisible();
