@@ -2,7 +2,7 @@
  * « Simuler une partie »: twenty fictive players and a journal written up to a chosen moment, through
  * the engine like a real evening (no shortcut: the console can undo it action by action).
  */
-import { alive, apply, initialState, nightSteps, pack, proposals, type Action, type Setup, type State } from "./engine";
+import { alive, apply, doorProposals, initialState, nightSteps, pack, proposals, type Action, type Setup, type State } from "./engine";
 import type { ScenarioDef } from "./types";
 
 export const START_POINTS = [
@@ -10,7 +10,7 @@ export const START_POINTS = [
   { id: "b1-day3", label: "Boucle 1, jour 3" },
   { id: "reboot", label: "Reboot entre les deux boucles" },
   { id: "b2-arrival", label: "Arrivée de la boucle 2" },
-  { id: "b2-day3", label: "Boucle 2, jour 3" },
+  { id: "b2-day3", label: "Boucle 2, jour 3 (laboratoire)" },
 ] as const;
 export type StartPoint = (typeof START_POINTS)[number]["id"];
 
@@ -47,40 +47,64 @@ export function simulatedJournal(def: ScenarioDef, setup: Setup, start: StartPoi
     actions.push(a);
     s = apply(def, setup, s, a);
   };
-  const healthy = () => alive(s).filter((p) => !p.infected);
+  // The chief stays out of the pack's way and of the exile: the simulation never locks the base by chance.
+  const healthy = () => alive(s).filter((p) => !p.infected && p.id !== s.chief);
 
   const arrive = () => {
     if (s.phase === "welcome") go({ t: "start" });
     go({ t: "arrive" });
-    go({ t: "patientZero", player: pick(alive(s), random)!.id });
-  };
-  const explore = () => {
     if (!s.light) go({ t: "light", on: true });
-    for (const door of ["dortoir", "beta"]) if (!s.doors[door]) go({ t: "door", door, open: true });
-    // The items found, and who carries them.
-    for (const item of ["vie", "mort", "bandes"]) go({ t: "giveItem", item, player: pick(healthy(), random)!.id });
+    if (!s.doors.dortoir) go({ t: "door", door: "dortoir", open: true });
+    if (s.chiefToConfirm) go({ t: "chiefConfirm" });
+    else {
+      // Four volunteers, the vote by moving, the elected one.
+      const volunteers = shuffle(alive(s), random).slice(0, 4).map((p) => p.id);
+      go({ t: "vote", kind: "chief", options: volunteers });
+      go({ t: "voteResult", choice: pick(volunteers, random)! });
+    }
+    // Loop 2: what was found is handed out again.
+    for (const item of handOut()) go({ t: "giveItem", item, player: pick(healthy(), random)!.id });
+    go({ t: "patientZero", player: pick(healthy(), random)!.id });
+  };
+  const handOut = () => {
+    const out: string[] = [];
+    if (s.found.includes("pistolet") && !s.items.pistolet?.holder) out.push("pistolet");
+    if (s.found.includes("bandes") && !s.items.bandes?.holder) out.push("bandes");
+    if (s.found.includes("seringues") && !s.items.vie?.holder) out.push("seringues");
+    return out;
   };
   const night = () => {
     go({ t: "night" });
-    for (const step of nightSteps(s, setup.params)) {
+    for (const step of nightSteps(s, setup.params, def)) {
       if (step === "tapes") go({ t: "tapes", target: pick(alive(s), random)!.id });
       if (step === "infect") go({ t: "infect", player: pick(healthy(), random)!.id });
       if (step === "victim") go({ t: "victim", player: pick(healthy(), random)!.id });
-      if (step === "panic" || step === "items") go({ t: "skip", step });
+      if (step === "pz" || step === "handover" || step === "panic" || step === "items") go({ t: "skip", step });
       if (step === "dead") {
         const proposed = proposals(s, setup);
-        go({ t: "propose", events: proposed });
-        go({ t: "deadChoose", event: pick(proposed, random) ?? null });
+        if (proposed.length) {
+          go({ t: "vote", kind: "dead", options: proposed });
+          go({ t: "voteResult", choice: pick(proposed, random)! });
+        } else go({ t: "skip", step });
       }
     }
     go({ t: "dawn" });
   };
+  /** The day: the door (the plan's, the second one on day 2: the archives' search), the items found handed out, the exile. */
+  const day = (exile: boolean) => {
+    const doors = doorProposals(def, s);
+    if (doors.length) {
+      go({ t: "vote", kind: "door", options: doors });
+      go({ t: "voteResult", choice: (s.round === 2 ? doors[1] : doors[0]) ?? doors[0]! });
+    }
+    for (const item of handOut()) go({ t: "giveItem", item, player: pick(healthy(), random)!.id });
+    if (exile) go({ t: "exile", player: pick(healthy(), random)?.id ?? null });
+  };
   // Three nights; the village exiles someone healthy each day, so neither side wins before day 3.
   const toDay3 = () => {
-    explore();
     for (let n = 1; n <= 3; n++) {
       night();
-      if (n < 3) go({ t: "exile", player: pick(healthy(), random)?.id ?? null });
+      if (n < 3) day(true);
     }
   };
 
@@ -88,6 +112,7 @@ export function simulatedJournal(def: ScenarioDef, setup: Setup, start: StartPoi
   if (start === "b1-arrival") return actions;
   toDay3();
   if (start === "b1-day3") return actions;
+  day(true);
   go({ t: "endLoop", winner: pack(s).length >= alive(s).length - pack(s).length ? "meute" : "village" });
   if (start === "reboot") return actions;
   go({ t: "reboot" });

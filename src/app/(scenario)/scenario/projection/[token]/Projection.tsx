@@ -109,6 +109,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   const [reboot, setReboot] = useState<string | null>(null);
   const [bootKey, setBootKey] = useState(0);
   const lastSeq = useRef<number | null>(null);
+  const wasLocked = useRef(initial.state.locked);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const later = (fn: () => void, ms: number) => timers.current.push(setTimeout(fn, ms));
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -149,6 +150,9 @@ export function Projection({ token, def, initial }: { token: string; def: Public
     const fresh = view.recent.filter((r) => view.now - r.at < 5000 && (lastSeq.current === null || r.seq > lastSeq.current));
     lastSeq.current = Math.max(lastSeq.current ?? 0, ...view.recent.map((r) => r.seq));
     const allFaults = [...def.faults, ...view.extraFaults];
+    const nameOf = (id: string | null | undefined) => view.players.find((p) => p.id === id)?.name.toUpperCase() ?? "—";
+    const lockedNow = s.locked && !wasLocked.current;
+    wasLocked.current = s.locked;
     for (const { action: a } of fresh) {
       play(a);
     }
@@ -271,6 +275,69 @@ export function Projection({ token, def, initial }: { token: string; def: Public
             later(() => setEventBig(false), 12_000);
           }, 9000);
           break;
+        case "chief":
+          if (a.player) {
+            SFX.ok();
+            banner(`CHEF DE MISSION : ${nameOf(a.player)}. IDENTIFICATION ENREGISTRÉE.`, "ok");
+          }
+          break;
+        case "chiefConfirm":
+          SFX.ok();
+          banner(`CHEF DE MISSION : ${nameOf(s.chief)}. IDENTIFICATION CONFIRMÉE.`, "ok");
+          break;
+        case "vote":
+          SFX.boot();
+          break;
+        case "voteResult":
+          if (!a.choice) break;
+          SFX.ok();
+          if (s.chief === a.choice && s.phase !== "night") banner(`CHEF DE MISSION : ${nameOf(a.choice)}. IDENTIFICATION ENREGISTRÉE.`, "ok");
+          else if (s.lastAction && s.lastAction !== "fouiller") SFX.door();
+          break;
+        case "dayAction":
+          SFX.door();
+          break;
+        case "labForce":
+          doGlitch();
+          SFX.zap();
+          banner("ACCÈS FORCÉ · LABORATOIRE", "bad");
+          break;
+        case "shoot":
+          SFX.zap();
+          setFlash(Date.now());
+          if (s.lastShot && !s.lastShot.infected) banner("TIR SANS MOTIF. LE TIREUR EST EXCLU.", "bad");
+          else if (s.lastShot) banner(`SIGNAL PERDU : ${nameOf(s.lastShot.target)}`, "bad");
+          break;
+        case "bloodTest":
+          if (s.lastTest) {
+            if (s.lastTest.positive) SFX.deny();
+            else SFX.ok();
+            banner(`TEST SANGUIN · ${nameOf(s.lastTest.target)} : ${s.lastTest.positive ? "POSITIF" : "NÉGATIF"}`, s.lastTest.positive ? "bad" : "ok");
+          }
+          break;
+        case "radio":
+          if (s.lastRadio !== null) {
+            SFX.boot();
+            banner(`CONTAMINÉS EN VIE : ${s.lastRadio}`, "bad");
+          }
+          break;
+        case "confinement":
+          if (a.on) {
+            SFX.deny();
+            setFlash(Date.now());
+            banner("CONFINEMENT · PORTE COUPE-FEU FERMÉE", "bad");
+          } else {
+            SFX.door();
+            banner("PORTE COUPE-FEU ROUVERTE", "ok");
+          }
+          break;
+        case "exile":
+          if (lockedNow) {
+            doGlitch();
+            SFX.deny();
+            banner("PERTE DE CONFIANCE. CHEF DE MISSION ÉLIMINÉ SANS MOTIF. VERROUILLAGE GÉNÉRAL.", "bad");
+          }
+          break;
         case "reboot":
           doGlitch();
           setReboot("");
@@ -341,18 +408,36 @@ export function Projection({ token, def, initial }: { token: string; def: Public
                 <span className={glitch ? "alt" : ""}>{glitch ? `SIMULATION ALPHA — SESSION 0${s.loop} — SUJETS ACTIFS : ${aliveCount}` : def.header}</span>
                 <span className="flex gap-[2.4em] opacity-85">
                   <Clock date={glitch ? (view.dates.real ?? def.realDate) : (view.dates.world ?? def.worldDate)} />
-                  <Temperature />
+                  <Temperature around={def.temperature} />
+                  {s.chief && <span>CHEF : {view.players.find((p) => p.id === s.chief)?.name.toUpperCase()}</span>}
                   <span className="pj-rec">● REC</span>
                 </span>
               </div>
             )}
             <div className="pj-mapbox" style={zoom ? { transformOrigin: `${(zoom.x / 1600) * 100}% ${(zoom.y / 820) * 100}%`, transform: "scale(2.6)", filter: "blur(3px) brightness(.45)" } : undefined}>
-              <Plan players={view.players} sealed={s.sealed} light={s.light} doors={s.doors} panicReady={s.panicReady} hot={{ accueil: s.light && !term, beta: !!s.doors.beta && !term }} denied={denied} />
+              <Plan
+                players={view.players}
+                sealed={s.sealed}
+                light={s.light}
+                doors={s.doors}
+                panicReady={s.panicReady}
+                hot={{ accueil: s.light && !term, beta: !!s.doors.beta && !term, securite: !!s.doors.securite && !term, labo: !!s.doors.labo && !term }}
+                denied={denied}
+                parity={(s.parity || s.confinement) && s.phase === "day"}
+                confinement={s.confinement}
+              />
             </div>
-            <div className="pj-dark" style={{ opacity: darkOverride ?? (s.light ? 0 : 1) }}>
+            <div className="pj-dark" style={{ opacity: darkOverride ?? (s.light && !(s.dark && s.phase === "day") ? 0 : 1) }}>
               <Torch />
-              <div className="msg">— SECTEUR NON ÉCLAIRÉ —</div>
+              <div className="msg">{s.dark && s.phase === "day" ? "— DÉLESTAGE · SEULE LA LAMPE ÉCLAIRE —" : "— SECTEUR NON ÉCLAIRÉ —"}</div>
             </div>
+            {s.locked && !night && <div className="absolute top-[8.5%] left-[2.2%] z-[8] border border-[var(--scn-bad)] px-[1%] py-[0.3%] text-[1.2cqw] tracking-[0.25em] text-[var(--scn-bad)]">VERROUILLAGE GÉNÉRAL</div>}
+            {s.chiefToConfirm && s.phase === "arrival" && s.chiefB1 && !term && (
+              <div className="pj-intrusion" style={{ top: "30%", fontSize: "2.4cqw", textAlign: "center" }}>
+                CHEF DE MISSION : {view.players.find((p) => p.id === s.chiefB1)?.name.toUpperCase()}.<br />
+                CONFIRMER ?
+              </div>
+            )}
             {s.aurora && !night && <div className="pj-aurora" />}
             {s.blizzard && !night && <Snow />}
             {night && <div className="pj-full" style={{ background: "radial-gradient(ellipse at 50% 60%, rgba(10,18,28,.6), #000 70%)", zIndex: 6 }} />}
@@ -449,7 +534,10 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           </div>
         )}
 
-        {mainLeft !== null && s.timer && !s.neutral && (
+        {s.vote && !s.neutral && view.status === "live" && (
+          <VoteDoors def={def} view={view} left={mainLeft} />
+        )}
+        {mainLeft !== null && s.timer && !s.neutral && !s.vote && (
           <div className="absolute top-[9%] left-1/2 z-[12] -translate-x-1/2 border border-[var(--scn-amber)] bg-[rgba(5,8,12,.88)] px-[2%] py-[0.5%] text-center text-[var(--scn-amber)]">
             {s.timer.label && <p className="text-[1.3cqw] tracking-[0.25em]">{s.timer.label.toUpperCase()}</p>}
             <p className="text-[4.5cqw] leading-none tabular-nums">
@@ -541,6 +629,17 @@ function tickerText(def: PublicScenario, phase: string, a: Action | undefined): 
       return "ANOMALIE AFFICHAGE · 0,6 S";
     case "dawn":
       return "JOUR · REPRISE DES CAPTEURS";
+    case "dayAction":
+    case "voteResult":
+      return "ACCÈS ENREGISTRÉ · SECTEUR OUVERT";
+    case "labForce":
+      return "PORTE Η : OUVERTURE NON AUTORISÉE";
+    case "radio":
+      return "RADIO : LIAISON ÉTABLIE";
+    case "bloodTest":
+      return "INFIRMERIE : ANALYSE TERMINÉE";
+    case "confinement":
+      return a.on ? "CONFINEMENT : PORTE COUPE-FEU FERMÉE" : "CONFINEMENT : LEVÉ";
     default:
       return "SURVEILLANCE ACTIVE";
   }
@@ -561,13 +660,59 @@ function Clock({ date }: { date: string }) {
   );
 }
 
-function Temperature() {
-  const [t, setT] = useState(61);
+/** The outside temperature, wavering a degree or two around the scenario's. */
+function Temperature({ around }: { around: number }) {
+  const [t, setT] = useState(around);
   useEffect(() => {
-    const timer = setInterval(() => Math.random() < 0.2 && setT(59 + Math.floor(Math.random() * 5)), 1000);
+    const timer = setInterval(() => Math.random() < 0.2 && setT(around - 2 + Math.floor(Math.random() * 5)), 1000);
     return () => clearInterval(timer);
-  }, []);
-  return <span>EXT −{t} °C</span>;
+  }, [around]);
+  return <span>EXT {t < 0 ? `−${-t}` : t} °C</span>;
+}
+
+/**
+ * The vote by moving: two doors side by side (or the candidates of the election), each with its name
+ * and a sentence, and the chrono. The same screen for a door of the day, the dead's moment, the chief.
+ */
+function VoteDoors({ def, view, left }: { def: PublicScenario; view: ProjectionView; left: number | null }) {
+  const vote = view.state.vote!;
+  const options = vote.options.map((id) => {
+    if (vote.kind === "chief") return { id, name: view.players.find((p) => p.id === id)?.name ?? id, sentence: "" };
+    if (vote.kind === "dead") {
+      const e = view.events.find((x) => x.id === id);
+      return { id, name: e?.name ?? id, sentence: e?.rule ?? "" };
+    }
+    if (id === "fouiller") return { id, name: "Fouiller ce qu'on connaît déjà", sentence: "Revenir sur ses pas : rien de neuf, peut-être." };
+    const a = def.dayActions.find((x) => x.id === id);
+    const door = def.doors.find((d) => d.id === a?.zone);
+    return { id, name: `${door ? `${door.letter} ` : ""}${a?.label ?? id}`, sentence: a?.sentence ?? "" };
+  });
+  const title = vote.kind === "chief" ? "IDENTIFICATION DU CHEF DE MISSION REQUISE" : vote.kind === "dead" ? "LES MORTS CHOISISSENT" : "CHOIX DE LA PORTE";
+  const paused = view.state.timer?.endsAt === null;
+  return (
+    <div className="pj-full" style={{ zIndex: 11, background: "rgba(3,6,10,.9)", flexDirection: "column", gap: "3%" }}>
+      <p className="text-[2.2cqw] tracking-[0.3em] text-[var(--scn-ice)]">{title}</p>
+      <div className={`flex w-[88%] justify-center ${options.length > 3 ? "flex-wrap gap-[1.2cqw]" : "gap-[4cqw]"}`}>
+        {options.map((o, i) => (
+          <div
+            key={o.id}
+            className={`flex flex-col items-center border-2 border-[var(--scn-ice-dim)] bg-[rgba(10,20,30,.85)] text-center ${options.length > 3 ? "w-[17%] p-[0.8%]" : "min-h-[22cqw] w-[30%] justify-between p-[2%]"}`}
+            style={{ boxShadow: "inset 0 0 2cqw rgba(127,216,255,.12)" }}
+          >
+            {options.length <= 3 && <p className="text-[1.4cqw] tracking-[0.3em] text-[var(--scn-muted)]">PORTE {"ABC"[i]}</p>}
+            <p className={`${options.length > 3 ? "text-[1.6cqw]" : "text-[3cqw]"} tracking-[0.1em] text-[var(--scn-txt)]`}>{o.name.toUpperCase()}</p>
+            {o.sentence && <p className="text-[1.5cqw] text-[var(--scn-muted)]">{o.sentence}</p>}
+          </div>
+        ))}
+      </div>
+      {left !== null && (
+        <p className="text-[5cqw] leading-none tabular-nums text-[var(--scn-amber)]">
+          {Math.floor(left / 60)}:{String(Math.floor(left % 60)).padStart(2, "0")}
+          {paused && <span className="ml-[0.4em] text-[2cqw]">PAUSE</span>}
+        </p>
+      )}
+    </div>
+  );
 }
 
 /** The torch beam wandering in the dark. */

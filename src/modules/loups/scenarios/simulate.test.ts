@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ANTARCTICA } from "./antarctica";
-import { replay, type Setup } from "./engine";
+import { doorProposals, replay, type Setup } from "./engine";
 import { START_POINTS, simulatedJournal, simulatedPlayers } from "./simulate";
 
 const seeded = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -37,12 +37,26 @@ describe("Simuler une partie", () => {
     }
   });
 
-  it("at day 3 of loop 1: 3 dead, 2 exiled, doors open, items carried, nobody has won yet", () => {
-    const s = stateAt("b1-day3");
-    expect(s.players.filter((p) => p.status === "dead")).toHaveLength(3);
-    expect(s.players.filter((p) => p.status === "exiled")).toHaveLength(2);
-    expect(s.doors).toMatchObject({ dortoir: true, beta: true });
-    expect(Object.values(s.items).filter((i) => i.holder).length).toBeGreaterThanOrEqual(3);
+  it("at day 3 of loop 1: a chief, 2 exiled, the archives searched, the tapes carried, nobody has won yet", () => {
+    for (const seed of [1, 7, 99, 2024]) {
+      const s = stateAt("b1-day3", seed);
+      expect(s.chief).not.toBeNull();
+      expect(s.players.filter((p) => p.status === "exiled")).toHaveLength(2);
+      expect(s.players.filter((p) => p.status === "dead").length).toBeGreaterThanOrEqual(2);
+      expect(s.doors).toMatchObject({ dortoir: true, beta: true });
+      expect(s.flags).toMatchObject({ key: true, badge2: true });
+      expect(s.actionsDone).toEqual(["accueil", "archives-fouille"]);
+      expect(s.items.bandes?.holder).not.toBeNull();
+      expect(s.locked).toBe(false);
+    }
+  });
+
+  it("at day 3 of loop 2: the chief confirmed, the found items handed out again, the laboratory imposed", () => {
+    const s = stateAt("b2-day3");
+    expect(s.chief).toBe(s.chiefB1);
+    expect(s.found).toContain("bandes");
+    expect(s.items.bandes?.used).toBe(false);
+    expect(doorProposals(ANTARCTICA, s)).toEqual(["labo"]);
   });
 
   it("at the arrival of loop 2: the sealed rooms are exactly the dead and exiled of loop 1", () => {

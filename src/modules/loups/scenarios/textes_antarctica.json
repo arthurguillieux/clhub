@@ -1,0 +1,516 @@
+{
+ "scenario": "antarctica-sang-froid",
+ "version": "0.1",
+ "date": "2026-11-22",
+ "conventions": {
+  "variables_console": [
+   "victime",
+   "victime2",
+   "exilé",
+   "chef",
+   "chef_b1",
+   "porteur",
+   "tireur",
+   "cible",
+   "enfermé",
+   "quarantaine1",
+   "quarantaine2",
+   "morts_b1"
+  ],
+  "choix_meneur": "Texte entre crochets, par exemple [un vivant] : le meneur choisit sur le moment, la console n'y touche pas.",
+  "variantes": "Un paragraphe qui commence par « *Si … :* » ou « *Variante x :* » est une variante.",
+  "didascalies": "Paragraphes en italique (*…*) et lignes commençant par 🎹 💡 🔊 🖥️ : consignes pour le meneur, pas à lire."
+ },
+ "textes": [
+  {
+   "id": "OUV-01",
+   "partie": "0. Hors fiction",
+   "titre": "Avant de commencer",
+   "quand": "après le repas, lumières de salle allumées, ton normal.",
+   "texte": "Bon. Avant qu'on parte, trois choses, et après je ne vous embête plus.\n\nLa première : ce soir, on va vous faire peur. Pas un peu. Si à un moment c'est trop, vous levez la main, vous sortez prendre l'air, vous revenez quand vous voulez, personne ne vous demandera rien. Ceux qui ne veulent pas qu'on les approche ou qu'on les touche ont une gommette sur leur badge : on la respecte, tous, moi le premier, et ça vaut aussi pour quelqu'un que vous ne connaissez pas encore.\n\nLa deuxième : la nuit, on ferme les yeux. Vraiment. Celui qui ouvre les yeux quand ce n'est pas son tour, je le bute à vue, et je ne plaisante qu'à moitié.\n\nLa troisième : les enfants sont dans l'autre salle, entre de très bonnes mains, et ils n'ont pas besoin de vous ce soir. Vous pouvez ranger vos téléphones.\n\nC'est tout. Installez-vous bien, le voyage est long."
+  },
+  {
+   "id": "PRO-01",
+   "partie": "1. Prologue (boucle 1)",
+   "titre": "La salle",
+   "quand": "lumières de salle encore allumées. 🎹 Silence.",
+   "texte": "Regardez autour de vous. Une salle des fêtes. Des tables pliantes un peu bancales, des chaises en plastique qui grincent dès qu'on bouge, des néons qui grésillent au plafond, un carrelage beige qu'on a lavé mille fois, et cette odeur de café réchauffé qui flotte encore au-dessus des gâteaux. La salle des fêtes de Lassy, un samedi soir de février. On ne fait pas plus rassurant.\n\nGardez-la bien en tête, cette image. Parce que dans quelques secondes vous allez fermer les yeux, et quand vous les rouvrirez, vous serez à plus de quinze mille kilomètres d'ici.\n\nFermez les yeux.\n\n💡 Noir. 🔊 Moteur de bus, vent."
+  },
+  {
+   "id": "PRO-02",
+   "partie": "1. Prologue (boucle 1)",
+   "titre": "Le bus",
+   "quand": "yeux fermés. 🔊 Moteur de bus, vent. 🎹 Rémi, en chauffeur, ne regarde personne.",
+   "texte": "Sentez d'abord la vibration. Elle monte du plancher, passe dans vos talons, dans vos genoux, jusque dans vos dents. Vous êtes assis dans un bus, un vieux bus à chenilles qui avance au pas sur une route qu'on ne voit plus depuis longtemps. Contre votre épaule, la vitre est froide, tellement froide qu'elle brûle un peu ; de l'autre côté, il n'y a rien, rien que du blanc, et le vent qui gifle la carrosserie par rafales.\n\nÇa fait des heures que vous roulez. L'avion cargo vous a déposés sur la côte ce matin, c'était le dernier de la saison, et vous avez bien compris en voyant l'équipage repartir si vite qu'il n'y en aurait pas d'autre avant l'été. Autour de vous, une vingtaine d'inconnus, emmitouflés comme vous, qui vont devenir pendant des mois vos collègues et votre famille, pour le meilleur et pour le reste.\n\nL'air chaud qui sort des grilles d'aération a une drôle d'odeur, un peu sucrée, comme une pomme oubliée sur un radiateur. Vous avez sommeil. C'est normal, c'est le voyage.\n\nOuvrez les yeux."
+  },
+  {
+   "id": "PRO-03",
+   "partie": "1. Prologue (boucle 1)",
+   "titre": "Le briefing",
+   "quand": "Arthur debout dans l'allée du bus, en officier de l'A.P.E. 💡 Lumières froides de tableau de bord. 🔊 Enregistrement discret des 30 premières secondes d'échanges, lancé avant cette prise de parole.",
+   "texte": "Bonsoir à toutes et à tous, et bienvenue à bord. Je serai votre officier de liaison jusqu'à la station. Au nom de l'Agence Polaire d'Exploration, je vous félicite : sur des milliers de candidatures, c'est vous qu'on a retenus. Vous n'avez aucune qualification particulière, je sais, vous vous le demandez depuis la lettre. Rassurez-vous : c'est précisément ce que nous cherchions.\n\nVotre mission est simple. Vous allez relever l'équipe en place depuis le 28 novembre 1987, quinze mois sur la glace, des gens formidables, qui ont bien mérité de rentrer chez eux. Nous n'avons pas eu de nouvelles par radio depuis le mois d'août, un souci d'antenne, l'hiver polaire est très dur pour le matériel, rien d'inquiétant. Ils vous attendent pour les transmissions.\n\nVous avez peut-être entendu parler de la souche Lyssa-α. Oubliez ce que vous avez entendu.\n\nLe règlement de la station tient en trois lignes. On obéit au chef de mission. On ne sort pas la nuit. Et si l'on a un doute sur un collègue, on en parle à tout le monde, ensemble, à voix haute.\n\n*Pause.*\n\nLe bus ralentit. Nous y sommes."
+  },
+  {
+   "id": "PRO-04",
+   "partie": "1. Prologue (boucle 1)",
+   "titre": "L'arrivée du bus",
+   "quand": "juste après le briefing. 🔊 Freins, moteur qui s'arrête. 🎹 Silence, puis le vent.",
+   "texte": "Le chauffeur coupe le contact. Il ne vous regarde pas, il regarde droit devant lui, les mains encore posées sur le volant. Les portes s'ouvrent dans un soupir pneumatique et le vent s'engouffre d'un coup, il vous arrache le souffle, il vous remplit les yeux de neige. Vous attrapez vos sacs et vous descendez, un par un, en vous tenant à la rampe gelée.\n\nVous n'avez pas fait dix pas que le bus est déjà reparti. Vous vous retournez : deux feux rouges qui s'éloignent, puis plus rien.\n\nDevant vous, la station. Un long bâtiment bas, à moitié enseveli, sans une seule fenêtre éclairée. Personne sur le seuil, personne pour agiter la main, pas même une lampe au-dessus de la porte. Vous n'espériez pas un tapis rouge, mais quand même.\n\nVous frappez. Rien. Vous essayez la poignée : elle ne tourne pas.\n\nQue faites-vous ?"
+  },
+  {
+   "id": "ARR-01",
+   "partie": "2. Arrivée dans la base",
+   "titre": "La porte gelée",
+   "quand": "dès qu'un joueur propose de forcer, de pousser, de taper plus fort.",
+   "texte": "À trois, vous vous jetez contre la porte. Elle résiste, puis la glace qui la scellait craque d'un coup et vous manquez de tomber à l'intérieur. Elle n'a pas été ouverte depuis longtemps, cette porte. Des semaines, peut-être plus.\n\nUn regard à gauche, un regard à droite. Votre voisin n'a pas l'air plus rassuré que vous. Vous entrez."
+  },
+  {
+   "id": "ARR-02",
+   "partie": "2. Arrivée dans la base",
+   "titre": "Le hall dans le noir",
+   "quand": "à l'entrée. 🖥️ Plan noir, faisceau de lampe torche. 🔊 Vent étouffé, cliquetis métalliques.",
+   "texte": "Le vent se tait derrière vous, et c'est presque pire. Il fait noir, d'un noir épais, qui sent la poussière froide et quelque chose d'autre, plus douceâtre, que vous préférez ne pas identifier tout de suite. Vos lampes balaient une grande pièce, haute de plafond : un comptoir en demi-cercle, deux écrans éteints, des canapés, une table basse sur laquelle quelqu'un a laissé une tasse. Plusieurs portes s'ouvrent sur le hall, chacune marquée d'une lettre grecque. L'une d'elles, au fond, est couverte de traînées sombres qui ont coulé jusqu'au sol.\n\nPersonne ne vient. Les transmissions devaient durer quelques heures, avec l'équipe d'avant. Il n'y a pas d'équipe d'avant.\n\nQue faites-vous ?\n\n*Toute action est bloquée tant que la lumière n'est pas rallumée.*"
+  },
+  {
+   "id": "ARR-03",
+   "partie": "2. Arrivée dans la base",
+   "titre": "La lumière",
+   "quand": "quand ils trouvent le disjoncteur. 💡 Néons qui clignotent puis s'allument. 🖥️ Le hall s'éclaire sur le plan.",
+   "texte": "Un claquement sec, et les néons hésitent, crachotent, puis s'allument un par un en grésillant. La lumière est blafarde, elle rend tout le monde un peu malade, mais c'est de la lumière. Le hall apparaît en entier : le comptoir de l'accueil, les deux terminaux, le coin détente avec son distributeur vide. Et la porte du fond, celle qui porte la lettre Α. Ce que vous aviez pris pour de la rouille n'en est pas.\n\nSur le comptoir, l'un des terminaux vient de s'allumer tout seul.\n\nQue faites-vous ?"
+  },
+  {
+   "id": "ARR-04",
+   "partie": "2. Arrivée dans la base",
+   "titre": "Le premier log",
+   "quand": "quand ils consultent le terminal. 🖥️ Vidéo « log 1 ».",
+   "texte": "Le terminal ronronne, l'écran ambré se remplit de lignes, puis une fenêtre s'ouvre sur un fichier vidéo daté du 28 novembre 1987. Quelqu'un, derrière vous, murmure : « C'est eux. »"
+  },
+  {
+   "id": "ARR-05",
+   "partie": "2. Arrivée dans la base",
+   "titre": "Le chef de mission",
+   "quand": "juste après le log 1. 🖥️ « IDENTIFICATION DU CHEF DE MISSION REQUISE », chrono de vote. 🎹 Pulsation.",
+   "texte": "L'écran clignote. Une ligne s'affiche, puis une autre, en capitales : « IDENTIFICATION DU CHEF DE MISSION REQUISE. AUCUNE OPÉRATION POSSIBLE SANS RESPONSABLE DÉSIGNÉ. »\n\nVous vous regardez. Personne ne vous a désigné de chef. Personne ne vous a désigné quoi que ce soit, en fait.\n\nCeux qui se sentent de porter ça, approchez-vous de l'écran. Les autres, allez vous placer derrière celui ou celle que vous suivriez dans une tempête. Vous avez deux minutes."
+  },
+  {
+   "id": "ARR-06",
+   "partie": "2. Arrivée dans la base",
+   "titre": "Le chef est reconnu",
+   "quand": "à la fin du chrono. 🖥️ Le prénom du chef s'affiche.",
+   "texte": "« CHEF DE MISSION : {chef}. IDENTIFICATION ENREGISTRÉE. »\n\n{chef}, la base vous reconnaît. Votre voix comptera double quand il faudra décider de qui part dans le froid. Et on raconte que les chefs de cette station ont la peau dure : il faut s'y reprendre à deux fois pour en abattre un.\n\nLe règlement ajoute une ligne, que l'écran affiche en rouge : chasser un chef qui n'avait rien à se reprocher, c'est perdre la confiance de la base. Et une base qui n'a plus confiance verrouille tout ce qu'elle vous avait donné.\n\n*Si personne ne s'est avancé :* Personne ? Le terminal attend. Je lance le dé. Le sort choisit pour vous."
+  },
+  {
+   "id": "ARR-07",
+   "partie": "2. Arrivée dans la base",
+   "titre": "Le dortoir",
+   "quand": "quand ils ouvrent le dortoir. 🖥️ Les vingt chambres apparaissent sur le plan. 💡 Lumière qui baisse doucement.",
+   "texte": "Une longue allée, des portes de part et d'autre, toutes identiques, numérotées de 01 à 20. Chaque chambre est individuelle et chacune porte déjà un nom sur la porte, le vôtre, écrit à la main sur un bout de sparadrap. Ils vous attendaient. Sur votre lit, une couverture pliée au carré, une clé, et une enveloppe à votre nom.\n\nIl faut dormir, maintenant. Vous êtes épuisés, le voyage a été long, et cette odeur sucrée vous colle encore à la gorge.\n\nLes néons du couloir s'éteignent les uns après les autres. Le dernier claque juste au-dessus de votre porte.\n\n*Distribuer les cartes. Chacun regarde la sienne sans la montrer, puis ferme les yeux.*"
+  },
+  {
+   "id": "NUIT-01",
+   "partie": "3. La nuit",
+   "titre": "Première nuit : le patient zéro",
+   "quand": "nuit 1, tout le monde a les yeux fermés. 💡 Noir, LED froides. 🎹 Tension, avec des espaces pour entendre la salle.",
+   "texte": "Difficile de trouver le sommeil dans un endroit pareil, mais la fatigue est la plus forte, et le vent, qui cogne régulièrement contre la tôle, finit par vous bercer. Vous dormez tous.\n\nSauf un.\n\nCelui-là se relève, enfile ses chaussettes et sort dans le couloir sans faire de bruit. Il ne sait pas très bien pourquoi. Ses pas le ramènent dans le hall, devant la porte du fond, celle qui porte la lettre Α. Il pose la main sur la poignée : elle tourne dans le vide, évidemment. Par la petite lucarne, il devine un couloir qui s'enfonce dans le noir, et tout au bout, une ampoule qui clignote. Quelque chose a bougé, là-bas. Il en est sûr. Il colle son front contre la vitre et sa main glisse sur la porte, dans ces traînées sombres qui ne sont pas sèches du tout.\n\n🔊 Battement sourd.\n\nÇa commence par une brûlure au bout des doigts, qui remonte dans le poignet, puis dans le bras, comme si on lui coulait du métal en fusion dans les veines. Il se plie en deux. Ses épaules craquent l'une après l'autre, ses mâchoires s'allongent, ses ongles se fendent et tombent sur le carrelage avec un petit bruit de dés. Il voudrait hurler, mais ce qui sort de sa gorge n'a plus rien d'humain.\n\nPatient zéro, ouvrez les yeux. Sans un bruit.\n\n*Enchaîner sur NUIT-13, à partir de « La bête a besoin d'une meute ».*"
+  },
+  {
+   "id": "NUIT-02",
+   "partie": "3. La nuit",
+   "titre": "Tombée de la nuit (boucle 1)",
+   "quand": "nuits 2 à 4 de la boucle 1, une variante par nuit. 💡 Noir. 🎹 Thème de la nuit.",
+   "texte": "*Variante a :* Une nuit de plus. Le vent a repris le premier rôle. Certains l'écoutent comme on écoute un doudou, en espérant que son grondement reste régulier ; d'autres fixent le plafond et cherchent dans le noir les réponses à des questions qu'ils n'arrivent même pas à formuler. Les néons du couloir s'éteignent. Le dernier claque au-dessus de votre porte.\n\n*Variante b :* Vous avez poussé votre table de chevet contre la porte. C'est ridicule, vous le savez, une table de chevet en contreplaqué, mais vous l'avez fait quand même, et vous n'êtes pas le seul : dans le couloir, on entend des meubles qu'on traîne. Puis plus rien. Le générateur ralentit, la lumière baisse, et le sommeil vous prend au moment où vous vous étiez promis de ne pas dormir.\n\n*Variante c :* Cette nuit, il fait plus froid. Le chauffage s'est coupé vers minuit et le givre dessine des fougères sur l'intérieur de la vitre. Vous avez gardé votre parka pour dormir, la capuche sur les yeux, et vous écoutez votre propre souffle. Au bout du couloir, quelqu'un pleure. Doucement. Puis il s'arrête."
+  },
+  {
+   "id": "NUIT-03",
+   "partie": "3. La nuit",
+   "titre": "Tombée de la nuit (boucle 2)",
+   "quand": "nuits de la boucle 2. 💡 Noir. 🎹 Thème de la nuit, avec un accroc. 🖥️ Glitch bref, si les failles sont activées.",
+   "texte": "*Variante a :* Vous connaissez ce lit. Vous connaissez ce plafond, cette tache d'humidité en forme de main au-dessus de la porte, ce bruit de tuyau qui cogne à intervalles réguliers. Vous ne pouvez pas les connaître : vous êtes arrivés ce soir. Vous fermez les yeux très fort, pour ne plus y penser.\n\n*Variante b :* Le vent souffle, comme hier. Exactement comme hier. Même rafale, même sifflement dans la ventilation, même claquement de tôle trois secondes plus tard. Vous comptez. Un, deux, trois. Clac. Vous ne dormez pas, et pourtant le noir vous prend quand même."
+  },
+  {
+   "id": "NUIT-10",
+   "partie": "3. La nuit",
+   "titre": "Remise des objets secrets",
+   "quand": "début de nuit, si un objet secret a été trouvé dans la journée. Le meneur touche l'épaule du porteur et lui montre l'objet.",
+   "texte": "Je passe parmi vous. Si je touche votre épaule, ouvrez les yeux sans un bruit : la base vous a confié quelque chose.\n\n*Montrer l'objet au porteur.*\n\nPersonne ne sait que c'est vous. Ce que vous en direz demain ne regarde que vous. Refermez les yeux."
+  },
+  {
+   "id": "NUIT-11",
+   "partie": "3. La nuit",
+   "titre": "La panic room",
+   "quand": "si le village a désigné quelqu'un. 🔊 Porte blindée, verrou.",
+   "texte": "{enfermé} entre dans la panic room. La porte blindée se referme derrière lui avec un bruit de coffre-fort, les verrous tournent un par un, et il se retrouve seul, assis sur un lit de camp, sous une ampoule rouge. Rien ne pourra entrer cette nuit. Et rien ne pourra sortir."
+  },
+  {
+   "id": "NUIT-12",
+   "partie": "3. La nuit",
+   "titre": "Les bandes de surveillance",
+   "quand": "si les bandes ont un porteur vivant. 🔊 Bourdonnement de magnétoscope.",
+   "texte": "Le porteur des bandes ouvre les yeux. Dans la lumière bleue d'un petit moniteur, une cassette tourne en grésillant. Désignez la chambre que vous voulez revoir.\n\n*Montrer la carte du joueur désigné.*\n\nRembobinez, puis refermez les yeux."
+  },
+  {
+   "id": "NUIT-13",
+   "partie": "3. La nuit",
+   "titre": "La meute s'éveille et contamine",
+   "quand": "nuits 2 et 3 en entier ; la nuit 1, à partir de « La bête a besoin d'une meute », juste après NUIT-01. 🔊 Grognements, os qui craquent. 🎹 Thème de la meute.",
+   "texte": "Quelques heures après le coucher, les contaminés ouvrent les yeux. La transformation est déjà faite, comme si leurs os, encore meurtris de la veille, s'étaient laissé briser sans protester. Ils se reconnaissent.\n\nLa bête a besoin d'une meute. Désignez celui que vous voulez faire tourner.\n\n*Le meneur touche le joueur désigné.*\n\nCelui que je touche ouvre les yeux. Ne criez pas. Votre sang brûle, vos dents vous font mal, et vous avez faim d'une faim qui n'est pas la vôtre. Regardez autour de vous : voici les vôtres.\n\n*Si la cible est le chef et que c'est la première attaque contre lui : ne toucher personne, ne rien dire. Passer à la suite.*"
+  },
+  {
+   "id": "NUIT-14",
+   "partie": "3. La nuit",
+   "titre": "La meute ne grandit plus",
+   "quand": "à partir de la nuit 4, à la place de NUIT-13.",
+   "texte": "Les contaminés ouvrent les yeux. Quelque chose a changé en eux cette nuit : le sang ne brûle plus de la même façon, il ne cherche plus à se répandre, et la meute comprend qu'elle ne grandira plus. Il ne lui reste que la faim."
+  },
+  {
+   "id": "NUIT-15",
+   "partie": "3. La nuit",
+   "titre": "La victime",
+   "quand": "chaque nuit. 🔊 Grognements.",
+   "texte": "Maintenant, il faut manger. Mettez-vous d'accord, sans un bruit, et désignez votre victime.\n\n*Le meneur note la victime.*\n\nLes contaminés se glissent dans le couloir, d'une seule masse, et s'arrêtent devant une porte. Refermez les yeux, et reprenez forme humaine avant l'aube.\n\n*Si la cible est le chef et que c'est la première attaque contre lui : il survit. Ne rien dire.*"
+  },
+  {
+   "id": "NUIT-16",
+   "partie": "3. La nuit",
+   "titre": "Les seringues",
+   "quand": "si les seringues ont un porteur vivant. 🎹 Thème du médecin.",
+   "texte": "Le porteur des seringues ouvre les yeux. Des cris vous ont réveillé ; vous saisissez la trousse sous votre lit. Cette nuit, la meute s'est arrêtée devant la porte de {victime}.\n\nVoulez-vous utiliser la seringue de vie ?\n\n*Si oui : la mort est annulée, pas la contamination.*\n\nVoulez-vous utiliser la seringue de mort, et sur qui ?\n\nRefermez les yeux."
+  },
+  {
+   "id": "NUIT-17",
+   "partie": "3. La nuit",
+   "titre": "Le moment des morts",
+   "quand": "fin de nuit, quand il y a au moins un mort (pas la victime de cette nuit). 💡 LED blanches, très basses. 🎹 Thème solennel des morts. 🖥️ Deux portes, chacune avec son événement.",
+   "texte": "*Pause.*\n\nLes morts, levez-vous.\n\nVous qui ne dormez plus, vous qui marchez dans les couloirs sans faire craquer le plancher et voyez à travers les portes. Les vivants ne vous entendent pas. Ils ne vous entendront plus jamais. Mais vous avez encore une prise sur eux, une seule : vous pouvez choisir à quoi ressemblera leur journée de demain.\n\nRegardez l'écran. Deux portes. Lisez ce qui se cache derrière chacune. Puis allez vous placer, en silence, devant celle que vous voulez leur ouvrir.\n\n*Chrono. À la fin, lire le choix à voix basse.*\n\nC'est décidé. Retournez à votre place."
+  },
+  {
+   "id": "NUIT-18",
+   "partie": "3. La nuit",
+   "titre": "L'aube",
+   "quand": "fin de nuit. 💡 Lumière qui remonte doucement. 🔊 Générateur qui redémarre.",
+   "texte": "Le générateur tousse, hésite, puis repart dans un grondement qui fait vibrer les murs. La lumière revient dans le couloir, néon après néon."
+  },
+  {
+   "id": "JOUR-01",
+   "partie": "4. Le jour",
+   "titre": "Le réveil : un mort",
+   "quand": "une victime cette nuit. 💡 Lumière froide. 🎹 Silence.",
+   "texte": "Vous vous retrouvez dans le hall, les yeux gonflés, chacun avec sa tasse de café tiède. Au bout de quelques minutes, vous remarquez qu'il en manque un. Un lève-tard, sûrement : avec le vacarme des générateurs, qui pourrait bien dormir ici ? Mais au fond, vous savez.\n\n[Un vivant] se décide : « Je vais voir. » Il traverse le couloir, frappe à la porte de la chambre de {victime}. Pas de réponse. Il frappe plus fort. « Je rentre, hein. Si t'es à poil, tant pis pour toi. » Il pousse la porte.\n\nSur le lit, il ne trouve pas son collègue. Il trouve ce qu'il en reste. Les draps sont rouges jusqu'au matelas, le mur est éclaboussé jusqu'au plafond, et sur le sol, une trace de pas énorme, qui n'a rien d'humain, s'arrête net au milieu de la pièce, comme si la chose s'était envolée.\n\n{victime} est mort. {victime}, retournez votre badge."
+  },
+  {
+   "id": "JOUR-02",
+   "partie": "4. Le jour",
+   "titre": "Le réveil : deux morts",
+   "quand": "la victime de la meute et une seringue de mort. Lire JOUR-01, puis :",
+   "texte": "Mais ce n'est pas tout. Dans le couloir, une autre porte est restée fermée. [Son voisin] entre, et ressort aussitôt, aussi blanc que la neige dehors. Il bafouille, il n'arrive pas à finir sa phrase. Dans la chambre de {victime2}, rien n'est déchiré, rien n'est renversé ; il est allongé sur le dos, les yeux ouverts, avec une petite marque rouge au creux du bras.\n\n{victime2} est mort. {victime2}, retournez votre badge."
+  },
+  {
+   "id": "JOUR-03",
+   "partie": "4. Le jour",
+   "titre": "Le réveil : personne",
+   "quand": "aucune mort cette nuit (seringue de vie, panic room, chef qui résiste).",
+   "texte": "Vous vous comptez dans le hall. Une fois, deux fois. Tout le monde est là. Personne n'ose le dire à voix haute, de peur que ça ne compte plus. Pourtant, dans le couloir, il y a des griffures fraîches sur une porte, profondes, et une traînée de bave qui sèche sur le lino. Quelque chose est venu cette nuit, et quelque chose l'a empêché d'entrer."
+  },
+  {
+   "id": "JOUR-04",
+   "partie": "4. Le jour",
+   "titre": "L'événement du jour",
+   "quand": "à partir du jour 2 de la boucle 1. 🖥️ La porte choisie par les morts. Lire ensuite le texte de l'événement.",
+   "texte": "Cette nuit, pendant que vous dormiez, la base a changé quelque chose. Vous ne savez pas qui l'a décidé. Vous savez seulement qu'aujourd'hui ne ressemblera pas à hier."
+  },
+  {
+   "id": "EVT-01",
+   "partie": "4. Le jour",
+   "titre": "Blizzard",
+   "quand": "si les morts ont choisi le blizzard. 🔊 Tempête. 💡 Blanc tremblant.",
+   "texte": "Le blizzard s'est levé dans la nuit, et il ne retombera pas avant demain. Les fenêtres ne montrent plus qu'un mur blanc, et le vent hurle si fort dans la ventilation qu'on ne s'entend plus d'un bout à l'autre du hall. Ce soir, pour l'exil, vous voterez les yeux fermés, à main levée. Je compterai. Vous ne saurez que le résultat."
+  },
+  {
+   "id": "EVT-02",
+   "partie": "4. Le jour",
+   "titre": "Délestage",
+   "quand": "si les morts ont choisi le délestage. 💡 Tout s'éteint, une LED basse reste. Une seule lampe torche, à donner au chef.",
+   "texte": "Le générateur ne fournit plus. La base coupe le courant partout où elle peut, et vous vous retrouvez dans la pénombre, avec une seule lampe torche qui marche encore. Aujourd'hui, seul celui qui tient la lampe a le droit de parler. Quand il a fini, il la passe à qui il veut. Celui qui veut parler n'a qu'à la demander."
+  },
+  {
+   "id": "EVT-03",
+   "partie": "4. Le jour",
+   "titre": "Réserve de carburant",
+   "quand": "si les morts ont choisi la réserve. 🖥️ La jauge de carburant, qui descend.",
+   "texte": "Ce matin, l'aiguille de la jauge est dans le rouge. La réserve de carburant ne tiendra pas la journée : quand elle sera vide, le chauffage s'arrêtera, et il faudra avoir décidé. Regardez l'écran. Vous avez jusqu'à ce que la jauge tombe à zéro."
+  },
+  {
+   "id": "EVT-04",
+   "partie": "4. Le jour",
+   "titre": "Quarantaine",
+   "quand": "si les morts ont choisi la quarantaine. Le meneur lance le dé derrière sa table.",
+   "texte": "Une alerte sanitaire s'est déclenchée cette nuit dans le dortoir. Le protocole est clair : deux personnes sont placées en quarantaine pour la journée. Le sort désigne… {quarantaine1} et {quarantaine2}. Vous ne parlez pas, vous ne votez pas. En échange, cette nuit, rien ne pourra vous atteindre."
+  },
+  {
+   "id": "EVT-05",
+   "partie": "4. Le jour",
+   "titre": "Tour de garde",
+   "quand": "si les morts ont choisi le tour de garde.",
+   "texte": "Le planning de garde a été affiché ce matin sur la porte du dortoir. Aujourd'hui, ce sont les chambres paires qui veillent. Ce soir, pour l'exil, seuls les occupants des chambres paires votent. Les autres écoutent, débattent, supplient s'il le faut, mais ne lèvent pas la main."
+  },
+  {
+   "id": "EVT-06",
+   "partie": "4. Le jour",
+   "titre": "Confinement",
+   "quand": "si les morts ont choisi le confinement. 🔊 Alarme, porte coupe-feu qui claque. 🖥️ Chrono de 6 minutes.",
+   "texte": "Une alarme stridente déchire le hall et une porte coupe-feu tombe du plafond en plein milieu de la base, dans un fracas de métal. Les chambres impaires d'un côté, les chambres paires de l'autre. Chaque moitié a son panneau électrique ; la porte se relèvera quand les deux panneaux seront identiques. [Un mort], vous serez le seul à pouvoir passer d'un côté à l'autre, sans jamais regarder les panneaux. Six minutes."
+  },
+  {
+   "id": "JOUR-05",
+   "partie": "4. Le jour",
+   "titre": "Le choix de la porte",
+   "quand": "chaque jour. 🖥️ Les deux portes, chrono. 🎹 Pulsation.",
+   "texte": "Deux portes s'offrent à vous aujourd'hui. Vous n'aurez le temps d'en franchir qu'une avant que le courant ne baisse. Allez vous placer devant celle que vous voulez ouvrir. Les morts restent où ils sont : ils regardent. Vous avez une minute."
+  },
+  {
+   "id": "JOUR-06",
+   "partie": "4. Le jour",
+   "titre": "La fouille",
+   "quand": "quand une seule porte est possible.",
+   "texte": "Une seule porte est en état de s'ouvrir aujourd'hui. Les autres sont verrouillées, ou vous n'avez pas ce qu'il faut. Alors vous pouvez franchir celle-là, ou fouiller ce que vous connaissez déjà, des fois que quelque chose vous aurait échappé."
+  },
+  {
+   "id": "SALLE-01",
+   "partie": "4. Le jour",
+   "titre": "L'accueil",
+   "quand": "boucle 1, jour 1, porte A.",
+   "texte": "Vous retournez le comptoir de l'accueil de fond en comble. Il n'y a presque rien : un bloc de post-it, deux stylos sans encre, un tampon encreur desséché. Le bureau paraît tellement vide. La pièce aussi, et la base entière, à bien y penser. Sur le post-it du dessus, en creux, on devine la trace d'une écriture : « Chef, j'ai scotché la clé sous le tiroir. »\n\n*Quand ils cherchent sous le tiroir :* Elle y est. Une clé plate, tiède d'avoir été scotchée là depuis des mois contre le métal, avec une étiquette : Β."
+  },
+  {
+   "id": "SALLE-02",
+   "partie": "4. Le jour",
+   "titre": "Le sas et le hangar",
+   "quand": "boucle 1, jour 1, porte B.",
+   "texte": "La porte du sas résiste, puis cède. Il fait presque aussi froid ici que dehors. Des combinaisons pendent à leurs crochets comme des corps vides, une motoneige dort sous une bâche, et le long du mur, un coffre de survie est resté ouvert. Dedans, entre les fusées éclairantes et les couvertures de survie, un pistolet de détresse. Une seule cartouche.\n\nAu fond du hangar, la grande porte extérieure, celle qui donne sur le blizzard. C'est par là que vous ferez sortir ceux que vous ne voulez plus avec vous."
+  },
+  {
+   "id": "SALLE-03",
+   "partie": "4. Le jour",
+   "titre": "Les archives : première entrée",
+   "quand": "la première fois que le village entre aux archives, quelle que soit la porte. 🖥️ Log 2. 🔊 Faille : l'enregistrement des 30 secondes, si les failles sont activées.",
+   "texte": "[Celui qui tient la clé] insère la clé dans la serrure de la porte Β. Un frisson lui remonte le long du dos. Vous vous pressez tous derrière pour voir. La lumière s'allume au troisième essai.\n\nÀ gauche, de longues étagères chargées de cartons de toutes tailles ; sur l'un d'eux, quelqu'un a écrit « Noël » au feutre. En face, deux portes : une porte blindée marquée « Panic Room », et une porte vitrée qui donne sur le réfectoire, où les chaises sont encore tirées comme si tout le monde venait de se lever. À droite, un bureau, et un nouveau terminal qui clignote."
+  },
+  {
+   "id": "SALLE-04",
+   "partie": "4. Le jour",
+   "titre": "La panic room",
+   "quand": "quand le village choisit la panic room. 🖥️ Le boîtier du circuit.",
+   "texte": "La porte blindée ne s'ouvre pas : le boîtier électronique à côté est éventré, les fils pendent, certains ont fondu. Quelqu'un a essayé d'entrer, ou de sortir, et il y a laissé des traces d'ongles dans la peinture. Si vous la réparez, vous aurez chaque soir un endroit où enfermer l'un des vôtres jusqu'au matin. Pour le protéger. Ou pour le neutraliser."
+  },
+  {
+   "id": "SALLE-05",
+   "partie": "4. Le jour",
+   "titre": "La fouille des archives",
+   "quand": "quand le village choisit la fouille.",
+   "texte": "Vous ouvrez les cartons un par un. Des décorations de Noël, des guirlandes emmêlées, une boule en verre où l'on a écrit « Équipe 87 » au vernis à ongles. Des classeurs de relevés météo, des factures de carburant. Dans un classeur rouge, glissé entre deux pochettes plastique, un badge magnétique : niveau 2. Et tout au fond d'un carton sans étiquette, une boîte de cassettes vidéo, numérotées de 01 à 20, comme les chambres."
+  },
+  {
+   "id": "SALLE-06",
+   "partie": "4. Le jour",
+   "titre": "L'infirmerie",
+   "quand": "quand le village ouvre l'infirmerie avec le badge de niveau 2.",
+   "texte": "Le lecteur bipe, la porte se déverrouille. L'infirmerie sent l'alcool et quelque chose de plus aigre. Quatre lits, dont un a été défait à coups de griffes. Sur la paillasse, une trousse ouverte, deux seringues, l'une marquée d'un trait vert, l'autre d'un trait noir. À côté, un kit de tests sanguins encore emballé. Et collé sur la porte de la pharmacie, un post-it jaune : « Générateurs : 4-7-1-9 ».\n\n*Le code est à adapter à celui du panneau réel.*"
+  },
+  {
+   "id": "SALLE-07",
+   "partie": "4. Le jour",
+   "titre": "Les générateurs",
+   "quand": "quand le village ouvre les générateurs avec le code.",
+   "texte": "Le pavé numérique accepte le code et la porte s'ouvre sur une chaleur moite, une odeur de gasoil et un vacarme qui vous fait mal aux tympans. Les groupes électrogènes tournent au ralenti, au minimum, comme si quelqu'un les avait réglés pour que la base ne meure pas tout à fait. Vous poussez les manettes. Tout s'éclaire. Quelque part dans la base, un écran que vous n'aviez jamais vu allumé se met à ronronner."
+  },
+  {
+   "id": "SALLE-08",
+   "partie": "4. Le jour",
+   "titre": "Le PC sécurité",
+   "quand": "quand le village ouvre le PC sécurité, courant rétabli. 🖥️ Écran de suivi qui fuit, si les failles sont activées.",
+   "texte": "Une salle étroite, des dizaines de petits écrans en noir et blanc, et devant eux, dans le fauteuil, quelqu'un. Il est assis là depuis longtemps. Très longtemps. Il porte encore son casque radio, et sur sa poitrine, accroché à sa combinaison, un badge de niveau 3. Le poste radio, à côté de lui, est allumé. Il n'émet que du souffle."
+  },
+  {
+   "id": "SALLE-09",
+   "partie": "4. Le jour",
+   "titre": "Le laboratoire",
+   "quand": "boucle 2, jour 3, imposé. 🖥️ RAPPORT_ALPHA, SUJETS.DAT, le document aux noms, la vidéo de Midwinter.",
+   "texte": "Le badge de niveau 3 ouvre la dernière porte. Le laboratoire est propre. C'est la première chose qui vous frappe : tout est propre et rangé, comme si personne ne s'était jamais battu ici. Des paillasses, des congélateurs alignés, et dans l'un d'eux, derrière une vitre givrée, des dizaines de petits tubes marqués Lyssa-α.\n\nSur le bureau du fond, un terminal attend, avec quatre fichiers ouverts.\n\n*Le meneur lit les fichiers à l'écran un par un, sans commentaire, et laisse le silence faire le reste.*"
+  },
+  {
+   "id": "SALLE-10",
+   "partie": "4. Le jour",
+   "titre": "Alpha",
+   "quand": "chaque fois qu'on demande à ouvrir Alpha. 🖥️ Accès refusé.",
+   "texte": "Vous posez la main sur la poignée de la porte Α. Elle est glacée, et elle ne tourne pas. Elle ne tournera pas. Derrière la lucarne, l'ampoule clignote toujours."
+  },
+  {
+   "id": "OBJ-01",
+   "partie": "4. Le jour",
+   "titre": "Le dé",
+   "quand": "un objet secret est trouvé. Le meneur lance le dé derrière sa table.",
+   "texte": "Ceux qui sont entrés fouillent la pièce. Le sort désigne celui qui trouve. Il le saura cette nuit."
+  },
+  {
+   "id": "OBJ-02",
+   "partie": "4. Le jour",
+   "titre": "Le pistolet",
+   "quand": "le pistolet de détresse est trouvé. Le meneur lance le dé devant tous.",
+   "texte": "Le sort désigne {porteur}. Prenez le pistolet. Gardez-le bien en vue : tout le monde doit savoir qui le porte. Vous pouvez le donner à qui vous voulez, quand vous voulez. Il n'y a qu'une cartouche, pour toute la mission, et elle se tire de jour."
+  },
+  {
+   "id": "OBJ-03",
+   "partie": "4. Le jour",
+   "titre": "L'objet d'un mort",
+   "quand": "un porteur meurt.",
+   "texte": "{victime} avait quelque chose sur lui. Avant de passer de l'autre côté, il peut le donner à qui il veut, devant tout le monde."
+  },
+  {
+   "id": "JOUR-10",
+   "partie": "4. Le jour",
+   "titre": "Le débat",
+   "quand": "après l'exploration. 🎹 Thème du jour.",
+   "texte": "L'un de vous finit par le dire à voix haute : c'est quelqu'un de l'intérieur. Forcément. Il n'y a personne d'autre ici, il n'y a jamais eu personne d'autre. Vous vous regardez, et c'est comme si vous vous voyiez pour la première fois.\n\nPlusieurs solutions se présentent. Aller vous coucher sans rien faire et prier. Ou désigner quelqu'un et le mettre dehors, dans le froid. Personne ne veut se salir les mains, mais le blizzard, lui, ne vous demandera pas votre avis.\n\nQue faites-vous ?"
+  },
+  {
+   "id": "JOUR-11",
+   "partie": "4. Le jour",
+   "titre": "Le vote d'exil",
+   "quand": "fin du débat. Selon l'événement, voter les yeux fermés ou par moitié. 🎹 Pulsation.",
+   "texte": "Il est temps. À trois, chacun désigne du doigt celui qu'il veut voir sortir. {chef}, votre voix compte double. Un. Deux. Trois."
+  },
+  {
+   "id": "JOUR-12",
+   "partie": "4. Le jour",
+   "titre": "L'exil",
+   "quand": "le vote est tombé. 🔊 Porte du sas, vent. 💡 Flash blanc, puis noir.",
+   "texte": "Le couperet est tombé. {exilé} vous regarde avec des yeux que vous n'oublierez pas. « Non. Non, vous ne pouvez pas faire ça. Je ne tiendrai pas une heure, dehors. » Vous fuyez tous son regard. Quelqu'un lui tend une parka, réflexe absurde, comme si ça changeait quoi que ce soit. Il s'accroche au chambranle, il s'accroche à vos manches, mais vous êtes plus nombreux. La porte du sas s'ouvre sur le blanc, le vent l'avale, et vous refermez.\n\nVous restez quelques secondes sans bouger, l'oreille collée au métal. Il frappe. Une fois, deux fois. Puis plus rien.\n\n{exilé}, retournez votre carte, et montrez-la à tous."
+  },
+  {
+   "id": "JOUR-13",
+   "partie": "4. Le jour",
+   "titre": "Le chef était sain",
+   "quand": "le chef exilé était sain. 🔊 Alarme courte. 🖥️ Tous les objets passent au rouge.",
+   "texte": "L'écran du hall s'allume tout seul. Une ligne rouge : « PERTE DE CONFIANCE. CHEF DE MISSION ÉLIMINÉ SANS MOTIF. VERROUILLAGE GÉNÉRAL. » Partout dans la base, des clics : les serrures se referment et les écrans s'éteignent l'un après l'autre. Vous venez de mettre dehors celui qui vous protégeait. La base ne vous le pardonnera pas.\n\n*Le village perd tous ses objets et pouvoirs.*"
+  },
+  {
+   "id": "JOUR-14",
+   "partie": "4. Le jour",
+   "titre": "La médaille",
+   "quand": "le chef meurt.",
+   "texte": "{chef} est mort. Avant de partir, il retire son badge de chef de mission et le tend à quelqu'un. À qui ?"
+  },
+  {
+   "id": "JOUR-15",
+   "partie": "4. Le jour",
+   "titre": "Le coup de feu",
+   "quand": "le porteur du pistolet tire, de jour. 🔊 Détonation.",
+   "texte": "{tireur} se lève, sort le pistolet de détresse et le pointe sur {cible}. Personne n'a le temps de bouger. La détonation résonne dans tout le hall, et la fusée éclairante frappe {cible} en pleine poitrine dans une gerbe d'étincelles rouges.\n\n*Si la cible était contaminée :* {cible} s'effondre, et dans la lumière rouge qui retombe, vous voyez son visage se déformer une dernière fois, les mâchoires s'allonger, les yeux virer au jaune. {tireur} avait raison. Il n'a plus de cartouche, mais il a désormais votre confiance.\n\n*Si la cible était saine :* {cible} s'effondre, et rien ne se passe. Son visage reste le sien, celui d'un collègue étendu par terre qui ne comprend pas ce qui lui arrive. Dans le silence, l'écran du hall s'allume : « TIR SANS MOTIF. LE TIREUR EST EXCLU. » Personne ne discute. {tireur} pose le pistolet sur la table, enfile sa parka sans un mot et sort par le sas.\n\n*Les deux joueurs retournent leur carte s'ils meurent.*"
+  },
+  {
+   "id": "JOUR-16",
+   "partie": "4. Le jour",
+   "titre": "Le coucher",
+   "quand": "après l'exil. 💡 Lumière qui baisse. 🎹 Thème de la nuit.",
+   "texte": "Vous rejoignez votre chambre en rasant les murs, sans vous dire bonne nuit. Vous mettez longtemps à vous endormir, mais le tumulte de la journée finit par avoir raison de vous, et vous sombrez dans un sommeil épais, plein de couloirs qui ne finissent pas."
+  },
+  {
+   "id": "FIN1-V",
+   "partie": "5. La fin de la boucle 1",
+   "titre": "Le village gagne la boucle 1",
+   "quand": "la meute a été exilée en entier. 🎹 Thème de la victoire, qui se brise.",
+   "texte": "Vous vous effondrez sur les canapés du hall, comme si vos corps n'avaient tenu jusque-là que par la peur. C'est fini. Vous les avez trouvés, tous, et vous les avez mis dehors. Quelqu'un rit, nerveusement, et le rire se communique, et vous riez tous, un peu trop fort.\n\nPuis la lumière clignote."
+  },
+  {
+   "id": "FIN1-M",
+   "partie": "5. La fin de la boucle 1",
+   "titre": "La meute gagne la boucle 1",
+   "quand": "les contaminés sont aussi nombreux que les sains. 🔊 Hurlements. 💡 Rouge.",
+   "texte": "C'est fini. Les contaminés échangent un regard : ils n'ont plus besoin de se cacher. Les mains qui restent humaines calfeutrent les fenêtres et verrouillent le sas. La nuit tombe en une seconde. Les dernières silhouettes humaines reculent jusqu'au fond du hall, contre la porte Α, et la meute s'avance, sans se presser, parce qu'elle a tout son temps.\n\nPuis la lumière clignote."
+  },
+  {
+   "id": "REBOOT-01",
+   "partie": "5. La fin de la boucle 1",
+   "titre": "Le reboot",
+   "quand": "juste après la fin de la boucle 1. 🖥️ Glitch, écran noir, « SESSION 02 » une fraction de seconde. 🔊 Coupure sèche. 💡 Noir total, puis lumières froides de tableau de bord. 🔊 Moteur de bus.",
+   "texte": "Fermez les yeux.\n\n*Pause longue. Relais des bénévoles de garde. Rassembler les cartes.*"
+  },
+  {
+   "id": "PRO-05",
+   "partie": "6. La boucle 2",
+   "titre": "Le bus, encore",
+   "quand": "yeux fermés puis ouverts, Arthur debout dans l'allée. Même lumière, même son que PRO-02. Les deux phrases en gras changent par rapport à la boucle 1.",
+   "texte": "Sentez d'abord la vibration. Elle monte du plancher, passe dans vos talons, dans vos genoux, jusque dans vos dents. Vous êtes assis dans un bus, un vieux bus à chenilles qui avance au pas sur une route qu'on ne voit plus depuis longtemps. **Vous avez l'impression d'avoir déjà compté ces cahots.**\n\nOuvrez les yeux.\n\nBonsoir à toutes et à tous, et bienvenue à bord. Je serai votre officier de liaison jusqu'à la station. Au nom de l'Agence Polaire d'Exploration, je vous félicite : sur des milliers de candidatures, c'est vous qu'on a retenus. Vous n'avez aucune qualification particulière, je sais. Rassurez-vous : c'est précisément ce que nous cherchions.\n\nVotre mission est simple. Vous allez relever l'équipe en place depuis le 28 novembre 1987. **Ils vous attendent depuis… Ils vous attendent pour les transmissions.**\n\nLe règlement de la station tient en trois lignes. On obéit au chef de mission. On ne sort pas la nuit. Et si l'on a un doute sur un collègue, on en parle à tout le monde, ensemble, à voix haute.\n\nLe bus ralentit. Nous y sommes.\n\n*Le chauffeur coupe le contact, comme en PRO-04. Enchaîner directement sur ARR-10.*"
+  },
+  {
+   "id": "ARR-10",
+   "partie": "6. La boucle 2",
+   "titre": "La base s'est souvenue",
+   "quand": "arrivée de la boucle 2. 🖥️ Le plan s'affiche déjà éclairé, portes ouvertes, chambres scellées. Arthur et Rémi découvrent comme les joueurs et le jouent : regard en coin, hésitation.",
+   "texte": "La porte n'est pas gelée. Elle est entrouverte. La lumière du hall est déjà allumée, et sur la table basse, il y a toujours cette tasse.\n\nVous traversez le hall. Les portes que vous… que l'équipe précédente avait ouvertes sont restées ouvertes. Dans le dortoir, des chambres ont été condamnées : un ruban adhésif rouge en travers de la porte, et sur chaque ruban, un prénom écrit au marqueur. {morts_b1}.\n\n*Arthur, à voix basse, presque pour lui :* Ce n'est pas censé…\n\n*Il se reprend.* Bien. Installez-vous."
+  },
+  {
+   "id": "ARR-11",
+   "partie": "6. La boucle 2",
+   "titre": "Le terminal se souvient du chef",
+   "quand": "juste après ARR-10. 🖥️ « CHEF DE MISSION : {chef_b1}. CONFIRMER ? »",
+   "texte": "Le terminal de l'accueil est déjà allumé. Il n'attend pas que vous vous identifiiez. Il affiche un prénom, et une question : « CHEF DE MISSION : {chef_b1}. CONFIRMER ? »\n\nVous pouvez le confirmer, ou en choisir un autre. Même règle que la dernière fois. La dernière fois ?\n\n*Vote par déplacement, comme ARR-05.*"
+  },
+  {
+   "id": "ARR-12",
+   "partie": "6. La boucle 2",
+   "titre": "Les objets à leur place",
+   "quand": "après le chef. Le meneur relance le dé pour chaque objet déjà trouvé en boucle 1.",
+   "texte": "Tout ce que vous aviez trouvé est à sa place. Le pistolet dans le coffre du sas, les cassettes dans leur carton, les seringues sur la paillasse. Comme si personne n'y avait touché. Le sort va désigner, de nouveau, qui les trouve.\n\n*Lire OBJ-01 ou OBJ-02 pour chacun. Puis distribuer les cartes et lire NUIT-01, en remplaçant la première phrase par :* Vous vous endormez plus vite, cette fois. Comme si votre corps connaissait le chemin."
+  },
+  {
+   "id": "MARGA-01",
+   "partie": "6. La boucle 2",
+   "titre": "La vitre (boucle 1)",
+   "quand": "un moment fort de la boucle 1, choisi avec l'actrice. 💡 Projecteur sur la vitre. L'actrice frappe et hurle sans parvenir à entrer.",
+   "texte": "*Laisser vivre. Ne pas commenter tout de suite. Si les joueurs demandent :*\n\nLe vent. Ce n'est que le vent. Il fait −45 dehors, il n'y a personne dehors."
+  },
+  {
+   "id": "MARGA-02",
+   "partie": "6. La boucle 2",
+   "titre": "L'arrivée de Marga (boucle 2)",
+   "quand": "début de la boucle 2, après ARR-12. L'actrice entre, s'excuse du retard, s'assoit près des meneurs.",
+   "texte": "*Arthur, désarçonné, puis poli :* Vous êtes… Oui. Bien sûr. Installez-vous.\n\n*Ses répliques à elle restent à écrire avec l'actrice.*"
+  },
+  {
+   "id": "FAILLE-01",
+   "partie": "6. La boucle 2",
+   "titre": "Le meneur face aux failles",
+   "quand": "quand une faille se déclenche. À piocher, jamais deux fois la même.",
+   "texte": "Ça, ce n'est rien. Un défaut d'affichage.\n\nOù est-ce qu'on en était… Ah oui. Le sujet… le collègue, pardon, [un vivant].\n\n*Regard vers Rémi, qui ne répond pas.*\n\nOn reprend. On reprend."
+  },
+  {
+   "id": "B2-J4",
+   "partie": "6. La boucle 2",
+   "titre": "Le dernier jour",
+   "quand": "boucle 2, jour 4. 🎹 Rémi joue le thème du bus, très lentement.",
+   "texte": "Une journée de plus. Vous connaissez la base par cœur, maintenant, ses couloirs et ses morts. Vous savez ce qu'il y a dans le laboratoire. Vous savez qui vous parle depuis le début de la soirée.\n\nQue faites-vous ?\n\n*Ne rien suggérer. Si un joueur propose de voter contre le meneur, laisser faire, sans résister plus que ce qu'il faut pour que ce soit une victoire.*"
+  },
+  {
+   "id": "FIN-BONNE",
+   "partie": "7. Les fins (propositions, à réécrire de la main d'Arthur)",
+   "titre": "La bonne fin",
+   "quand": "la majorité vote contre le meneur. 🔊 Bus qui redémarre. 💡 Retour progressif vers des lumières chaudes.",
+   "texte": "*Pause longue. Arthur pose la console.*\n\nJe ne sais pas comment vous avez fait. Vraiment, je ne sais pas. Vous avez vu clair dans notre jeu.\n\n*Il sort le dé de sa poche et le pose sur la table, face visible.*\n\nVous vous êtes demandé pourquoi c'était toujours les mêmes ? Le dé était truqué. Rémi et moi, nous sommes ce qui reste de l'équipe de 1987.\n\n[à écrire : libération, explication franche, ouverture vers un futur jeu dans cet univers]"
+  },
+  {
+   "id": "FIN-MAUVAISE",
+   "partie": "7. Les fins (propositions, à réécrire de la main d'Arthur)",
+   "titre": "La mauvaise fin",
+   "quand": "aucun vote contre le meneur après la dernière boucle. 🔊 Bus. 🖥️ Défilement des indices manqués.",
+   "texte": "Merci. Merci à tous. Nous avons les données qu'il nous faut.\n\nNous sommes désolés pour ce que vous venez de vivre. Vous allez vous réveiller dans quelques minutes, vous aurez un peu mal à la tête, et quelqu'un sera là pour vous prendre en charge. Vous ne vous souviendrez de rien.\n\nRegardez l'écran, pendant qu'il en est encore temps.\n\n[à écrire]"
+  },
+  {
+   "id": "FIN-REEL",
+   "partie": "7. Les fins (propositions, à réécrire de la main d'Arthur)",
+   "titre": "Le retour à la salle",
+   "quand": "après l'une ou l'autre fin. 💡 Néons de la salle qui se rallument. 🎹 Silence.",
+   "texte": "Ouvrez les yeux. Regardez autour de vous. Les tables pliantes, les chaises en plastique, le carrelage beige, l'odeur de café froid. La salle des fêtes de Lassy, un samedi soir de février. Elle n'a pas bougé d'un centimètre, et pourtant vous ne la regardez plus tout à fait de la même façon."
+  }
+ ]
+}

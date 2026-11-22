@@ -1,9 +1,9 @@
 /**
  * A scenario evening, played from its journal: every gesture of the console is an action, and the
  * state is rebuilt from the list. « Annuler » removes the last action; nothing else can go stale.
- * Pure functions on plain values: the console proposes, the meneur confirms.
+ * Pure functions on plain values: the console proposes, the meneur confirms (and can force anything).
  */
-import type { DayEvent, Fault, ScenarioDef, ScenarioParams } from "./types";
+import type { DayEvent, Fault, Flag, ScenarioDef, ScenarioParams } from "./types";
 
 export interface Setup {
   players: { id: string; name: string }[];
@@ -14,7 +14,13 @@ export interface Setup {
   files?: Record<string, { name?: string; date?: string; text?: string; subs?: string }>;
   /** The HUD's in-world date and the real one a fault shows. */
   dates?: { world?: string; real?: string };
+  /** « Textes à lire »: an imported file, and the hand edits on top. */
+  texts?: { imported?: { textes: { id: string; partie: string; titre: string; quand: string; texte: string }[]; version?: string }; edited?: Record<string, string> };
 }
+
+export type Phase = "welcome" | "bus" | "arrival" | "night" | "day" | "loopEnd" | "good" | "bad";
+export type NightStepId = "pz" | "handover" | "panic" | "tapes" | "infect" | "victim" | "items" | "dead";
+export type VoteKind = "door" | "dead" | "chief";
 
 export type Action =
   | { t: "start" }
@@ -62,7 +68,20 @@ export type Action =
   | { t: "endLoop"; winner: "village" | "meute" }
   | { t: "reboot" }
   | { t: "goodEnd" }
-  | { t: "badEnd" };
+  | { t: "badEnd" }
+  // V1.2
+  | { t: "vote"; kind: VoteKind; options: string[] }
+  | { t: "voteResult"; choice: string | null }
+  | { t: "dayAction"; id: string }
+  | { t: "labForce" }
+  | { t: "chief"; player: string | null }
+  | { t: "chiefConfirm" }
+  | { t: "shoot"; target: string }
+  | { t: "bloodTest"; target: string }
+  | { t: "radio" }
+  | { t: "quarantine"; players: string[] }
+  | { t: "confinement"; on: boolean }
+  | { t: "flag"; flag: Flag; on: boolean };
 
 /** A countdown: running until `endsAt` (ms), or paused with `remaining` seconds left. */
 export interface Timer {
@@ -87,12 +106,10 @@ function runTimer(t: Timer | null, cmd: "start" | "pause" | "resume" | "plus" | 
   const left = timeLeft(t, when);
   if (cmd === "pause") return t.endsAt === null ? t : { ...t, endsAt: null, remaining: left };
   if (cmd === "resume") return t.endsAt !== null ? t : { ...t, endsAt: when + left * 1000, remaining: null };
-  const next = Math.max(0, left + (cmd === "plus" ? 60 : -60));
+  const step = seconds ?? 60;
+  const next = Math.max(0, left + (cmd === "plus" ? step : -step));
   return t.endsAt !== null ? { ...t, endsAt: when + next * 1000, total: Math.max(t.total, next) } : { ...t, remaining: next, total: Math.max(t.total, next) };
 }
-
-export type Phase = "welcome" | "bus" | "arrival" | "night" | "day" | "loopEnd" | "good" | "bad";
-export type NightStepId = "panic" | "tapes" | "infect" | "victim" | "items" | "dead";
 
 export interface PlayerState {
   id: string;
@@ -128,6 +145,12 @@ export interface State {
   lastPower: boolean | null;
   blizzard: boolean;
   aurora: boolean;
+  /** Délestage: the base nearly black, a lamp's beam only. */
+  dark: boolean;
+  /** Tour de garde: the even rooms lit. */
+  parity: boolean;
+  /** The base cut in two (odd / even rooms). */
+  confinement: boolean;
   /** The generators' gauge, and the evening's main timer (votes, debate…). */
   gauge: Timer | null;
   timer: Timer | null;
@@ -139,6 +162,38 @@ export interface State {
   /** Looping sounds playing on the projection. */
   ambiances: string[];
   items: Record<string, { holder: string | null; used: boolean }>;
+  /** Items found (they stay found from one loop to the next), and those found today (to hand over tonight). */
+  found: string[];
+  foundToday: string[];
+  /** What the village holds: the key, the badges, the code, the power. */
+  flags: Record<Flag, boolean>;
+  /** Day actions done, for the whole evening (« une action déjà faite n'est plus proposée »). */
+  actionsDone: string[];
+  /** Today's door, once chosen. */
+  lastAction: string | null;
+  /** A vote by moving on the projection: a door, the dead's event, the chief. */
+  vote: { kind: VoteKind; options: string[] } | null;
+  chief: string | null;
+  /** The chief who just died or was exiled: the texts still name them while the successor is chosen. */
+  formerChief: string | null;
+  /** Loop 1's chief, to confirm at the start of loop 2. */
+  chiefB1: string | null;
+  chiefToConfirm: boolean;
+  /** The chief already resisted the pack's first attack this loop. */
+  chiefResisted: boolean;
+  /** A healthy chief was exiled: every power of the village is locked until the end of the loop. */
+  locked: boolean;
+  /** Shooters who hit a contaminated target: « de confiance ». */
+  trusted: string[];
+  lastShot: { shooter: string; target: string; infected: boolean } | null;
+  lastTest: { target: string; positive: boolean } | null;
+  lastRadio: number | null;
+  /** Room powers, once per loop. */
+  roomUsed: { test: boolean; radio: boolean };
+  /** Quarantine: protected from the pack the next night. */
+  quarantine: string[];
+  /** The village's choice for tonight's panic room. */
+  panicNext: string | null;
   tonight: {
     panic: string | null;
     infect: string | null;
@@ -153,8 +208,11 @@ export interface State {
   };
   /** Today's event, chosen by the dead last night. */
   event: string | null;
+  /** Events already played this evening: each one is played once at most. */
+  eventsPlayed: string[];
   /** Deaths announced this morning, for the projection. */
   announced: string[];
+  lastExile: { player: string; chief: boolean; healthy: boolean } | null;
   faults: { id: string; at: string }[];
   /** The loops gone by: who died or was exiled, and when (for SUJETS.DAT). */
   past: { loop: number; players: { id: string; status: PlayerState["status"]; at: string | null }[] }[];
@@ -163,6 +221,7 @@ export interface State {
 }
 
 const emptyNight = (): State["tonight"] => ({ panic: null, infect: null, victim: null, life: null, death: null, tapes: null, proposed: [], chosen: null, done: [] });
+const noFlags = (): Record<Flag, boolean> => ({ key: false, badge2: false, badge3: false, code: false, power: false });
 
 export function initialState(def: ScenarioDef, setup: Setup): State {
   return {
@@ -182,6 +241,9 @@ export function initialState(def: ScenarioDef, setup: Setup): State {
     lastPower: null,
     blizzard: false,
     aurora: false,
+    dark: false,
+    parity: false,
+    confinement: false,
     gauge: null,
     timer: null,
     faultsOff: [],
@@ -189,9 +251,30 @@ export function initialState(def: ScenarioDef, setup: Setup): State {
     intrusion: null,
     ambiances: [],
     items: Object.fromEntries(def.items.map((i) => [i.id, { holder: null, used: false }])),
+    found: [],
+    foundToday: [],
+    flags: noFlags(),
+    actionsDone: [],
+    lastAction: null,
+    vote: null,
+    chief: null,
+    formerChief: null,
+    chiefB1: null,
+    chiefToConfirm: false,
+    chiefResisted: false,
+    locked: false,
+    trusted: [],
+    lastShot: null,
+    lastTest: null,
+    lastRadio: null,
+    roomUsed: { test: false, radio: false },
+    quarantine: [],
+    panicNext: null,
     tonight: emptyNight(),
     event: null,
+    eventsPlayed: [],
     announced: [],
+    lastExile: null,
     faults: [],
     past: [],
     winner: null,
@@ -220,28 +303,52 @@ export function contagionActive(s: State, params: ScenarioParams): boolean {
   return s.round <= params.contagionNights && pack(s).length < params.packMax;
 }
 
-/** The steps of tonight's wizard, in order. */
-export function nightSteps(s: State, params: ScenarioParams): NightStepId[] {
+const holderAlive = (s: State, id: string) => {
+  const held = s.items[id];
+  return !!held && !held.used && !!held.holder && s.players.find((p) => p.id === held.holder)?.status === "alive";
+};
+
+/** Secret items found today: the meneur hands them over tonight (a touch on the shoulder). */
+export const secretFoundToday = (def: Pick<ScenarioDef, "items">, s: State) =>
+  s.foundToday.flatMap((id) => (id === "seringues" ? ["vie"] : [id])).filter((id) => def.items.find((i) => i.id === id)?.family === "secret");
+
+/** The steps of tonight's wizard, in order (V1.2: night 1 is shorter). */
+export function nightSteps(s: State, params: ScenarioParams, def?: Pick<ScenarioDef, "items">): NightStepId[] {
   const steps: NightStepId[] = [];
-  const holderAlive = (id: string) => {
-    const held = s.items[id];
-    return !!held && !held.used && !!held.holder && s.players.find((p) => p.id === held.holder)?.status === "alive";
-  };
-  if (s.panicReady) steps.push("panic");
-  // The tapes are used every night while their holder lives: they're never spent.
-  if (holderAlive("bandes")) steps.push("tapes");
+  if (s.round === 1) {
+    steps.push("pz");
+    if (contagionActive(s, params)) steps.push("infect");
+    steps.push("victim");
+    if (!s.locked && (holderAlive(s, "vie") || holderAlive(s, "mort"))) steps.push("items");
+    return steps;
+  }
+  if (def && secretFoundToday(def, s).length) steps.push("handover");
+  if (s.panicReady && s.tonight.panic && !s.locked) steps.push("panic");
+  if (!s.locked && holderAlive(s, "bandes")) steps.push("tapes");
   if (contagionActive(s, params)) steps.push("infect");
   steps.push("victim");
-  if (holderAlive("vie") || holderAlive("mort")) steps.push("items");
-  steps.push("dead");
+  if (!s.locked && (holderAlive(s, "vie") || holderAlive(s, "mort"))) steps.push("items");
+  // The dead's moment: only when someone is already dead (tonight's victim doesn't vote).
+  if (s.players.some((p) => p.status !== "alive")) steps.push("dead");
   return steps;
 }
 
-/** Who dies at dawn: the victim (unless in the panic room or saved), the death syringe's target. */
+/** Whether the pack's attack on this player fails tonight: panic room, quarantine, the chief's first resistance. */
+function shielded(s: State, id: string | null, resisted: boolean): "panic" | "quarantine" | "chief" | null {
+  if (!id) return null;
+  if (s.tonight.panic === id && s.panicReady && !s.locked) return "panic";
+  if (s.quarantine.includes(id)) return "quarantine";
+  if (s.chief === id && !resisted) return "chief";
+  return null;
+}
+
+/** Who dies at dawn: the victim (unless protected or saved), the death syringe's target. */
 export function dawnDeaths(s: State): string[] {
   const n = s.tonight;
   const out: string[] = [];
-  if (n.victim && n.victim !== n.panic && n.victim !== n.life) out.push(n.victim);
+  // The chief's resistance is used first by a contamination aimed at them, the same night.
+  const resisted = s.chiefResisted || (!!n.infect && n.infect === s.chief);
+  if (n.victim && !shielded(s, n.victim, resisted) && n.victim !== n.life) out.push(n.victim);
   if (n.death && !out.includes(n.death)) out.push(n.death);
   return out.filter((id) => s.players.find((p) => p.id === id)?.status === "alive");
 }
@@ -257,23 +364,79 @@ export function suggestedWinner(s: State): "village" | "meute" | null {
   return null;
 }
 
-/** Days' events to propose to the dead: the next ones in the list, those already played tonight's loop last. */
+/** The events to propose to the dead: two not played yet, turning with the nights. */
 export function proposals(s: State, setup: Setup): string[] {
   const n = Math.max(1, Math.min(setup.events.length, setup.params.eventsProposed));
-  const played = new Set(s.log.filter((l) => l.text.startsWith("Événement du jour")).map((l) => l.text));
-  const fresh = setup.events.filter((e) => ![...played].some((t) => t.includes(e.name)));
-  const pool = [...fresh, ...setup.events.filter((e) => !fresh.includes(e))];
-  const start = (s.round - 1 + (s.loop - 1) * 2) % Math.max(1, pool.length);
+  const pool = setup.events.filter((e) => !s.eventsPlayed.includes(e.id));
+  if (pool.length === 0) return [];
+  const start = (s.round - 1 + (s.loop - 1) * 3) % pool.length;
   return [...pool.slice(start), ...pool.slice(0, start)].slice(0, n).map((e) => e.id);
+}
+
+/** Whether a day action can be done now: not done yet, and its access found. */
+export function actionAvailable(def: Pick<ScenarioDef, "dayActions">, s: State, id: string): boolean {
+  const a = def.dayActions.find((x) => x.id === id);
+  if (!a || s.actionsDone.includes(id)) return false;
+  if (a.zone === "hall" && !s.light) return false;
+  return !a.requires || s.flags[a.requires];
+}
+
+/**
+ * Today's two doors. The plan suggests them (Arthur's route), the rest follows; a door is only offered
+ * if its access is found. With a single one, the other is « Fouiller ce qu'on connaît déjà ». Loop 2,
+ * day 3: the laboratory, imposed. Loop 2, day 4: no door, the vote against the meneur.
+ */
+export function doorProposals(def: Pick<ScenarioDef, "dayActions" | "dayPlan">, s: State): string[] {
+  if (s.loop >= 2 && s.round === 3) return ["labo"];
+  if (s.loop >= 2 && s.round >= 4) return [];
+  const plan = def.dayPlan[`${s.loop}-${s.round}`] ?? [];
+  const order = [...new Set([...plan, ...def.dayActions.map((a) => a.id)])].filter((id) => id !== "labo" || plan.includes("labo"));
+  const open = order.filter((id) => actionAvailable(def, s, id)).slice(0, 2);
+  return open.length === 2 ? open : [...open, "fouiller"];
 }
 
 const nameOf = (s: State, id: string | null) => s.players.find((p) => p.id === id)?.name ?? "personne";
 
+export const flagName = (f: Flag) => ({ key: "la clé de Bêta", badge2: "le badge de niveau 2", badge3: "le badge de niveau 3", code: "le code des générateurs", power: "le courant" })[f];
+
+/** The meneur's choice of a day action, its effects on the base: doors, flags, items found. */
+function doDayAction(def: ScenarioDef, s: State, id: string, at: string): State {
+  const log = (text: string): State["log"] => [...s.log, { at, text }];
+  if (id === "fouiller") return { ...s, lastAction: "fouiller", log: log("Le village fouille ce qu'il connaît déjà.") };
+  const a = def.dayActions.find((x) => x.id === id);
+  if (!a) return s;
+  const firstArchives = a.zone === "beta" && !s.actionsDone.some((x) => def.dayActions.find((y) => y.id === x)?.zone === "beta");
+  const flags = { ...s.flags };
+  for (const f of a.gives ?? []) flags[f] = true;
+  const itemName = (f: string) => (f === "seringues" ? "les seringues" : (def.items.find((i) => i.id === f)?.name ?? f));
+  return {
+    ...s,
+    flags,
+    found: [...new Set([...s.found, ...(a.finds ?? [])])],
+    foundToday: [...new Set([...s.foundToday, ...(a.finds ?? [])])],
+    doors: a.zone === "hall" || !(a.zone in s.doors) ? s.doors : { ...s.doors, [a.zone]: true },
+    actionsDone: [...new Set([...s.actionsDone, id])],
+    lastAction: id,
+    // The first entry into the archives wakes their terminal (log 2).
+    terminal: firstArchives ? "beta" : s.terminal,
+    playing: firstArchives ? "log2" : s.playing,
+    circuitShown: id === "archives-panic" && !firstArchives ? true : s.circuitShown,
+    log: log(`Le village choisit : ${a.label}.${a.finds?.length ? ` Trouvé : ${a.finds.map(itemName).join(", ")}.` : ""}${a.gives?.length ? ` Acquis : ${a.gives.map(flagName).join(", ")}.` : ""}`),
+  };
+}
+
 /** One action applied. Unknown or impossible actions leave the state as it was. */
 export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when = 0): State {
+  const next = applyAction(def, setup, s, a, when);
+  return s.chief && !next.chief && next !== s ? { ...next, formerChief: s.chief } : next;
+}
+
+function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: number): State {
   const at = momentOf(s);
   const log = (text: string): State["log"] => [...s.log, { at, text }];
   const setPlayer = (id: string, change: Partial<PlayerState>) => s.players.map((p) => (p.id === id ? { ...p, ...change } : p));
+  const dropChief = (id: string) => (s.chief === id ? null : s.chief);
+  const params = setup.params;
   switch (a.t) {
     case "start":
       return s.phase === "welcome" ? { ...s, phase: "bus", log: log("Prologue du bus.") } : s;
@@ -300,16 +463,16 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
     }
     case "terminal": {
       const term = def.terminals.find((x) => x.id === a.id);
-      return { ...s, terminal: term ? term.id : null, playing: null, circuitShown: false, log: term ? log(`Terminal ouvert : ${term.label}.`) : s.log };
+      return { ...s, terminal: term ? term.id : null, playing: null, circuitShown: false, neutral: null, log: term ? log(`Terminal ouvert : ${term.label}.`) : s.log };
     }
     case "play": {
       const term = def.terminals.find((x) => x.id === s.terminal);
       const file = term?.files.find((f) => f.id === a.file);
       if (!file) return s;
-      return { ...s, playing: file.id, log: log(`Fichier lancé : ${file.name}.`) };
+      return { ...s, playing: file.id, log: log(`Fichier lancé : ${setup.files?.[file.id]?.name || file.name}.`) };
     }
     case "circuit":
-      return { ...s, circuitShown: a.show, terminal: a.show ? null : s.terminal, playing: null };
+      return { ...s, circuitShown: a.show, terminal: a.show ? null : s.terminal, playing: null, neutral: a.show ? null : s.neutral };
     case "switch": {
       if (a.index < 0 || a.index > 3) return s;
       const switches = [...s.switches] as State["switches"];
@@ -317,7 +480,7 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
       return { ...s, switches };
     }
     case "power": {
-      const ok = s.switches.every((v, i) => v === setup.params.circuit[i]);
+      const ok = s.switches.every((v, i) => v === params.circuit[i]);
       return { ...s, circuitShown: true, panicReady: s.panicReady || ok, lastPower: ok, log: log(ok ? "Circuit : panic room opérationnelle." : "Circuit : court-circuit.") };
     }
     case "glitch":
@@ -333,14 +496,14 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
       return a.which === "gauge" ? { ...s, gauge: next } : { ...s, timer: next };
     }
     case "faultToggle": {
-      const all = [...def.faults, ...setup.extraFaults].map((f) => f.id);
-      const ids = a.id ? [a.id] : all;
+      const all = [...def.faults, ...setup.extraFaults];
+      const ids = a.id ? [a.id] : all.map((f) => f.id);
       const faultsOff = a.on ? s.faultsOff.filter((x) => !ids.includes(x)) : [...new Set([...s.faultsOff, ...ids])];
-      return { ...s, faultsOff, log: log(a.id ? `Faille ${a.on ? "activée" : "désactivée"} : ${[...def.faults, ...setup.extraFaults].find((f) => f.id === a.id)?.title ?? a.id}.` : `Toutes les failles ${a.on ? "activées" : "désactivées"}.`) };
+      return { ...s, faultsOff, log: log(a.id ? `Faille ${a.on ? "activée" : "désactivée"} : ${all.find((f) => f.id === a.id)?.title ?? a.id}.` : `Toutes les failles ${a.on ? "activées" : "désactivées"}.`) };
     }
     case "stop":
       // Everything that plays on the projection stops; the base itself stays as it is.
-      return { ...s, playing: null, ambiances: [], gauge: null, timer: null, intrusion: null, blizzard: false, aurora: false, log: log("Stop : tout s'arrête sur la projection.") };
+      return { ...s, playing: null, ambiances: [], gauge: null, timer: null, intrusion: null, blizzard: false, aurora: false, vote: null, log: log("Stop : tout s'arrête sur la projection.") };
     case "neutral":
       return { ...s, neutral: a.mode, ...(a.mode ? { terminal: null, playing: null, circuitShown: false, intrusion: null } : {}) };
     case "media":
@@ -349,7 +512,17 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
     case "jump": {
       // The meneur's « Sauter à »: no rule checked, the phase is simply set.
       const round = a.phase === "night" ? s.round + 1 : a.phase === "bus" || a.phase === "arrival" ? 0 : Math.max(1, s.round);
-      return { ...s, phase: a.phase, round, tonight: a.phase === "night" ? emptyNight() : s.tonight, log: log(`Saut à : ${momentOf({ ...s, phase: a.phase, round })}.`) };
+      const newDay = a.phase !== s.phase || round !== s.round;
+      return {
+        ...s,
+        phase: a.phase,
+        round,
+        vote: null,
+        lastAction: newDay ? null : s.lastAction,
+        foundToday: newDay && a.phase !== "night" ? [] : s.foundToday,
+        tonight: a.phase === "night" ? emptyNight() : s.tonight,
+        log: log(`Saut à : ${momentOf({ ...s, phase: a.phase, round })}.`),
+      };
     }
     case "room": {
       const p = s.players.find((x) => x.id === a.player);
@@ -362,7 +535,7 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
       };
     }
     case "intrusion":
-      return { ...s, intrusion: a.text, log: a.text ? log("Intrusion dans la simulation.") : s.log };
+      return { ...s, intrusion: a.text, log: a.text ? log("Intrusion de Marga Berlioz dans la simulation.") : s.log };
     case "sound": {
       const slot = def.media.find((m) => m.id === a.slot);
       if (!slot) return s;
@@ -376,7 +549,7 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
       const fault = [...def.faults, ...setup.extraFaults].find((f) => f.id === a.id);
       // A fault switched off never goes off, not even by mistake.
       if (!fault || s.faultsOff.includes(fault.id)) return s;
-      const next = { ...s, faults: [...s.faults, { id: fault.id, at }], log: log(`Faille : ${fault.title.charAt(0).toLowerCase()}${fault.title.slice(1)}.`) };
+      const next = { ...s, neutral: null, faults: [...s.faults, { id: fault.id, at }], log: log(`Faille : ${fault.title.charAt(0).toLowerCase()}${fault.title.slice(1)}.`) };
       if (fault.kind === "terminalFile" && fault.terminal && fault.file) return { ...next, terminal: fault.terminal, playing: fault.file, circuitShown: false };
       return next;
     }
@@ -384,10 +557,33 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
       if (s.phase !== "arrival" && s.phase !== "day") return s;
       if (!s.patientZero) return s;
       const round = s.round + 1;
-      return { ...s, phase: "night", round, terminal: null, playing: null, circuitShown: false, gauge: null, blizzard: false, aurora: false, event: null, announced: [], tonight: emptyNight(), log: [...s.log, { at: momentOf({ ...s, phase: "night", round }), text: "La nuit tombe." }] };
+      return {
+        ...s,
+        phase: "night",
+        round,
+        terminal: null,
+        playing: null,
+        circuitShown: false,
+        gauge: null,
+        timer: null,
+        vote: null,
+        blizzard: false,
+        aurora: false,
+        dark: false,
+        parity: false,
+        confinement: false,
+        event: null,
+        announced: [],
+        lastAction: null,
+        tonight: { ...emptyNight(), panic: s.panicNext },
+        panicNext: null,
+        log: [...s.log, { at: momentOf({ ...s, phase: "night", round }), text: "La nuit tombe." }],
+      };
     }
     case "panic":
-      return s.phase === "night" ? { ...s, tonight: { ...s.tonight, panic: a.player, done: [...new Set([...s.tonight.done, "panic" as const])] } } : s;
+      // The village names who sleeps in the panic room during the day; the meneur can still change it at night.
+      if (s.phase === "night") return { ...s, tonight: { ...s.tonight, panic: a.player, done: [...new Set([...s.tonight.done, "panic" as const])] } };
+      return { ...s, panicNext: a.player, log: a.player ? log(`Panic room cette nuit : ${nameOf(s, a.player)}.`) : s.log };
     case "tapes": {
       if (s.phase !== "night") return s;
       const done = [...new Set([...s.tonight.done, "tapes" as const])];
@@ -401,46 +597,60 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
         log: log(`Bandes : ${holder} regarde ${target.name} (${target.infected ? "contaminé" : "sain"}).`),
       };
     }
-    case "infect": {
-      if (s.phase !== "night") return s;
-      const tonight = { ...s.tonight, infect: a.player, done: [...new Set([...s.tonight.done, "infect" as const])] };
-      return { ...s, tonight };
-    }
+    case "infect":
+      return s.phase === "night" ? { ...s, tonight: { ...s.tonight, infect: a.player, done: [...new Set([...s.tonight.done, "infect" as const])] } } : s;
     case "victim":
       return s.phase === "night" ? { ...s, tonight: { ...s.tonight, victim: a.player, done: [...new Set([...s.tonight.done, "victim" as const])] } } : s;
     case "useItem": {
       const item = def.items.find((i) => i.id === a.item);
       const held = s.items[a.item];
-      if (!item || !held || held.used) return s;
+      if (!item || !held || held.used || s.locked) return s;
       // The life syringe follows the witch's rule: it saves tonight's victim, and no one else.
-      if (item.effect === "life" && (!s.tonight.victim || a.target !== s.tonight.victim || s.tonight.victim === s.tonight.panic)) return s;
+      if (item.effect === "life" && (!s.tonight.victim || a.target !== s.tonight.victim || shielded(s, s.tonight.victim, s.chiefResisted))) return s;
       const items = { ...s.items, [a.item]: { ...held, used: true } };
       const by = nameOf(s, held.holder);
-      if (item.effect === "life") return { ...s, items, tonight: { ...s.tonight, life: a.target, done: [...new Set([...s.tonight.done, "items" as const])] }, log: log(`${item.name} (${by}) sur ${nameOf(s, a.target)}.`) };
-      if (item.effect === "death") return { ...s, items, tonight: { ...s.tonight, death: a.target, done: [...new Set([...s.tonight.done, "items" as const])] }, log: log(`${item.name} (${by}) sur ${nameOf(s, a.target)}.`) };
-      if (item.effect === "pistol" && a.target) return { ...s, items, players: setPlayer(a.target, { status: "dead", diedAt: at }), log: log(`${item.name} : ${by} abat ${nameOf(s, a.target)}.`) };
-      return { ...s, items, log: log(`${item.name} utilisée.`) };
+      const done = [...new Set([...s.tonight.done, "items" as const])];
+      if (item.effect === "life") return { ...s, items, tonight: { ...s.tonight, life: a.target, done }, log: log(`${item.name} (${by}) sur ${nameOf(s, a.target)}.`) };
+      if (item.effect === "death") return { ...s, items, tonight: { ...s.tonight, death: a.target, done }, log: log(`${item.name} (${by}) sur ${nameOf(s, a.target)}.`) };
+      return { ...s, items, log: log(`${item.name} utilisé.`) };
     }
     case "giveItem": {
-      const item = def.items.find((i) => i.id === a.item);
-      if (!item) return s;
-      return { ...s, items: { ...s.items, [a.item]: { holder: a.player, used: s.items[a.item]?.used ?? false } }, log: log(a.player ? `${item.name} confiée à ${nameOf(s, a.player)}.` : `${item.name} : plus personne.`) };
+      // The syringes go together: one holder for both.
+      const ids = a.item === "seringues" ? ["vie", "mort"] : [a.item];
+      if (!ids.every((id) => def.items.some((i) => i.id === id))) return s;
+      const items = { ...s.items };
+      for (const id of ids) items[id] = { holder: a.player, used: s.items[id]?.used ?? false };
+      const label = a.item === "seringues" ? "Les seringues" : (def.items.find((i) => i.id === a.item)?.name ?? a.item);
+      return { ...s, items, found: [...new Set([...s.found, a.item])], log: log(a.player ? `${label} : ${nameOf(s, a.player)}.` : `${label} : plus personne.`) };
     }
     case "propose":
       return s.phase === "night" ? { ...s, tonight: { ...s.tonight, proposed: a.events } } : s;
     case "deadChoose":
-      return s.phase === "night" ? { ...s, tonight: { ...s.tonight, chosen: a.event, done: [...new Set([...s.tonight.done, "dead" as const])] } } : s;
+      return s.phase === "night" ? { ...s, vote: null, timer: null, tonight: { ...s.tonight, chosen: a.event, done: [...new Set([...s.tonight.done, "dead" as const])] } } : s;
     case "skip":
       return s.phase === "night" ? { ...s, tonight: { ...s.tonight, done: [...new Set([...s.tonight.done, a.step])] } } : s;
     case "dawn": {
       if (s.phase !== "night") return s;
       const n = s.tonight;
       const deaths = dawnDeaths(s);
+      let resisted = s.chiefResisted;
+      const notes: string[] = [];
       let players = s.players.map((p) => (deaths.includes(p.id) ? { ...p, status: "dead" as const, diedAt: at } : p));
       if (n.infect) {
-        // The pack bit together: whoever was in it (and not locked in the panic room) that night.
-        const by = pack(s).filter((p) => p.id !== n.panic).map((p) => p.name).join(", ") || null;
-        players = players.map((p) => (p.id === n.infect && p.status === "alive" ? { ...p, infected: true, infectedAt: momentOf(s), infectedBy: by } : p));
+        const shield = shielded(s, n.infect, resisted);
+        if (shield === "chief") {
+          resisted = true;
+          notes.push(`Le chef ${nameOf(s, n.infect)} résiste à la contamination.`);
+        } else if (shield) notes.push(`${nameOf(s, n.infect)} est protégé : la contamination échoue.`);
+        else {
+          // The pack bit together: whoever was in it (and not locked in the panic room) that night.
+          const by = pack(s).filter((p) => p.id !== n.panic).map((p) => p.name).join(", ") || null;
+          players = players.map((p) => (p.id === n.infect && p.status === "alive" ? { ...p, infected: true, infectedAt: momentOf(s), infectedBy: by } : p));
+        }
+      }
+      if (n.victim && !deaths.includes(n.victim) && shielded(s, n.victim, resisted) === "chief") {
+        resisted = true;
+        notes.push(`Le chef ${nameOf(s, n.victim)} résiste à l'attaque.`);
       }
       const event = setup.events.find((e) => e.id === n.chosen) ?? null;
       const others = n.proposed.filter((id) => id !== n.chosen).map((id) => setup.events.find((e) => e.id === id)?.name).filter(Boolean);
@@ -449,30 +659,58 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
         `Victime : ${nameOf(s, n.victim)}${n.victim && !deaths.includes(n.victim) ? " (sauvée)" : ""}.`,
         n.panic ? `Panic room : ${nameOf(s, n.panic)}.` : null,
         event ? `Les morts choisissent : ${event.name}${others.length ? ` (contre ${others.join(", ")})` : ""}.` : null,
+        ...notes,
       ]
         .filter(Boolean)
         .join(" ");
       const day = { ...s, phase: "day" as const };
+      const chiefDied = !!s.chief && deaths.includes(s.chief);
       return {
         ...s,
         phase: "day",
         players,
+        chief: chiefDied ? null : s.chief,
+        chiefResisted: resisted,
         event: event?.id ?? null,
+        eventsPlayed: event ? [...s.eventsPlayed, event.id] : s.eventsPlayed,
         announced: deaths,
         blizzard: event?.effect === "blizzard",
         aurora: event?.effect === "aurora",
-        log: [...s.log, { at, text: line }, ...(event ? [{ at: momentOf(day), text: `Événement du jour : ${event.name}.` }] : [])],
+        dark: event?.effect === "dark",
+        parity: event?.effect === "parity" || event?.effect === "confinement",
+        quarantine: [],
+        foundToday: [],
+        vote: null,
+        timer: null,
+        lastTest: null,
+        lastRadio: null,
+        log: [
+          ...s.log,
+          { at, text: line },
+          ...(chiefDied ? [{ at: momentOf(day), text: "Le chef est mort : il transmet son titre." }] : []),
+          ...(event ? [{ at: momentOf(day), text: `Événement du jour : ${event.name}.` }] : []),
+        ],
       };
     }
     case "exile": {
       if (s.phase !== "day") return s;
-      if (!a.player) return { ...s, log: log("Exil : personne.") };
+      if (!a.player) return { ...s, lastExile: null, log: log("Exil : personne.") };
       const p = s.players.find((x) => x.id === a.player);
       if (!p || p.status !== "alive") return s;
-      return { ...s, players: setPlayer(a.player, { status: "exiled", diedAt: at }), log: log(`Exil : ${p.name} (${p.infected ? "contaminé" : "sain"}).`) };
+      const wasChief = s.chief === p.id;
+      // A healthy chief exiled: « perte de confiance », every power locked until the end of the loop.
+      const lockdown = wasChief && !p.infected;
+      return {
+        ...s,
+        players: setPlayer(a.player, { status: "exiled", diedAt: at }),
+        chief: dropChief(p.id),
+        locked: s.locked || lockdown,
+        lastExile: { player: p.id, chief: wasChief, healthy: !p.infected },
+        log: [...log(`Exil : ${p.name} (${p.infected ? "contaminé" : "sain"}).`), ...(lockdown ? [{ at, text: "Le chef sain a été exilé : verrouillage général, le village perd tous ses pouvoirs jusqu'à la fin de la boucle." }] : [])],
+      };
     }
     case "kill":
-      return { ...s, players: setPlayer(a.player, { status: "dead", diedAt: at }), log: log(`Correction : ${nameOf(s, a.player)} est mort.`) };
+      return { ...s, players: setPlayer(a.player, { status: "dead", diedAt: at }), chief: dropChief(a.player), log: log(`Correction : ${nameOf(s, a.player)} est mort.`) };
     case "revive":
       return { ...s, players: setPlayer(a.player, { status: "alive", diedAt: null }), log: log(`Correction : ${nameOf(s, a.player)} est en vie.`) };
     case "setInfected":
@@ -483,13 +721,14 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
       };
     case "endLoop":
       if (s.phase !== "day" && s.phase !== "night") return s;
-      return { ...s, phase: "loopEnd", winner: a.winner, terminal: null, playing: null, log: log(`Fin de boucle : victoire ${a.winner === "village" ? "du village" : "de la meute"}.`) };
+      return { ...s, phase: "loopEnd", winner: a.winner, terminal: null, playing: null, vote: null, timer: null, log: log(`Fin de boucle : victoire ${a.winner === "village" ? "du village" : "de la meute"}.`) };
     case "reboot": {
       if (s.phase !== "loopEnd") return s;
-      if (s.loop >= setup.params.loops) return { ...s, phase: "bad", log: log("Mauvaise fin.") };
-      // The base remembers: the rooms of this loop's dead are sealed with their names.
+      if (s.loop >= params.loops) return { ...s, phase: "bad", log: log("Mauvaise fin.") };
+      // The base remembers: the rooms of this loop's dead are sealed with their names; what was found stays found.
       const sealed = { ...s.sealed };
       for (const p of s.players) if (p.status !== "alive") sealed[p.room] = p.name;
+      const chiefB1 = s.chief ?? s.chiefB1;
       return {
         ...s,
         phase: "bus",
@@ -499,25 +738,125 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
         past: [...s.past, { loop: s.loop, players: s.players.map((p) => ({ id: p.id, status: p.status, at: p.diedAt })) }],
         patientZero: null,
         sealed,
-        light: setup.params.hallLitLoop2,
+        light: params.hallLitLoop2,
         terminal: null,
         playing: null,
         circuitShown: false,
+        // Items stay found; their holders are cleared and their uses reset, to hand them out again.
         items: Object.fromEntries(def.items.map((i) => [i.id, { holder: null, used: false }])),
+        roomUsed: { test: false, radio: false },
+        chiefB1,
+        chief: null,
+        chiefToConfirm: !!chiefB1,
+        chiefResisted: false,
+        locked: false,
+        trusted: [],
+        lastShot: null,
+        lastTest: null,
+        lastRadio: null,
+        lastExile: null,
+        quarantine: [],
+        panicNext: null,
+        foundToday: [],
+        lastAction: null,
         tonight: emptyNight(),
         event: null,
         announced: [],
         gauge: null,
+        timer: null,
+        vote: null,
         blizzard: false,
         aurora: false,
+        dark: false,
+        parity: false,
+        confinement: false,
         winner: null,
         log: log("Reboot de la simulation."),
       };
     }
     case "goodEnd":
-      return { ...s, phase: "good", terminal: null, playing: null, intrusion: null, log: log("Le village vote contre le meneur : bonne fin.") };
+      return { ...s, phase: "good", terminal: null, playing: null, intrusion: null, vote: null, timer: null, log: log("Le village vote contre le meneur : bonne fin.") };
     case "badEnd":
-      return { ...s, phase: "bad", terminal: null, playing: null, log: log("Mauvaise fin.") };
+      return { ...s, phase: "bad", terminal: null, playing: null, vote: null, timer: null, log: log("Mauvaise fin.") };
+
+    // ───────── V1.2 ─────────
+    case "vote": {
+      if (a.options.length === 0) return s;
+      const seconds = a.kind === "door" ? (params.voteDoorSeconds ?? 60) : a.kind === "dead" ? (params.voteDeadSeconds ?? 60) : (params.voteChiefSeconds ?? 120);
+      const label = a.kind === "door" ? "Choix de la porte" : a.kind === "dead" ? "Le moment des morts" : "Élection du chef de mission";
+      const tonight = a.kind === "dead" ? { ...s.tonight, proposed: a.options } : s.tonight;
+      return { ...s, vote: { kind: a.kind, options: a.options }, tonight, timer: runTimer(null, "start", when, seconds, label), neutral: null };
+    }
+    case "voteResult": {
+      const kind = s.vote?.kind ?? (s.phase === "night" ? "dead" : "door");
+      const base = { ...s, vote: null, timer: null };
+      if (!a.choice) return { ...base, log: log("Vote annulé.") };
+      if (kind === "door") return doDayAction(def, base, a.choice, at);
+      if (kind === "dead")
+        return { ...base, tonight: { ...s.tonight, chosen: a.choice, done: [...new Set([...s.tonight.done, "dead" as const])] }, log: log(`Les morts votent : ${setup.events.find((e) => e.id === a.choice)?.name ?? a.choice}.`) };
+      return { ...base, chief: a.choice, chiefToConfirm: false, chiefB1: s.loop === 1 ? a.choice : s.chiefB1, log: log(`Chef de mission : ${nameOf(s, a.choice)}.`) };
+    }
+    case "dayAction":
+      return doDayAction(def, s, a.id, at);
+    case "labForce":
+      return { ...s, doors: { ...s.doors, labo: true }, actionsDone: [...new Set([...s.actionsDone, "labo"])], lastAction: "labo", vote: null, timer: null, log: log("Marga Berlioz force la porte du laboratoire.") };
+    case "chief":
+      return { ...s, chief: a.player, chiefToConfirm: false, chiefB1: s.loop === 1 && a.player ? a.player : s.chiefB1, log: log(a.player ? `Chef de mission : ${nameOf(s, a.player)}.` : "Plus de chef de mission.") };
+    case "chiefConfirm":
+      if (!s.chiefB1) return s;
+      return { ...s, chief: s.chiefB1, chiefToConfirm: false, log: log(`Chef de mission confirmé : ${nameOf(s, s.chiefB1)}.`) };
+    case "shoot": {
+      const gun = s.items.pistolet;
+      const shooter = gun?.holder ?? null;
+      const target = s.players.find((p) => p.id === a.target);
+      // One cartridge per loop, by day only, from a living holder; the pistol is a power, locked too.
+      if (s.phase !== "day" || !gun || gun.used || !shooter || s.locked || !target || target.status !== "alive" || target.id === shooter) return s;
+      if (s.players.find((p) => p.id === shooter)?.status !== "alive") return s;
+      const items = { ...s.items, pistolet: { holder: null, used: true } };
+      if (target.infected) {
+        return {
+          ...s,
+          items,
+          players: setPlayer(target.id, { status: "dead", diedAt: at }),
+          chief: dropChief(target.id),
+          trusted: [...s.trusted, shooter],
+          lastShot: { shooter, target: target.id, infected: true },
+          log: log(`Tir du pistolet : ${nameOf(s, shooter)} abat ${target.name} (contaminé). Le tireur passe de confiance.`),
+        };
+      }
+      return {
+        ...s,
+        items,
+        players: s.players.map((p) => (p.id === target.id || p.id === shooter ? { ...p, status: "dead" as const, diedAt: at } : p)),
+        chief: s.chief === target.id || s.chief === shooter ? null : s.chief,
+        lastShot: { shooter, target: target.id, infected: false },
+        log: log(`Tir du pistolet : ${nameOf(s, shooter)} abat ${target.name} (sain). Tir sans motif : le tireur est exclu.`),
+      };
+    }
+    case "bloodTest": {
+      const target = s.players.find((p) => p.id === a.target);
+      if (!target || s.roomUsed.test || s.locked || !s.found.includes("test")) return s;
+      // Incubation: contaminated last night, the test still comes out negative.
+      const fresh = target.infectedAt === `Boucle ${s.loop} · Nuit ${s.round}`;
+      const positive = target.infected && !fresh;
+      return { ...s, roomUsed: { ...s.roomUsed, test: true }, lastTest: { target: target.id, positive }, log: log(`Test sanguin : ${target.name}, ${positive ? "positif" : "négatif"}.`) };
+    }
+    case "radio": {
+      if (s.roomUsed.radio || s.locked || !s.found.includes("radio")) return s;
+      const n = pack(s).length;
+      return { ...s, roomUsed: { ...s.roomUsed, radio: true }, lastRadio: n, log: log(`Radio : contaminés en vie, ${n}.`) };
+    }
+    case "quarantine":
+      return { ...s, quarantine: a.players.slice(0, 2), log: a.players.length ? log(`Quarantaine : ${a.players.map((id) => nameOf(s, id)).join(" et ")}.`) : s.log };
+    case "confinement":
+      return {
+        ...s,
+        confinement: a.on,
+        timer: a.on ? runTimer(null, "start", when, params.confinementSeconds ?? 360, "Confinement") : s.timer?.label === "Confinement" ? null : s.timer,
+        log: log(a.on ? "Confinement : la base est coupée en deux." : "Porte coupe-feu rouverte."),
+      };
+    case "flag":
+      return { ...s, flags: { ...s.flags, [a.flag]: a.on }, log: log(`Correction : ${flagName(a.flag)} ${a.on ? "trouvé" : "retiré"}.`) };
   }
 }
 
@@ -539,17 +878,16 @@ export function recap(s: State): { name: string; room: number; status: PlayerSta
 const session = (loop: number) => `SESSION ${String(loop).padStart(2, "0")}`;
 
 /** « Boucle 1 · Nuit 2 » → « SESSION 01, NUIT 2 ». */
-function when(at: string | null): string {
+function whenOf(at: string | null): string {
   const m = at?.match(/Boucle (\d+) · (Nuit|Jour) (\d+)/);
   return m ? `${session(Number(m[1]))}, ${m[2]!.toUpperCase()} ${m[3]}` : (at ?? "").toUpperCase();
 }
 
-const statusLine = (status: PlayerState["status"], at: string | null) =>
-  status === "alive" ? "ACTIF" : `${status === "dead" ? "DÉCÉDÉ" : "EXCLU "} (${when(at)})`;
+const statusLine = (status: PlayerState["status"], at: string | null) => (status === "alive" ? "ACTIF" : `${status === "dead" ? "DÉCÉDÉ" : "EXCLU "} (${whenOf(at)})`);
 
 /**
  * SUJETS.DAT, built from the players: each one's status in this loop, and what became of them in the
- * loops before (that's where they understand they've been watched from the start). Never a side.
+ * loops before (that's where they understand they've been watched from the start). Never a side, never an item.
  */
 export function registry(s: { loop: number; players: { id: string; name: string; room: number; status: PlayerState["status"]; diedAt: string | null }[]; past: State["past"] }): string[] {
   const width = Math.max(8, ...s.players.map((p) => p.name.length)) + 2;

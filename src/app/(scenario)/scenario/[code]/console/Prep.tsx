@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ConsoleView } from "@/modules/loups/scenarios/data";
 import type { Setup } from "@/modules/loups/scenarios/engine";
+import { DEFAULT_TEXTS, importSummary, parseTextFile, resolveTexts, type TextFile } from "@/modules/loups/scenarios/texts";
 import type { DayEvent, Fault, PublicScenario } from "@/modules/loups/scenarios/types";
 import { deleteEveningAction } from "../../actions";
 import { Section, type Send } from "./Console";
@@ -34,7 +35,9 @@ export function Prep({
     .map((n) => n.replace(/\s+/g, " ").trim())
     .filter(Boolean);
   const params = setup.params;
-  const number = (key: "loops" | "contagionNights" | "packMax" | "eventsProposed" | "gaugeSeconds", label: string, min: number, max: number, unit = "") => (
+  type Key = "loops" | "contagionNights" | "packMax" | "eventsProposed" | "gaugeSeconds" | "voteDoorSeconds" | "voteDeadSeconds" | "voteChiefSeconds" | "confinementSeconds";
+  const inMinutes = (key: Key) => key === "gaugeSeconds" || key === "confinementSeconds";
+  const number = (key: Key, label: string, min: number, max: number, unit = "") => (
     <label className="flex items-center justify-between gap-3 text-sm">
       <span>{label}</span>
       <span className="flex items-center gap-1">
@@ -42,10 +45,10 @@ export function Prep({
           type="number"
           min={min}
           max={max}
-          value={key === "gaugeSeconds" ? Math.round(params[key] / 60) : params[key]}
+          value={inMinutes(key) ? Math.round((params[key] ?? def.defaults[key] ?? 0) / 60) : (params[key] ?? def.defaults[key] ?? 0)}
           onChange={(e) => {
             const v = Math.max(min, Math.min(max, Number(e.target.value) || min));
-            void save({ params: { ...params, [key]: key === "gaugeSeconds" ? v * 60 : v } });
+            void save({ params: { ...params, [key]: inMinutes(key) ? v * 60 : v } });
           }}
           className="scn-field w-20 text-right"
         />
@@ -87,6 +90,10 @@ export function Prep({
         {number("packMax", "Taille maximale de la meute", 1, 20)}
         {number("eventsProposed", "Événements proposés aux morts", 1, 5)}
         {number("gaugeSeconds", "Durée de la jauge des générateurs", 1, 20, "min")}
+        {number("voteDoorSeconds", "Vote de la porte", 10, 600, "s")}
+        {number("voteDeadSeconds", "Moment des morts", 10, 600, "s")}
+        {number("voteChiefSeconds", "Élection du chef", 10, 900, "s")}
+        {number("confinementSeconds", "Durée du confinement", 1, 30, "min")}
         <label className="flex min-h-11 items-center justify-between gap-3 text-sm">
           <span>Hall éclairé au début de la boucle 2</span>
           <input type="checkbox" checked={params.hallLitLoop2} onChange={(e) => void save({ params: { ...params, hallLitLoop2: e.target.checked } })} className="h-5 w-5" />
@@ -122,6 +129,8 @@ export function Prep({
           Revenir à la liste du scénario
         </button>
       </Section>
+
+      <Texts setup={setup} busy={busy} save={save} />
 
       <Section title="FICHIERS ET DATES">
         <p className="text-xs text-[var(--scn-muted)]">Ce que les terminaux affichent : nom et date de chaque fichier, le texte des fichiers texte, les sous-titres (une réplique par ligne, avec son temps : « 0:03 Je… ça marche ? »).</p>
@@ -176,6 +185,133 @@ export function Prep({
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * The texts the meneur reads aloud: the scenario's file, or an imported one (after a summary), with
+ * hand edits on top. Read-only once the evening is launched.
+ */
+function Texts({ setup, busy, save }: { setup: Setup; busy: boolean; save: (next: Partial<Setup>) => Promise<string | null> }) {
+  const imported = setup.texts?.imported as TextFile | undefined;
+  const edited = setup.texts?.edited ?? {};
+  const current = resolveTexts(imported, edited);
+  const base = (imported ?? DEFAULT_TEXTS).textes;
+  const [pending, setPending] = useState<{ file: TextFile; summary: ReturnType<typeof importSummary> } | null>(null);
+  const [error, setError] = useState("");
+  const [id, setId] = useState("");
+  const [draft, setDraft] = useState("");
+  const chosen = current.find((t) => t.id === id);
+  const original = base.find((t) => t.id === id);
+  const edits = Object.keys(edited).length;
+  return (
+    <Section title="TEXTES À LIRE" chip={<span className="scn-chip">{current.length}</span>}>
+      <p className="text-xs text-[var(--scn-muted)]">
+        {imported ? `Fichier importé${imported.version ? `, version ${imported.version}` : ""}` : `Fichier du scénario, version ${DEFAULT_TEXTS.version ?? "?"}`} · {current.length} textes
+        {edits ? ` · ${edits} retouché${edits > 1 ? "s" : ""} à la main` : ""}. Pendant la soirée, ils sont en lecture seule.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="scn-btn flex cursor-pointer items-center justify-center">
+          Importer un fichier
+          <input
+            type="file"
+            accept=".json,application/json"
+            className="sr-only"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (!f) return;
+              const parsed = parseTextFile(await f.text());
+              if (!parsed.ok) {
+                setError(parsed.error);
+                return;
+              }
+              setError("");
+              setPending({ file: parsed.file, summary: importSummary(current, parsed.file.textes) });
+            }}
+          />
+        </label>
+        <button
+          type="button"
+          className="scn-btn"
+          onClick={() => {
+            const file = { ...(imported ?? DEFAULT_TEXTS), textes: current };
+            const url = URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: "application/json" }));
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "textes_antarctica.json";
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Exporter le fichier
+        </button>
+      </div>
+      {error && <p className="text-xs text-[var(--scn-bad)]">{error}</p>}
+      {pending && (
+        <div className="rounded-xl border border-[var(--scn-amber)] p-3 text-sm">
+          <p>
+            Ce fichier remplace les textes actuels : <b>{pending.summary.added.length}</b> ajoutés, <b>{pending.summary.changed.length}</b> modifiés, <b>{pending.summary.removed.length}</b> supprimés.
+            {edits ? ` Les ${edits} retouches à la main sont abandonnées.` : ""}
+          </p>
+          {pending.summary.removed.length > 0 && <p className="mt-1 text-xs text-[var(--scn-muted)]">Supprimés : {pending.summary.removed.join(", ")}</p>}
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              className="scn-btn scn-btn-amber"
+              disabled={busy}
+              onClick={async () => {
+                if (!(await save({ texts: { imported: { version: pending.file.version, textes: pending.file.textes }, edited: {} } }))) setPending(null);
+              }}
+            >
+              Remplacer les textes
+            </button>
+            <button type="button" className="scn-btn" onClick={() => setPending(null)}>
+              Garder les textes actuels
+            </button>
+          </div>
+        </div>
+      )}
+      <select
+        aria-label="Texte à modifier"
+        value={id}
+        onChange={(e) => {
+          setId(e.target.value);
+          setDraft(current.find((t) => t.id === e.target.value)?.texte ?? "");
+        }}
+        className="scn-field"
+      >
+        <option value="">Modifier un texte…</option>
+        {current.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.id} · {t.titre}
+            {edited[t.id] !== undefined ? " (retouché)" : ""}
+          </option>
+        ))}
+      </select>
+      {chosen && (
+        <>
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={12} aria-label={`Texte ${chosen.id}`} className="scn-field py-2 text-sm" />
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" className="scn-btn scn-btn-primary" disabled={busy || draft === chosen.texte} onClick={() => void save({ texts: { imported, edited: { ...edited, [chosen.id]: draft } } })}>
+              {draft === chosen.texte ? "Enregistré ✓" : "Enregistrer"}
+            </button>
+            <button
+              type="button"
+              className="scn-btn"
+              disabled={busy || edited[chosen.id] === undefined}
+              onClick={async () => {
+                const rest = { ...edited };
+                delete rest[chosen.id];
+                if (!(await save({ texts: { imported, edited: rest } }))) setDraft(original?.texte ?? "");
+              }}
+            >
+              Revenir à la version importée
+            </button>
+          </div>
+        </>
+      )}
+    </Section>
   );
 }
 

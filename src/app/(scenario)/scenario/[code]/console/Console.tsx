@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { alive, contagionActive, dawnDeaths, momentOf, nightSteps, pack, proposals, type Action, type NightStepId } from "@/modules/loups/scenarios/engine";
+import { actionAvailable, alive, contagionActive, dawnDeaths, doorProposals, flagName, momentOf, nightSteps, pack, proposals, secretFoundToday, type Action, type NightStepId, type VoteKind } from "@/modules/loups/scenarios/engine";
 import type { ConsoleView } from "@/modules/loups/scenarios/data";
 import type { PublicScenario } from "@/modules/loups/scenarios/types";
 import { consoleAction, deleteEveningAction, replayEveningAction } from "../../actions";
 import { Prep } from "./Prep";
+import { FaultHint, Reader } from "./Reader";
 
 export type Send = (input: Record<string, unknown>) => Promise<string | null>;
 type Act = (action: Action) => Promise<string | null>;
@@ -27,6 +28,8 @@ export function Console({
   const [view, setView] = useState(initialView);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // The text being read: the console stays mounted underneath, exactly where it was.
+  const [reading, setReading] = useState<{ start?: string } | null>(null);
   const moves = useRef(0);
 
   const send: Send = async (input) => {
@@ -100,6 +103,8 @@ export function Console({
       {view.status === "live" && (
         <>
           <PhaseSection def={def} view={view} busy={busy} act={act} send={send} />
+          <Powers def={def} view={view} busy={busy} act={act} />
+          <Chief def={def} view={view} busy={busy} act={act} />
           <Players def={def} view={view} busy={busy} act={act} />
           <Base def={def} view={view} busy={busy} act={act} />
           <Terminals def={def} view={view} busy={busy} act={act} />
@@ -113,7 +118,9 @@ export function Console({
         </>
       )}
       {view.status === "done" && <Done code={code} view={view} />}
-      {view.status === "live" && <CommandBar view={view} busy={busy} act={act} send={send} />}
+      {view.status === "live" && reading && <Reader def={def} view={view} start={reading.start} onClose={() => setReading(null)} />}
+      {view.status === "live" && !reading && <FaultHint view={view} onRead={() => setReading({ start: "FAILLE-01" })} />}
+      {view.status === "live" && <CommandBar view={view} busy={busy} act={act} send={send} reading={!!reading} onText={() => setReading(reading ? null : {})} />}
     </div>
   );
 }
@@ -122,11 +129,11 @@ export function Console({
  * Always there, one gesture away, above everything (no dialog ever covers it): Stop, the neutral
  * screen, Annuler. The meneur is never stuck.
  */
-function CommandBar({ view, busy, act, send }: { view: ConsoleView; busy: boolean; act: Act; send: Send }) {
+function CommandBar({ view, busy, act, send, reading, onText }: { view: ConsoleView; busy: boolean; act: Act; send: Send; reading: boolean; onText: () => void }) {
   const s = view.state;
   return (
     <nav aria-label="Commandes" className="fixed inset-x-0 bottom-0 z-[70] border-t border-[var(--scn-line)] bg-[rgba(12,18,24,.97)] px-2 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))]">
-      <div className="mx-auto grid max-w-lg grid-cols-4 gap-1.5">
+      <div className="mx-auto grid max-w-lg grid-cols-5 gap-1.5">
         <button type="button" className="scn-btn scn-btn-danger min-h-12 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "stop" })}>
           ■ Stop<small>tout ce qui joue</small>
         </button>
@@ -138,6 +145,9 @@ function CommandBar({ view, busy, act, send }: { view: ConsoleView; busy: boolea
         </button>
         <button type="button" className="scn-btn min-h-12 px-1 text-xs" disabled={busy || !view.canUndo} onClick={() => void send({ type: "undo" })}>
           ↶ Annuler<small>dernière action</small>
+        </button>
+        <button type="button" className={`scn-btn min-h-12 px-1 text-xs ${reading ? "scn-btn-on" : "scn-btn-amber"}`} onClick={onText}>
+          Texte<small>{reading ? "masquer" : "à lire"}</small>
         </button>
       </div>
     </nav>
@@ -215,6 +225,11 @@ function PlayerSelect({ players, value, onChange, label, none }: { players: { id
 
 type Props = { def: PublicScenario; view: ConsoleView; busy: boolean; act: Act };
 
+const nameIn = (s: ConsoleView["state"], id: string | null | undefined) => s.players.find((x) => x.id === id)?.name ?? "personne";
+/** The items the meneur hands out: the syringes go as one. */
+const HANDED = (def: PublicScenario) => [...def.items.filter((i) => i.family !== "room" && i.effect !== "life" && i.effect !== "death").map((i) => ({ id: i.id, name: i.name, secret: i.family === "secret" })), { id: "seringues", name: "Seringues (vie et mort)", secret: true }];
+const holderOf = (s: ConsoleView["state"], item: string) => s.items[item === "seringues" ? "vie" : item]?.holder ?? null;
+
 // ───────── Phase: where we are, what comes next ─────────
 
 function PhaseSection({ def, view, busy, act, send }: Props & { send: Send }) {
@@ -241,7 +256,7 @@ function PhaseSection({ def, view, busy, act, send }: Props & { send: Send }) {
       {s.phase === "bus" && (
         <>
           <p className="text-sm text-[var(--scn-muted)]">
-            {s.loop === 1 ? "Lis ton texte. Lance le moteur du bus dans Sons." : `Boucle ${s.loop} : retour dans le bus. Les cartes sont redistribuées.`}
+            {s.loop === 1 ? "Lis ton texte. Lance le moteur du bus dans Sons." : `Boucle ${s.loop} : retour dans le bus.`}
           </p>
           {s.loop === 1 && (
             <button type="button" className="scn-btn" disabled={busy || !view.projection.mic} onClick={() => void act({ t: "record" })}>
@@ -255,7 +270,44 @@ function PhaseSection({ def, view, busy, act, send }: Props & { send: Send }) {
       )}
       {s.phase === "arrival" && (
         <>
-          <p className="text-sm text-[var(--scn-muted)]">Le groupe explore. Distribue les cartes, puis note le patient zéro.</p>
+          <Checklist
+            items={[
+              { done: s.light, label: "Allumer le hall", action: () => act({ t: "light", on: true }) },
+              { done: !!s.doors.dortoir, label: "Ouvrir le dortoir (Δ)", action: () => act({ t: "door", door: "dortoir", open: true }) },
+            ]}
+            busy={busy}
+          />
+          {s.loop >= 2 && s.chiefToConfirm && s.chiefB1 ? (
+            <div className="rounded-xl border border-[var(--scn-ice-dim)] p-3 text-sm">
+              <p>
+                Le terminal du hall demande : chef de mission <b>{nameIn(s, s.chiefB1)}</b>, confirmer ?
+              </p>
+              <Row>
+                <button type="button" className="scn-btn scn-btn-on" disabled={busy} onClick={() => void act({ t: "chiefConfirm" })}>
+                  Confirmer
+                </button>
+                <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "chief", player: null })}>
+                  Relancer l&apos;élection
+                </button>
+              </Row>
+            </div>
+          ) : !s.chief ? (
+            <VoteControl
+              def={def}
+              view={view}
+              busy={busy}
+              act={act}
+              kind="chief"
+              title="Élection du chef de mission"
+              hint="Coche les volontaires : ils deviennent les portes de la projection."
+              choices={living.map((p) => ({ id: p.id, label: `${p.name} · ch. ${p.room}` }))}
+              initial={[]}
+            />
+          ) : (
+            <p className="text-xs text-[var(--scn-ok)]">Chef de mission : {nameIn(s, s.chief)}</p>
+          )}
+          {s.loop >= 2 && <Reassign def={def} view={view} busy={busy} act={act} />}
+          <p className="text-sm text-[var(--scn-muted)]">Distribue les cartes, puis note le patient zéro.</p>
           <PlayerSelect players={living} value={choice || s.patientZero || ""} onChange={setChoice} label="Patient zéro" none="Patient zéro…" />
           <Row>
             <button type="button" className="scn-btn" disabled={busy || !choice} onClick={pick((id) => act({ t: "patientZero", player: id }))}>
@@ -265,50 +317,17 @@ function PhaseSection({ def, view, busy, act, send }: Props & { send: Send }) {
               🌙 La nuit tombe
             </button>
           </Row>
-          {s.patientZero && <p className="text-xs text-[var(--scn-ok)]">Patient zéro : {s.players.find((x) => x.id === s.patientZero)?.name}</p>}
+          {s.patientZero && <p className="text-xs text-[var(--scn-ok)]">Patient zéro : {nameIn(s, s.patientZero)}</p>}
         </>
       )}
       {s.phase === "night" && <NightWizard def={def} view={view} busy={busy} act={act} />}
-      {s.phase === "day" && (
-        <>
-          {s.event && <DayEvent view={view} busy={busy} act={act} def={def} />}
-          <PlayerSelect players={living} value={choice} onChange={setChoice} label="Exilé par le vote" none="Le village exile…" />
-          <Row>
-            <button type="button" className="scn-btn" disabled={busy || !choice} onClick={pick((id) => act({ t: "exile", player: id }))}>
-              Exiler
-            </button>
-            <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "exile", player: null })}>
-              Personne
-            </button>
-          </Row>
-          {view.suggested && (
-            <button type="button" className="scn-btn scn-btn-amber" disabled={busy} onClick={() => void act({ t: "endLoop", winner: view.suggested! })}>
-              🏁 Fin de boucle : victoire {view.suggested === "village" ? "du village" : "de la meute"}
-              <small>suggéré : {view.suggested === "village" ? "plus aucun contaminé" : "contaminés aussi nombreux que les sains"}</small>
-            </button>
-          )}
-          <button type="button" className="scn-btn scn-btn-primary" disabled={busy} onClick={() => void act({ t: "night" })}>
-            🌙 La nuit tombe
-          </button>
-          <details className="text-xs">
-            <summary className="cursor-pointer py-2 text-[var(--scn-muted)]">Terminer la boucle autrement</summary>
-            <Row>
-              <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "endLoop", winner: "village" })}>
-                Victoire du village
-              </button>
-              <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "endLoop", winner: "meute" })}>
-                Victoire de la meute
-              </button>
-            </Row>
-          </details>
-        </>
-      )}
+      {s.phase === "day" && <DayPlan def={def} view={view} busy={busy} act={act} onGood={() => setConfirmGood(true)} />}
       {s.phase === "loopEnd" && (
         <>
           <p className="text-sm">Boucle {s.loop} terminée : victoire {s.winner === "village" ? "du village" : "de la meute"}.</p>
           <button type="button" className="scn-btn scn-btn-primary" disabled={busy} onClick={() => (s.loop < view.setup.params.loops ? void act({ t: "reboot" }) : setConfirmBad(true))}>
             {s.loop < view.setup.params.loops ? `⟳ Reboot : boucle ${s.loop + 1}` : "Mauvaise fin"}
-            <small>{s.loop < view.setup.params.loops ? "les chambres des morts seront scellées" : "dernière boucle : les indices manqués défilent"}</small>
+            <small>{s.loop < view.setup.params.loops ? "chambres des morts scellées · objets trouvés gardés, porteurs effacés" : "dernière boucle : les indices manqués défilent"}</small>
           </button>
         </>
       )}
@@ -321,7 +340,7 @@ function PhaseSection({ def, view, busy, act, send }: Props & { send: Send }) {
         </>
       )}
       <Jump busy={busy} act={act} />
-      {(s.phase === "day" || s.phase === "night" || s.phase === "arrival" || s.phase === "loopEnd") && (
+      {(s.phase === "night" || s.phase === "arrival" || s.phase === "loopEnd") && (
         <button type="button" className="scn-btn scn-btn-danger mt-1" disabled={busy} onClick={() => setConfirmGood(true)}>
           Le village vote contre le meneur
         </button>
@@ -366,13 +385,29 @@ function PhaseSection({ def, view, busy, act, send }: Props & { send: Send }) {
                 Déclencher la bonne fin
               </button>
               <button type="button" className="scn-btn" onClick={() => setConfirmGood(false)}>
-                Revenir au jour
+                Revenir
               </button>
             </div>
           </div>
         </div>
       )}
     </Section>
+  );
+}
+
+/** A short list of what to do, each line done by one gesture. */
+function Checklist({ items, busy }: { items: { done: boolean; label: string; action: () => Promise<unknown> }[]; busy: boolean }) {
+  return (
+    <ul className="flex flex-col gap-1">
+      {items.map((it) => (
+        <li key={it.label}>
+          <button type="button" className={`scn-btn w-full text-left ${it.done ? "scn-btn-on" : ""}`} disabled={busy || it.done} onClick={() => void it.action()}>
+            {it.done ? "✓ " : "○ "}
+            {it.label}
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -413,13 +448,222 @@ function Jump({ busy, act }: { busy: boolean; act: Act }) {
   );
 }
 
-function DayEvent({ def, view, busy, act }: Props) {
+/**
+ * The vote by moving, one component for three uses: the door of the day, the dead's moment, the
+ * election. Choose what's proposed, launch the chrono (pause, +30 s), enter the result in one gesture.
+ */
+function VoteControl({
+  view,
+  busy,
+  act,
+  kind,
+  title,
+  hint,
+  choices,
+  initial,
+}: Props & { kind: VoteKind; title: string; hint: string; choices: { id: string; label: string; sub?: string }[]; initial: string[] }) {
+  const s = view.state;
+  const [picked, setPicked] = useState<string[]>(initial);
+  const running = s.vote?.kind === kind ? s.vote : null;
+  const seconds = kind === "door" ? (view.setup.params.voteDoorSeconds ?? 60) : kind === "dead" ? (view.setup.params.voteDeadSeconds ?? 60) : (view.setup.params.voteChiefSeconds ?? 120);
+  const labelOf = (id: string) => choices.find((c) => c.id === id)?.label ?? id;
+  if (running)
+    return (
+      <div className="flex flex-col gap-2 rounded-xl border border-[var(--scn-amber)] p-3">
+        <p className="scn-head text-[var(--scn-amber)]">{title.toUpperCase()} · EN COURS</p>
+        {s.timer && (
+          <div className="grid grid-cols-2 gap-1">
+            <button type="button" className="scn-btn min-h-10 text-xs" disabled={busy} onClick={() => void act({ t: "timer", which: "main", cmd: s.timer?.endsAt === null ? "resume" : "pause" })}>
+              {s.timer.endsAt === null ? "▶ Reprendre le chrono" : "⏸ Pause"}
+            </button>
+            <button type="button" className="scn-btn min-h-10 text-xs" disabled={busy} onClick={() => void act({ t: "timer", which: "main", cmd: "plus", seconds: 30 })}>
+              +30 s
+            </button>
+          </div>
+        )}
+        <p className="text-xs text-[var(--scn-muted)]">Le résultat, d&apos;un geste :</p>
+        {running.options.map((id) => (
+          <button key={id} type="button" className="scn-btn scn-btn-primary text-left" disabled={busy} onClick={() => void act({ t: "voteResult", choice: id })}>
+            {labelOf(id)}
+          </button>
+        ))}
+        <button type="button" className="scn-btn text-xs" disabled={busy} onClick={() => void act({ t: "voteResult", choice: null })}>
+          Annuler le vote
+        </button>
+      </div>
+    );
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-[var(--scn-line)] p-3">
+      <p className="scn-head">{title.toUpperCase()}</p>
+      <p className="text-xs text-[var(--scn-muted)]">{hint}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {choices.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            aria-pressed={picked.includes(c.id)}
+            className={`scn-btn min-h-10 px-3 text-left text-xs ${picked.includes(c.id) ? "scn-btn-on" : ""}`}
+            onClick={() => setPicked(picked.includes(c.id) ? picked.filter((x) => x !== c.id) : [...picked, c.id])}
+          >
+            {c.label}
+            {c.sub && <small>{c.sub}</small>}
+          </button>
+        ))}
+      </div>
+      <button type="button" className="scn-btn scn-btn-primary" disabled={busy || picked.length === 0} onClick={() => void act({ t: "vote", kind, options: picked })}>
+        Lancer le vote · {seconds} s<small>{picked.map(labelOf).join(" / ") || "rien de coché"}</small>
+      </button>
+      {picked.length === 1 && (
+        <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "voteResult", choice: picked[0]! })}>
+          Sans vote : {labelOf(picked[0]!)}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** The meneur names who carries an item (« le dé » is staging: nothing is drawn). */
+function GiveRow({ item, view, busy, act }: { item: { id: string; name: string }; view: ConsoleView; busy: boolean; act: Act }) {
+  const [to, setTo] = useState("");
+  return (
+    <Row>
+      <PlayerSelect players={alive(view.state)} value={to} onChange={setTo} label={`Porteur : ${item.name}`} none={`${item.name}…`} />
+      <button type="button" className="scn-btn" disabled={busy || !to} onClick={() => void act({ t: "giveItem", item: item.id, player: to })}>
+        Confier
+      </button>
+    </Row>
+  );
+}
+
+/** Loop 2: what was found in loop 1 stays found; the meneur hands each item out again, one by one. */
+function Reassign({ def, view, busy, act }: Props) {
+  const s = view.state;
+  const list = HANDED(def).filter((i) => s.found.includes(i.id) && !holderOf(s, i.id));
+  if (list.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--scn-line)] p-3">
+      <p className="scn-head">OBJETS À REDISTRIBUER</p>
+      {list.map((i) => (
+        <GiveRow key={i.id} item={i} view={view} busy={busy} act={act} />
+      ))}
+    </div>
+  );
+}
+
+/** The day, in its order: the dead, the event, the door, the room and its items, the debate, the exile. */
+function DayPlan({ def, view, busy, act, onGood }: Props & { onGood: () => void }) {
+  const s = view.state;
+  const [choice, setChoice] = useState("");
+  const living = alive(s);
+  const doors = doorProposals(def, s);
+  const final = s.loop >= 2 && s.round >= 4;
+  const labelOf = (id: string) => (id === "fouiller" ? "Fouiller ce qu'on connaît déjà" : (def.dayActions.find((a) => a.id === id)?.label ?? id));
+  const available = [...def.dayActions.filter((a) => actionAvailable(def, s, a.id)).map((a) => a.id), "fouiller"];
+  const found = s.foundToday.length ? HANDED(def).filter((i) => s.foundToday.includes(i.id)) : [];
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm">
+        1. Au réveil : {s.announced.length ? <b className="text-[var(--scn-bad)]">{s.announced.map((id) => nameIn(s, id)).join(", ")}</b> : "personne n'est mort"}.
+      </p>
+      {s.event && <DayEvent def={def} view={view} busy={busy} act={act} />}
+      {final ? (
+        <button type="button" className="scn-btn scn-btn-danger" disabled={busy} onClick={onGood}>
+          3. Le village vote contre le meneur
+        </button>
+      ) : s.lastAction ? (
+        <p className="text-sm text-[var(--scn-ok)]">3. Porte du jour : {labelOf(s.lastAction)}.</p>
+      ) : (
+        <>
+          <VoteControl
+            key={doors.join()}
+            def={def}
+            view={view}
+            busy={busy}
+            act={act}
+            kind="door"
+            title="3. Choix de la porte"
+            hint="La console propose ces deux portes ; touche pour en changer."
+            choices={available.map((id) => ({ id, label: labelOf(id), sub: id === "fouiller" ? "aucun effet de jeu" : def.dayActions.find((a) => a.id === id)?.sentence }))}
+            initial={doors}
+          />
+          {doors.includes("labo") && !s.flags.badge3 && (
+            <button type="button" className="scn-btn scn-btn-fault" disabled={busy} onClick={() => void act({ t: "labForce" })}>
+              Marga force la porte<small>le village n&apos;a pas le badge de niveau 3 : le laboratoire s&apos;ouvre quand même, avec une faille</small>
+            </button>
+          )}
+        </>
+      )}
+      {found.length > 0 && (
+        <div className="rounded-xl border border-[var(--scn-line)] p-3 text-sm">
+          <p className="scn-head">4. OBJETS TROUVÉS</p>
+          {found.map((i) => (
+            <div key={i.id} className="flex flex-col gap-1">
+              <p className="text-xs">
+                {i.name} : {holderOf(s, i.id) ? <b>{nameIn(s, holderOf(s, i.id))}</b> : <span className="text-[var(--scn-amber)]">porteur à choisir</span>}
+                {i.secret ? " · remis cette nuit, en secret" : " · remis devant tous"}
+              </p>
+              {!holderOf(s, i.id) && <GiveRow item={i} view={view} busy={busy} act={act} />}
+            </div>
+          ))}
+        </div>
+      )}
+      <button type="button" className="scn-btn" disabled={busy || !!s.timer} onClick={() => void act({ t: "timer", which: "main", cmd: "start", seconds: 300, label: "Débat" })}>
+        5. Débat · 5 min
+      </button>
+      <p className="text-xs text-[var(--scn-muted)]">6. L&apos;exil.{s.chief ? ` La voix de ${nameIn(s, s.chief)} (chef) compte double.` : ""}</p>
+      <PlayerSelect players={living} value={choice} onChange={setChoice} label="Exilé par le vote" none="Le village exile…" />
+      <Row>
+        <button
+          type="button"
+          className="scn-btn"
+          disabled={busy || !choice}
+          onClick={async () => {
+            if (!(await act({ t: "exile", player: choice }))) setChoice("");
+          }}
+        >
+          Exiler
+        </button>
+        <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "exile", player: null })}>
+          Personne
+        </button>
+      </Row>
+      {view.suggested && (
+        <button type="button" className="scn-btn scn-btn-amber" disabled={busy} onClick={() => void act({ t: "endLoop", winner: view.suggested! })}>
+          🏁 Fin de boucle : victoire {view.suggested === "village" ? "du village" : "de la meute"}
+          <small>suggéré : {view.suggested === "village" ? "plus aucun contaminé" : "contaminés aussi nombreux que les sains"}</small>
+        </button>
+      )}
+      <button type="button" className="scn-btn scn-btn-primary" disabled={busy} onClick={() => void act({ t: "night" })}>
+        🌙 La nuit tombe
+      </button>
+      <details className="text-xs">
+        <summary className="cursor-pointer py-2 text-[var(--scn-muted)]">Terminer la boucle autrement</summary>
+        <Row>
+          <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "endLoop", winner: "village" })}>
+            Victoire du village
+          </button>
+          <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "endLoop", winner: "meute" })}>
+            Victoire de la meute
+          </button>
+        </Row>
+        {!final && (
+          <button type="button" className="scn-btn scn-btn-danger mt-2 w-full" disabled={busy} onClick={onGood}>
+            Le village vote contre le meneur
+          </button>
+        )}
+      </details>
+    </div>
+  );
+}
+
+function DayEvent({ view, busy, act }: Props) {
   const s = view.state;
   const event = view.setup.events.find((e) => e.id === s.event);
+  const [two, setTwo] = useState<[string, string]>(["", ""]);
   if (!event) return null;
-  void def;
   return (
     <div className="rounded-xl border border-[var(--scn-ice-dim)] p-3">
+      <p className="text-xs text-[var(--scn-muted)]">2. L&apos;événement choisi par les morts</p>
       <p className="scn-vt text-xl text-[var(--scn-ice)]">{event.name.toUpperCase()}</p>
       <p className="text-sm">{event.rule}</p>
       {event.effect === "gauge" && (
@@ -427,26 +671,55 @@ function DayEvent({ def, view, busy, act }: Props) {
           {s.gauge ? "Arrêter la jauge" : `Lancer la jauge (${Math.round(view.setup.params.gaugeSeconds / 60)} min)`}
         </button>
       )}
+      {event.effect === "quarantine" &&
+        (s.quarantine.length ? (
+          <p className="mt-2 text-sm text-[var(--scn-ok)]">En quarantaine (protégés cette nuit) : {s.quarantine.map((id) => nameIn(s, id)).join(" et ")}</p>
+        ) : (
+          <div className="mt-2 flex flex-col gap-1.5">
+            <Row>
+              <PlayerSelect players={alive(s)} value={two[0]} onChange={(v) => setTwo([v, two[1]])} label="Première personne en quarantaine" none="Première…" />
+              <PlayerSelect players={alive(s).filter((p) => p.id !== two[0])} value={two[1]} onChange={(v) => setTwo([two[0], v])} label="Seconde personne en quarantaine" none="Seconde…" />
+            </Row>
+            <button type="button" className="scn-btn" disabled={busy || !two[0] || !two[1]} onClick={() => void act({ t: "quarantine", players: [two[0], two[1]] })}>
+              Mettre en quarantaine
+            </button>
+          </div>
+        ))}
+      {event.effect === "confinement" && (
+        <button type="button" className={`scn-btn mt-2 w-full ${s.confinement ? "scn-btn-on" : "scn-btn-danger"}`} disabled={busy} onClick={() => void act({ t: "confinement", on: !s.confinement })}>
+          {s.confinement ? "Porte rouverte" : `Fermer la porte coupe-feu · ${Math.round((view.setup.params.confinementSeconds ?? 360) / 60)} min`}
+          <small>{s.confinement ? "fin du confinement" : "alarme, plan coupé en deux, chrono"}</small>
+        </button>
+      )}
     </div>
   );
 }
 
-const STEP_LABELS: Record<NightStepId, string> = { panic: "Panic room", tapes: "Bandes de surveillance", infect: "La meute contamine", victim: "La meute tue", items: "Seringues", dead: "Les morts" };
+const STEP_LABELS: Record<NightStepId, string> = {
+  pz: "Le patient zéro s'éveille",
+  handover: "Remise des objets",
+  panic: "Panic room",
+  tapes: "Bandes de surveillance",
+  infect: "La meute contamine",
+  victim: "La meute tue",
+  items: "Seringues",
+  dead: "Le moment des morts",
+};
 
 /** One step at a time, none forgotten: « Passer » moves on. */
 function NightWizard({ def, view, busy, act }: Props) {
   const s = view.state;
   const params = view.setup.params;
-  const steps = nightSteps(s, params);
+  const steps = nightSteps(s, params, def);
   const current = steps.find((x) => !s.tonight.done.includes(x)) ?? null;
   const [choice, setChoice] = useState("");
-  const [proposed, setProposed] = useState<string[]>(s.tonight.proposed.length ? s.tonight.proposed : proposals(s, view.setup));
   const living = alive(s);
   const go = async (action: Action) => {
     if (!(await act(action))) setChoice("");
   };
-  const name = (id: string | null) => s.players.find((x) => x.id === id)?.name ?? "personne";
+  const name = (id: string | null) => nameIn(s, id);
   const deaths = dawnDeaths(s);
+  const pool = view.setup.events.filter((e) => !s.eventsPlayed.includes(e.id));
 
   return (
     <div className="flex flex-col gap-2">
@@ -457,6 +730,7 @@ function NightWizard({ def, view, busy, act }: Props) {
           </li>
         ))}
       </ol>
+      {s.locked && <p className="rounded-lg border border-[var(--scn-bad)] p-2 text-xs text-[var(--scn-bad)]">Verrouillage général : pas de panic room, d&apos;objets ni de pouvoirs jusqu&apos;à la fin de la boucle.</p>}
       {s.tonight.tapes && (
         <p className={`scn-vt rounded-xl border-2 py-2 text-center text-4xl tracking-[0.2em] ${s.tonight.tapes.infected ? "border-[var(--scn-bad)] text-[var(--scn-bad)]" : "border-[var(--scn-ok)] text-[var(--scn-ok)]"}`}>
           {name(s.tonight.tapes.target).toUpperCase()} : {s.tonight.tapes.infected ? "CONTAMINÉ" : "SAIN"}
@@ -465,13 +739,48 @@ function NightWizard({ def, view, busy, act }: Props) {
       <p className="text-xs text-[var(--scn-muted)]">
         Meute : {pack(s).map((x) => x.name).join(", ") || "personne"}
         {contagionActive(s, params) ? "" : " · la contagion est finie"}
+        {s.chief && !s.chiefResisted ? ` · le chef ${name(s.chief)} résistera à la première attaque` : ""}
+        {s.quarantine.length ? ` · quarantaine : ${s.quarantine.map(name).join(", ")}` : ""}
       </p>
+      {current === "pz" && (
+        <>
+          <p className="text-sm">Le patient zéro ({name(s.patientZero)}) ouvre les yeux.</p>
+          <button type="button" className="scn-btn scn-btn-primary" disabled={busy} onClick={() => void go({ t: "skip", step: "pz" })}>
+            Fait
+          </button>
+        </>
+      )}
+      {current === "handover" && (
+        <>
+          <p className="text-sm">Remise des objets secrets trouvés aujourd&apos;hui :</p>
+          <ul className="flex flex-col gap-1 text-sm">
+            {secretFoundToday(def, s).map((id) => {
+              const item = id === "vie" ? "seringues" : id;
+              const h = holderOf(s, item);
+              return (
+                <li key={id} className="rounded-lg border border-[var(--scn-line)] px-2 py-1.5">
+                  {h ? (
+                    <>
+                      Toucher l&apos;épaule de <b>{name(h)}</b> : {HANDED(def).find((x) => x.id === item)?.name}
+                    </>
+                  ) : (
+                    <span className="text-[var(--scn-amber)]">{HANDED(def).find((x) => x.id === item)?.name} : pas encore de porteur (Pouvoirs)</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <button type="button" className="scn-btn scn-btn-primary" disabled={busy} onClick={() => void go({ t: "skip", step: "handover" })}>
+            Fait
+          </button>
+        </>
+      )}
       {current === "panic" && (
         <>
-          <p className="text-sm">Qui passe la nuit dans la panic room ? (protégé, et hors de la meute s&apos;il est contaminé)</p>
-          <PlayerSelect players={living} value={choice} onChange={setChoice} label="Joueur en panic room" none="Personne" />
-          <button type="button" className="scn-btn scn-btn-primary" disabled={busy} onClick={() => void go({ t: "panic", player: choice || null })}>
-            {choice ? "L'enfermer pour la nuit" : "Passer : personne"}
+          <p className="text-sm">Panic room : {name(s.tonight.panic)} y dort (protégé, et hors de la meute s&apos;il est contaminé).</p>
+          <PlayerSelect players={living} value={choice} onChange={setChoice} label="Joueur en panic room" none={`Garder ${name(s.tonight.panic)}`} />
+          <button type="button" className="scn-btn scn-btn-primary" disabled={busy} onClick={() => void go({ t: "panic", player: choice || s.tonight.panic })}>
+            L&apos;enfermer pour la nuit
           </button>
         </>
       )}
@@ -493,6 +802,7 @@ function NightWizard({ def, view, busy, act }: Props) {
         <>
           <p className="text-sm">La meute contamine une personne.</p>
           <PlayerSelect players={living.filter((x) => !x.infected)} value={choice} onChange={setChoice} label="Personne contaminée" none="Contaminer…" />
+          {choice === s.chief && !s.chiefResisted && <p className="text-xs text-[var(--scn-amber)]">C&apos;est le chef : première attaque, elle échoue. Ne touche personne, ne dis rien.</p>}
           <Row>
             <button type="button" className="scn-btn scn-btn-danger" disabled={busy || !choice} onClick={() => void go({ t: "infect", player: choice })}>
               Contaminer
@@ -518,45 +828,27 @@ function NightWizard({ def, view, busy, act }: Props) {
         </>
       )}
       {current === "items" && <ItemsStep def={def} view={view} busy={busy} act={act} />}
+      {current === "dead" &&
+        (pool.length ? (
+          <VoteControl
+            key={proposals(s, view.setup).join()}
+            def={def}
+            view={view}
+            busy={busy}
+            act={act}
+            kind="dead"
+            title="Le moment des morts"
+            hint={`Deux événements pas encore joués. ${s.tonight.victim ? `${name(s.tonight.victim)} (victime de cette nuit) ne vote pas.` : ""}`}
+            choices={pool.map((e) => ({ id: e.id, label: e.name, sub: e.rule }))}
+            initial={proposals(s, view.setup)}
+          />
+        ) : (
+          <p className="text-sm text-[var(--scn-muted)]">Tous les événements ont été joués.</p>
+        ))}
       {current === "dead" && (
-        <>
-          <p className="text-sm">Les morts choisissent l&apos;événement de demain parmi :</p>
-          <div className="flex flex-wrap gap-1.5">
-            {view.setup.events.map((e) => (
-              <button
-                key={e.id}
-                type="button"
-                className={`scn-btn min-h-10 px-3 text-xs ${proposed.includes(e.id) ? "scn-btn-on" : ""}`}
-                onClick={() => setProposed(proposed.includes(e.id) ? proposed.filter((x) => x !== e.id) : [...proposed, e.id])}
-              >
-                {e.name}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-[var(--scn-muted)]">Touche un événement pour le proposer ou le retirer. Puis leur choix :</p>
-          <div className="flex flex-col gap-1.5">
-            {proposed.map((id) => {
-              const e = view.setup.events.find((x) => x.id === id);
-              return e ? (
-                <button
-                  key={id}
-                  type="button"
-                  className="scn-btn scn-btn-primary text-left"
-                  disabled={busy}
-                  onClick={async () => {
-                    if (!(await act({ t: "propose", events: proposed }))) await act({ t: "deadChoose", event: id });
-                  }}
-                >
-                  Les morts choisissent : {e.name}
-                  <small>{e.rule}</small>
-                </button>
-              ) : null;
-            })}
-          </div>
-          <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "skip", step: "dead" })}>
-            Passer : pas d&apos;événement
-          </button>
-        </>
+        <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "skip", step: "dead" })}>
+          Passer : pas d&apos;événement
+        </button>
       )}
       {current === null && (
         <>
@@ -578,37 +870,168 @@ function ItemsStep({ def, view, busy, act }: Props) {
   const [targets, setTargets] = useState<Record<string, string>>({});
   const held = def.items.filter((i) => (i.effect === "life" || i.effect === "death") && !s.items[i.id]?.used && s.items[i.id]?.holder);
   const victim = s.tonight.victim && s.tonight.victim !== s.tonight.panic ? s.players.find((p) => p.id === s.tonight.victim) : null;
-  const holderName = (id: string) => s.players.find((x) => x.id === s.items[id]?.holder)?.name;
+  const holderName = (id: string) => nameIn(s, s.items[id]?.holder);
   return (
     <>
       <p className="rounded-xl border border-[var(--scn-line)] p-2 text-sm">
-        Victime de la nuit : {victim ? <b className="text-[var(--scn-bad)]">{victim.name}</b> : s.tonight.victim ? "aucune (panic room)" : "aucune"}
+        Réveille {holderName("vie")}. Victime de la nuit : {victim ? <b className="text-[var(--scn-bad)]">{victim.name}</b> : s.tonight.victim ? "aucune (panic room)" : "aucune"}
       </p>
       {held
         .filter((i) => i.effect === "life")
         .map((i) => (
           <button key={i.id} type="button" className="scn-btn scn-btn-on" disabled={busy || !victim} onClick={() => victim && void act({ t: "useItem", item: i.id, target: victim.id })}>
-            {i.name} ({holderName(i.id)}) : {victim ? `sauver ${victim.name}` : "personne à sauver"}
+            {i.name} : {victim ? `sauver ${victim.name}` : "personne à sauver"}
             <small>annule la mort, pas la contamination</small>
           </button>
         ))}
       {held
         .filter((i) => i.effect === "death")
         .map((i) => (
-        <div key={i.id} className="flex flex-col gap-1.5">
-          <p className="text-sm">
-            {i.name} ({holderName(i.id)}) :
-          </p>
-          <PlayerSelect players={alive(s)} value={targets[i.id] ?? ""} onChange={(v) => setTargets({ ...targets, [i.id]: v })} label={`Cible de ${i.name}`} none="Cible…" />
-          <button type="button" className="scn-btn" disabled={busy || !targets[i.id]} onClick={() => void act({ t: "useItem", item: i.id, target: targets[i.id] ?? null })}>
-            Utiliser
-          </button>
-        </div>
-      ))}
+          <div key={i.id} className="flex flex-col gap-1.5">
+            <p className="text-sm">{i.name} :</p>
+            <PlayerSelect players={alive(s)} value={targets[i.id] ?? ""} onChange={(v) => setTargets({ ...targets, [i.id]: v })} label={`Cible de ${i.name}`} none="Cible…" />
+            <button type="button" className="scn-btn" disabled={busy || !targets[i.id]} onClick={() => void act({ t: "useItem", item: i.id, target: targets[i.id] ?? null })}>
+              Utiliser
+            </button>
+          </div>
+        ))}
       <button type="button" className="scn-btn scn-btn-primary" disabled={busy} onClick={() => void act({ t: "skip", step: "items" })}>
-        Fini avec les objets
+        Fini avec les seringues
       </button>
     </>
+  );
+}
+
+// ───────── The village's powers ─────────
+
+function Powers({ def, view, busy, act }: Props) {
+  const s = view.state;
+  const [pick, setPick] = useState<Record<string, string>>({});
+  const set = (k: string) => (v: string) => setPick({ ...pick, [k]: v });
+  const living = alive(s);
+  const day = s.phase === "day";
+  const gun = s.items.pistolet;
+  return (
+    <Section title="POUVOIRS" chip={<span className={`scn-chip ${s.locked ? "scn-chip-bad" : ""}`}>{s.locked ? "VERROUILLÉS" : `${s.found.length} trouvés`}</span>}>
+      {s.locked && <p className="rounded-lg border border-[var(--scn-bad)] p-2 text-xs text-[var(--scn-bad)]">Le chef sain a été exilé : objets, panic room, test et radio sont verrouillés jusqu&apos;à la fin de la boucle.</p>}
+
+      <p className="scn-head">PORTEURS</p>
+      {HANDED(def).map((i) => {
+        const h = holderOf(s, i.id);
+        const used = i.id === "seringues" ? !!s.items.vie?.used && !!s.items.mort?.used : !!s.items[i.id]?.used;
+        return (
+          <div key={i.id} className="flex flex-col gap-1">
+            <p className="text-xs">
+              <b>{i.name}</b> · {s.found.includes(i.id) ? (h ? nameIn(s, h) : "pas de porteur") : "pas encore trouvé"}
+              {used ? " · utilisé" : ""}
+              {i.secret ? " · secret" : " · public"}
+            </p>
+            <Row>
+              <PlayerSelect players={living} value={pick[i.id] ?? ""} onChange={set(i.id)} label={`Nouveau porteur : ${i.name}`} none="Personne" />
+              <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "giveItem", item: i.id, player: pick[i.id] || null })}>
+                {pick[i.id] ? "Confier" : "Retirer"}
+              </button>
+            </Row>
+          </div>
+        );
+      })}
+
+      <p className="scn-head mt-2">PISTOLET DE DÉTRESSE</p>
+      {gun && !gun.used && gun.holder ? (
+        <>
+          <PlayerSelect players={living.filter((p) => p.id !== gun.holder)} value={pick.shoot ?? ""} onChange={set("shoot")} label="Cible du pistolet" none={`${nameIn(s, gun.holder)} vise…`} />
+          <button type="button" className="scn-btn scn-btn-danger" disabled={busy || !day || s.locked || !pick.shoot} onClick={() => void act({ t: "shoot", target: pick.shoot! })}>
+            Tir du pistolet<small>{day ? "cible contaminée : elle meurt · saine : la cible et le tireur meurent" : "de jour seulement"}</small>
+          </button>
+        </>
+      ) : (
+        <p className="text-xs text-[var(--scn-muted)]">{gun?.used ? "Cartouche tirée pour cette boucle." : "Pas de porteur."}</p>
+      )}
+      {s.lastShot && (
+        <p className="text-xs">
+          Dernier tir : {nameIn(s, s.lastShot.shooter)} sur {nameIn(s, s.lastShot.target)} ({s.lastShot.infected ? "contaminé" : "sain : tir sans motif"})
+        </p>
+      )}
+      {s.trusted.length > 0 && <p className="text-xs text-[var(--scn-ok)]">De confiance : {s.trusted.map((id) => nameIn(s, id)).join(", ")}</p>}
+
+      <p className="scn-head mt-2">PANIC ROOM</p>
+      {s.panicReady ? (
+        <Row>
+          <PlayerSelect players={living} value={pick.panic ?? s.panicNext ?? ""} onChange={set("panic")} label="Qui dort en panic room cette nuit" none="Personne cette nuit" />
+          <button type="button" className="scn-btn" disabled={busy || s.locked || s.phase !== "day"} onClick={() => void act({ t: "panic", player: pick.panic || null })}>
+            Désigner
+          </button>
+        </Row>
+      ) : (
+        <p className="text-xs text-[var(--scn-muted)]">Hors service : le circuit est à réparer.</p>
+      )}
+      {s.panicNext && <p className="text-xs">Cette nuit : {nameIn(s, s.panicNext)}</p>}
+
+      <p className="scn-head mt-2">TEST SANGUIN · UNE FOIS PAR BOUCLE</p>
+      {s.found.includes("test") ? (
+        s.roomUsed.test ? (
+          <p className="text-xs">{s.lastTest ? `${nameIn(s, s.lastTest.target)} : ${s.lastTest.positive ? "POSITIF" : "NÉGATIF"}` : "Utilisé."}</p>
+        ) : (
+          <Row>
+            <PlayerSelect players={living} value={pick.test ?? ""} onChange={set("test")} label="Qui tester" none="Tester…" />
+            <button type="button" className="scn-btn" disabled={busy || s.locked || !pick.test} onClick={() => void act({ t: "bloodTest", target: pick.test! })}>
+              Tester<small>incubation : contaminé cette nuit, il sort négatif</small>
+            </button>
+          </Row>
+        )
+      ) : (
+        <p className="text-xs text-[var(--scn-muted)]">À l&apos;infirmerie.</p>
+      )}
+
+      <p className="scn-head mt-2">RADIO · UNE FOIS PAR BOUCLE</p>
+      {s.found.includes("radio") ? (
+        <button type="button" className="scn-btn" disabled={busy || s.locked || s.roomUsed.radio} onClick={() => void act({ t: "radio" })}>
+          {s.roomUsed.radio ? `Contaminés en vie : ${s.lastRadio ?? "?"}` : "Utiliser la radio"}
+          <small>la projection affiche le nombre de contaminés en vie</small>
+        </button>
+      ) : (
+        <p className="text-xs text-[var(--scn-muted)]">Au PC sécurité.</p>
+      )}
+
+      <details className="text-xs">
+        <summary className="cursor-pointer py-2 text-[var(--scn-muted)]">Accès du village (corriger)…</summary>
+        <div className="flex flex-col gap-1">
+          {(["key", "badge2", "code", "power", "badge3"] as const).map((f) => (
+            <label key={f} className="flex min-h-10 items-center justify-between gap-2">
+              <span>{flagName(f)}</span>
+              <input type="checkbox" checked={s.flags[f]} disabled={busy} onChange={(e) => void act({ t: "flag", flag: f, on: e.target.checked })} className="h-6 w-6" />
+            </label>
+          ))}
+        </div>
+      </details>
+    </Section>
+  );
+}
+
+function Chief({ view, busy, act }: Props) {
+  const s = view.state;
+  const [next, setNext] = useState("");
+  return (
+    <Section title="CHEF DE MISSION" chip={<span className={`scn-chip ${s.chief ? "scn-chip-ok" : "scn-chip-warn"}`}>{s.chief ? nameIn(s, s.chief) : "aucun"}</span>}>
+      <p className="text-xs text-[var(--scn-muted)]">
+        Voix double à l&apos;exil · résiste à la première attaque de la meute dans la boucle{s.chief ? (s.chiefResisted ? " (déjà utilisée)" : " (encore disponible)") : ""} · exilé alors qu&apos;il était sain : verrouillage général.
+      </p>
+      {s.chiefB1 && s.loop >= 2 && <p className="text-xs">Chef de la boucle 1 : {nameIn(s, s.chiefB1)}</p>}
+      <p className="text-xs">{s.chief ? "Successeur ou correction :" : s.formerChief ? `${nameIn(s, s.formerChief)} a transmis son titre à :` : "Nommer le chef :"}</p>
+      <Row>
+        <PlayerSelect players={alive(s)} value={next} onChange={setNext} label="Chef de mission" none="Choisir…" />
+        <button
+          type="button"
+          className="scn-btn"
+          disabled={busy || !next}
+          onClick={async () => {
+            if (!(await act({ t: "chief", player: next }))) setNext("");
+          }}
+        >
+          Nommer
+        </button>
+      </Row>
+    </Section>
   );
 }
 
@@ -616,20 +1039,26 @@ function ItemsStep({ def, view, busy, act }: Props) {
 
 function Players({ def, view, busy, act }: Props) {
   const s = view.state;
-  const [give, setGive] = useState<{ item: string; player: string }>({ item: "", player: "" });
   return (
     <Section title="JOUEURS" chip={<span className="scn-chip">{alive(s).length} en vie · meute {pack(s).length}</span>}>
       <ul className="flex flex-col gap-1">
         {s.players.map((p) => {
-          const item = def.items.find((i) => s.items[i.id]?.holder === p.id && !s.items[i.id]?.used);
+          const items = HANDED(def).filter((i) => holderOf(s, i.id) === p.id);
           return (
             <li key={p.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-[var(--scn-line)] px-2 py-1.5 text-sm">
               <span className={`min-w-0 flex-1 ${p.status === "alive" ? "" : "text-[var(--scn-muted)] line-through"}`}>
                 {p.name} <span className="text-[0.66rem] text-[var(--scn-muted)]">ch. {p.room}</span>
               </span>
+              {s.chief === p.id && <span className="scn-chip scn-chip-ok">chef</span>}
               {p.infected && <span className="scn-chip scn-chip-bad">contaminé · {p.infectedAt}</span>}
-              {s.tonight.panic === p.id && <span className="scn-chip scn-chip-ok">panic room</span>}
-              {item && <span className="scn-chip scn-chip-warn">{item.name}</span>}
+              {s.trusted.includes(p.id) && <span className="scn-chip scn-chip-ok">de confiance</span>}
+              {(s.tonight.panic === p.id || s.panicNext === p.id) && <span className="scn-chip scn-chip-ok">panic room</span>}
+              {s.quarantine.includes(p.id) && <span className="scn-chip">quarantaine</span>}
+              {items.map((i) => (
+                <span key={i.id} className="scn-chip scn-chip-warn">
+                  {i.name}
+                </span>
+              ))}
               {p.status !== "alive" && <span className="scn-chip">{p.status === "dead" ? "mort" : "exilé"}</span>}
               <span className="flex gap-1">
                 <button type="button" className="scn-btn min-h-9 px-2 text-[0.66rem]" disabled={busy} onClick={() => void act(p.status === "alive" ? { t: "kill", player: p.id } : { t: "revive", player: p.id })}>
@@ -656,40 +1085,7 @@ function Players({ def, view, busy, act }: Props) {
           );
         })}
       </ul>
-      <p className="scn-head mt-2">CONFIER UN OBJET</p>
-      <select aria-label="Objet" value={give.item} onChange={(e) => setGive({ ...give, item: e.target.value })} className="scn-field">
-        <option value="">Objet…</option>
-        {def.items.map((i) => (
-          <option key={i.id} value={i.id}>
-            {i.name}
-            {s.items[i.id]?.used ? " (utilisé)" : s.items[i.id]?.holder ? ` (${s.players.find((x) => x.id === s.items[i.id]?.holder)?.name})` : ""}
-          </option>
-        ))}
-      </select>
-      <Row>
-        <PlayerSelect players={alive(s)} value={give.player} onChange={(v) => setGive({ ...give, player: v })} label="Joueur qui reçoit l'objet" none="Personne" />
-        <button type="button" className="scn-btn" disabled={busy || !give.item} onClick={() => void act({ t: "giveItem", item: give.item, player: give.player || null })}>
-          Confier
-        </button>
-      </Row>
-      {def.items
-        .filter((i) => i.effect === "pistol" && s.items[i.id]?.holder && !s.items[i.id]?.used)
-        .map((i) => (
-          <PistolShot key={i.id} item={i.id} view={view} busy={busy} act={act} />
-        ))}
     </Section>
-  );
-}
-
-function PistolShot({ item, view, busy, act }: { item: string; view: ConsoleView; busy: boolean; act: Act }) {
-  const [target, setTarget] = useState("");
-  return (
-    <Row>
-      <PlayerSelect players={alive(view.state)} value={target} onChange={setTarget} label="Cible du pistolet" none="Le pistolet vise…" />
-      <button type="button" className="scn-btn scn-btn-danger" disabled={busy || !target} onClick={() => void act({ t: "useItem", item, target })}>
-        Tirer
-      </button>
-    </Row>
   );
 }
 
@@ -888,9 +1284,6 @@ function Effects({ view, busy, act }: Props) {
         </button>
         <button type="button" className={`scn-btn ${s.blizzard ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "blizzard", on: !s.blizzard })}>
           Blizzard<small>{s.blizzard ? "en cours" : "bascule"}</small>
-        </button>
-        <button type="button" className={`scn-btn ${s.aurora ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "aurora", on: !s.aurora })}>
-          Aurore australe<small>{s.aurora ? "en cours" : "bascule"}</small>
         </button>
         <button type="button" className={`scn-btn ${s.gauge ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "gauge", seconds: s.gauge ? null : view.setup.params.gaugeSeconds })}>
           Jauge des générateurs<small>{s.gauge ? "arrêter" : `${Math.round(view.setup.params.gaugeSeconds / 60)} min`}</small>

@@ -74,7 +74,7 @@ const id = z.string().min(1).max(64);
 const player = z.string().regex(/^p\d{1,3}$/);
 const text = (max: number) => z.string().trim().max(max);
 
-const eventSchema = z.object({ id, name: text(40).min(1, "Un événement sans nom ?"), rule: text(160).min(1, "Il manque la règle de l'événement."), effect: z.enum(["blizzard", "aurora", "gauge"]).optional() });
+const eventSchema = z.object({ id, name: text(40).min(1, "Un événement sans nom ?"), rule: text(160).min(1, "Il manque la règle de l'événement."), effect: z.enum(["blizzard", "aurora", "gauge", "dark", "quarantine", "parity", "confinement"]).optional(), text: id.optional() });
 const faultSchema = z.object({
   id,
   title: text(80).min(1, "Il manque le titre de la faille."),
@@ -84,6 +84,7 @@ const faultSchema = z.object({
   file: id.optional(),
   media: id.optional(),
   text: text(400).optional(),
+  zone: id.optional(),
   missed: text(160),
 });
 const setupSchema = z.object({
@@ -98,6 +99,10 @@ const setupSchema = z.object({
     eventsProposed: z.number().int().min(1).max(5),
     hallLitLoop2: z.boolean(),
     gaugeSeconds: z.number().int().min(30).max(1200),
+    voteDoorSeconds: z.number().int().min(10).max(600).optional(),
+    voteDeadSeconds: z.number().int().min(10).max(600).optional(),
+    voteChiefSeconds: z.number().int().min(10).max(900).optional(),
+    confinementSeconds: z.number().int().min(30).max(1800).optional(),
   }),
   events: z.array(eventSchema).max(20),
   extraFaults: z.array(faultSchema).max(20),
@@ -108,6 +113,17 @@ const setupSchema = z.object({
     )
     .optional(),
   dates: z.object({ world: text(20).optional(), real: text(20).optional() }).optional(),
+  texts: z
+    .object({
+      imported: z
+        .object({
+          version: z.string().max(40).optional(),
+          textes: z.array(z.object({ id, partie: z.string().max(80), titre: z.string().max(200), quand: z.string().max(2000), texte: z.string().max(20000) })).max(400),
+        })
+        .optional(),
+      edited: z.record(id, z.string().max(20000)).optional(),
+    })
+    .optional(),
 });
 
 const actionSchema = z.discriminatedUnion("t", [
@@ -153,7 +169,7 @@ const actionSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("giveItem"), item: id, player: player.nullable() }),
   z.object({ t: z.literal("propose"), events: z.array(id).max(5) }),
   z.object({ t: z.literal("deadChoose"), event: id.nullable() }),
-  z.object({ t: z.literal("skip"), step: z.enum(["panic", "infect", "victim", "items", "dead"]) }),
+  z.object({ t: z.literal("skip"), step: z.enum(["pz", "handover", "panic", "tapes", "infect", "victim", "items", "dead"]) }),
   z.object({ t: z.literal("dawn") }),
   z.object({ t: z.literal("exile"), player: player.nullable() }),
   z.object({ t: z.literal("kill"), player }),
@@ -163,6 +179,18 @@ const actionSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("reboot") }),
   z.object({ t: z.literal("goodEnd") }),
   z.object({ t: z.literal("badEnd") }),
+  z.object({ t: z.literal("vote"), kind: z.enum(["door", "dead", "chief"]), options: z.array(id).min(1).max(40) }),
+  z.object({ t: z.literal("voteResult"), choice: id.nullable() }),
+  z.object({ t: z.literal("dayAction"), id }),
+  z.object({ t: z.literal("labForce") }),
+  z.object({ t: z.literal("chief"), player: player.nullable() }),
+  z.object({ t: z.literal("chiefConfirm") }),
+  z.object({ t: z.literal("shoot"), target: player }),
+  z.object({ t: z.literal("bloodTest"), target: player }),
+  z.object({ t: z.literal("radio") }),
+  z.object({ t: z.literal("quarantine"), players: z.array(player).max(2) }),
+  z.object({ t: z.literal("confinement"), on: z.boolean() }),
+  z.object({ t: z.literal("flag"), flag: z.enum(["key", "badge2", "badge3", "code", "power"]), on: z.boolean() }),
 ]);
 
 const consoleSchema = z.discriminatedUnion("type", [

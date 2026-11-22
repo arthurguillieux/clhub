@@ -1,8 +1,22 @@
+import type { CSSProperties, ReactNode } from "react";
+
 /**
- * The base, as the mockup drew it (1600 × 820 units): Alpha (always unknown), the infirmary Γ, the
- * dormitory Δ (as many rooms as players), the Beta wing with the panic room, the hall. Rooms show
- * once lit or opened; the dormitory remembers the dead of earlier loops.
+ * The base, on Arthur's A3 plan (1600 × 820 units): the dormitory along the top (odd rooms above, even
+ * below), then the airlock, the hall, the archives and the generators, the infirmary and the security
+ * room, the service corridor, Alpha (never opens) and the laboratory along the bottom. Each zone shows
+ * with a sweep once it's reached; the dormitory remembers the dead of earlier loops.
  */
+type Zone = { id: string; x: number; y: number; w: number; h: number; letter: string; label: string; sub: string };
+
+const ZONES: Zone[] = [
+  { id: "sas", x: 40, y: 243, w: 260, h: 281, letter: "Θ", label: "SAS", sub: "COMBINAISONS · MOTONEIGE" },
+  { id: "beta", x: 785, y: 243, w: 323, h: 141, letter: "Β", label: "ARCHIVES", sub: "CLASSEURS · RÉFECTOIRE" },
+  { id: "generateurs", x: 1131, y: 243, w: 316, h: 141, letter: "Ε", label: "GÉNÉRATEURS", sub: "GROUPES A · B · C" },
+  { id: "gamma", x: 785, y: 427, w: 323, h: 146, letter: "Γ", label: "INFIRMERIE", sub: "3 LITS · PHARMACIE" },
+  { id: "securite", x: 1131, y: 427, w: 316, h: 146, letter: "Ζ", label: "PC SÉCURITÉ", sub: "RADIO · ÉCRANS" },
+  { id: "labo", x: 671, y: 664, w: 872, h: 136, letter: "Η", label: "LABORATOIRE", sub: "PAILLASSES · CHAMBRE FROIDE" },
+];
+
 export function Plan({
   players,
   sealed,
@@ -11,22 +25,28 @@ export function Plan({
   panicReady,
   hot,
   denied,
+  parity = false,
+  confinement = false,
 }: {
   players: { id: string; name: string; room: number; status: "alive" | "dead" | "exiled" }[];
   sealed: Record<number, string>;
   light: boolean;
   doors: Record<string, boolean>;
   panicReady: boolean;
-  hot: { accueil: boolean; beta: boolean };
+  /** The terminals that can be used now, by id. */
+  hot: Record<string, boolean>;
   denied: boolean;
+  /** Tour de garde, Confinement: the even rooms lit. */
+  parity?: boolean;
+  /** The base cut in two by a fire door. */
+  confinement?: boolean;
 }) {
-  const revealed = { hall: light, dortoir: light && !!doors.dortoir, beta: !!doors.beta, gamma: !!doors.gamma };
-  const room = (id: keyof typeof revealed) => `room ${revealed[id] ? "revealed" : "unknown"}`;
+  const shown = (id: string) => (id === "hall" ? light : id === "dortoir" ? light && !!doors.dortoir : !!doors[id]);
+  const cls = (id: string) => `room ${shown(id) ? "revealed" : "unknown"}`;
   const rooms = Math.max(players.length, 2);
-  const rows = Math.ceil(rooms / 2);
-  const top = 180;
-  const h = 520 / rows;
-  const size = Math.max(12, Math.min(18, h * 0.32));
+  const cols = Math.ceil(rooms / 2);
+  const dx = 1229 / cols;
+  const size = Math.max(12, Math.min(22, dx * 0.2));
 
   return (
     <svg viewBox="0 0 1600 820" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Plan de la base">
@@ -36,6 +56,9 @@ export function Plan({
         </pattern>
         <pattern id="pj-grid2" width="200" height="200" patternUnits="userSpaceOnUse">
           <path d="M200 0H0V200" fill="none" stroke="#123044" strokeWidth="1.4" />
+        </pattern>
+        <pattern id="pj-hatch" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="16" stroke="#5a1416" strokeWidth="2" />
         </pattern>
         <linearGradient id="pj-scangrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#7fd8ff" stopOpacity="0" />
@@ -56,89 +79,51 @@ export function Plan({
       </defs>
       <rect width="1600" height="820" fill="url(#pj-grid)" />
       <rect width="1600" height="820" fill="url(#pj-grid2)" />
-      <text x="1560" y="806" textAnchor="end" className="sublabel">
+      <text x="1560" y="236" textAnchor="end" className="sublabel" style={{ fontSize: 16 }}>
         PLAN NIVEAU 0 · ÉCH. 1/200 · N ↑
+      </text>
+      <text x="170" y="580" textAnchor="middle" className="sublabel" style={{ fontSize: 16 }}>
+        ↓ DEHORS · −45 °C
       </text>
 
       <g filter="url(#pj-glow)">
-        <g className="room unknown">
-          <rect className="wall" x="560" y="40" width="480" height="340" />
-          <text x="800" y="200" textAnchor="middle" className="label" style={{ fill: "#5a1416" }}>
-            Α
-          </text>
-          <text x="800" y="235" textAnchor="middle" className="qm" style={{ fill: "#5a1416" }}>
-            AILE ALPHA · ACCÈS RESTREINT
-          </text>
-        </g>
-
-        <g className={room("gamma")}>
-          <rect className="wall" x="1080" y="40" width="480" height="340" />
-          <text x="1320" y="215" textAnchor="middle" className="qm unk">
+        {/* ── Δ Dortoir ── */}
+        <g className={cls("dortoir")}>
+          <rect className="wall" x="331" y="20" width="1229" height="194" />
+          <text x="945" y="125" textAnchor="middle" className="qm unk">
             NON CARTOGRAPHIÉ
           </text>
           <g className="content">
-            <text x="1100" y="78" className="label">
-              Γ INFIRMERIE
-            </text>
-            <g className="furn">
-              {[1110, 1220, 1330].map((x) => (
-                <g key={x}>
-                  <rect className="f" x={x} y="130" width="70" height="170" rx="6" />
-                  <line x1={x} y1="160" x2={x + 70} y2="160" />
-                </g>
-              ))}
-              <rect className="f" x="1450" y="70" width="90" height="40" />
-              <rect className="f" x="1450" y="120" width="90" height="40" />
-              <circle cx="1495" cy="320" r="24" className="f" />
-              <line x1="1495" y1="296" x2="1495" y2="344" />
-              <line x1="1471" y1="320" x2="1519" y2="320" />
-            </g>
-            <text x="1110" y="340" className="sublabel">
-              3 LITS · ARMOIRE À PHARMACIE
-            </text>
-            <path className="blood" d="M1338 210c8-6 22-4 30 4 6 7 4 18-4 22-9 5-12 16-22 14-11-2-14-14-10-22 2-6 1-13 6-18z" opacity=".85" filter="url(#pj-rough)" />
-          </g>
-          <rect className="scanbar" x="1080" y="40" width="480" height="40" style={{ "--h": "300px" } as React.CSSProperties} />
-        </g>
-
-        <g className={room("dortoir")}>
-          <rect className="wall" x="40" y="180" width="480" height="600" />
-          <text x="280" y="480" textAnchor="middle" className="qm unk">
-            NON CARTOGRAPHIÉ
-          </text>
-          <g className="content">
-            <text x="60" y="168" className="label" style={{ fontSize: 26 }}>
-              Δ DORTOIR
-            </text>
             <g className="furn">
               {Array.from({ length: rooms }, (_, i) => {
                 const n = i + 1;
-                const left = i % 2 === 0;
-                const x = left ? 40 : 310;
-                const y = top + Math.floor(i / 2) * h;
+                const odd = n % 2 === 1;
+                const x = 331 + Math.floor(i / 2) * dx;
+                const y = odd ? 20 : 134;
+                const h = 80;
                 const who = players.find((p) => p.room === n);
                 const gone = who && who.status !== "alive";
                 const seal = sealed[n];
+                const lit = parity && !odd;
                 return (
                   <g key={n}>
-                    <rect x={x} y={y} width="210" height={h} className="f" fill="none" />
-                    <rect x={left ? x + 12 : x + 154} y={y + h * 0.14} width="44" height={h * 0.72} className="f" rx="4" />
+                    <rect x={x} y={y} width={dx} height={h} className="f" fill={lit ? "rgba(127,216,255,.22)" : "none"} />
+                    <rect x={x + 8} y={odd ? y + 8 : y + h - 22} width={dx * 0.36} height="14" className="f" rx="3" />
                     {!seal && (
-                      <text x={left ? x + 110 : x + 70} y={y + h * 0.6} className="sublabel" style={{ fontSize: size }}>
-                        CH.{String(n).padStart(2, "0")}
+                      <text x={x + dx / 2} y={y + h * 0.66} textAnchor="middle" className="sublabel" style={{ fontSize: size, ...(lit ? { fill: "#e8f8ff" } : {}) }}>
+                        {String(n).padStart(2, "0")}
                       </text>
                     )}
-                    {gone && !seal && <rect x={x} y={y} width="210" height={h} fill="rgba(155,15,18,.22)" stroke="#9b0f12" strokeWidth="1.5" />}
+                    {gone && !seal && <rect x={x} y={y} width={dx} height={h} fill="rgba(155,15,18,.22)" stroke="#9b0f12" strokeWidth="1.5" />}
                     {seal && (
                       <g>
-                        <rect x={x} y={y} width="210" height={h} fill="rgba(155,15,18,.18)" stroke="#d0181c" strokeWidth="2" />
-                        <line x1={x} y1={y} x2={x + 210} y2={y + h} stroke="#d0181c" strokeWidth="2" />
-                        <line x1={x + 210} y1={y} x2={x} y2={y + h} stroke="#d0181c" strokeWidth="2" />
-                        {/* Two lines that always fit the room: « SCELLÉE », then the name, as wide as it can be. */}
-                        <text x={x + 105} y={y + h * 0.42} textAnchor="middle" style={{ fontFamily: "var(--scn-font-vt)", fontSize: Math.min(size, h * 0.3), fill: "#ff6b6b", letterSpacing: 3 }}>
+                        <rect x={x} y={y} width={dx} height={h} fill="rgba(155,15,18,.18)" stroke="#d0181c" strokeWidth="2" />
+                        <line x1={x} y1={y} x2={x + dx} y2={y + h} stroke="#d0181c" strokeWidth="1.5" />
+                        <line x1={x + dx} y1={y} x2={x} y2={y + h} stroke="#d0181c" strokeWidth="1.5" />
+                        <text x={x + dx / 2} y={y + h * 0.4} textAnchor="middle" style={{ fontFamily: "var(--scn-font-vt)", fontSize: Math.min(size, 18), fill: "#ff6b6b", letterSpacing: 2 }}>
                           SCELLÉE
                         </text>
-                        <text x={x + 105} y={y + h * 0.8} textAnchor="middle" style={{ fontFamily: "var(--scn-font-vt)", fontSize: Math.min(size + 6, h * 0.38, 330 / Math.max(6, seal.length)), fill: "#ffb3b3", letterSpacing: 1 }}>
+                        <text x={x + dx / 2} y={y + h * 0.78} textAnchor="middle" style={{ fontFamily: "var(--scn-font-vt)", fontSize: Math.min(size + 4, 26, (dx * 1.7) / Math.max(5, seal.length)), fill: "#ffb3b3" }}>
                           {seal.toUpperCase()}
                         </text>
                       </g>
@@ -147,150 +132,225 @@ export function Plan({
                 );
               })}
             </g>
-            <rect x="250" y="180" width="60" height="520" fill="none" stroke="#2c6f8f" strokeDasharray="4 6" />
-            <text x="60" y="748" className="sublabel">
-              SAS · {rooms} CHAMBRES INDIVIDUELLES
+            <text x="350" y="125" className="label" style={{ fontSize: 24 }}>
+              Δ DORTOIR
             </text>
-            <path d="M300 690c10 8 30 10 52 16 30 8 60 4 92 12 26 6 50 18 70 30" fill="none" stroke="#9b0f12" strokeWidth="7" strokeLinecap="round" opacity=".8" filter="url(#pj-rough)" />
+            <text x="1540" y="125" textAnchor="end" className="sublabel" style={{ fontSize: 16 }}>
+              {rooms} CHAMBRES{parity ? " · PAIRES ÉCLAIRÉES" : ""}
+            </text>
           </g>
-          <rect className="scanbar" x="40" y="180" width="480" height="40" style={{ "--h": "560px" } as React.CSSProperties} />
+          <Scan x={331} y={20} w={1229} h={194} />
         </g>
 
-        <g className={room("beta")}>
-          <rect className="wall" x="1080" y="400" width="480" height="380" />
-          <text x="1320" y="600" textAnchor="middle" className="qm unk">
-            NON CARTOGRAPHIÉ
-          </text>
-          <g className="content">
-            <text x="1100" y="438" className="label">
-              Β ARCHIVES
-            </text>
-            <g className="furn">
-              <rect className="f" x="1100" y="455" width="190" height="26" />
-              {[1138, 1176, 1214, 1252].map((x) => (
-                <line key={x} x1={x} y1="455" x2={x} y2="481" />
-              ))}
-              <text x="1100" y="500" className="sublabel" style={{ fontSize: 18 }}>
-                CARTONS « NOËL » · CLASSEURS
-              </text>
-              <rect className="f" x="1110" y="520" width="110" height="46" />
-              <rect className="f" x="1140" y="526" width="38" height="28" />
-              <rect className="f" x="1110" y="625" width="200" height="42" rx="6" />
-              <rect className="f" x="1110" y="705" width="200" height="42" rx="6" />
-              {[625, 705].flatMap((y) =>
-                [1130, 1170, 1210, 1250, 1290].flatMap((x) => [<circle key={`${x}-${y}-a`} cx={x} cy={y - 10} r="8" className="f" />, <circle key={`${x}-${y}-b`} cx={x} cy={y + 52} r="8" className="f" />]),
-              )}
-              <path className="f" d="M1400 640h150v130h-40v-90h-110z" />
-              <circle cx="1525" cy="665" r="9" />
-              <circle cx="1500" cy="665" r="9" />
-              <text x="1400" y="632" className="sublabel" style={{ fontSize: 18 }}>
-                CUISINE
-              </text>
-            </g>
-            <g className={`panic ${panicReady ? "ok" : ""}`}>
-              <rect className="pbox" x="1400" y="450" width="145" height="100" />
-              <text x="1472" y="495" textAnchor="middle" className="ptxt">
-                PANIC ROOM
-              </text>
-              <text x="1472" y="519" textAnchor="middle" className="ptxt">
-                {panicReady ? "OPÉRATIONNELLE" : "BOÎTIER HS"}
-              </text>
-              <rect x="1382" y="485" width="14" height="28" fill="#2a3138" stroke={panicReady ? "#5fe39a" : "#ff4d4d"} strokeWidth="2" />
-            </g>
-            <circle className={`hot ${hot.beta ? "live" : ""}`} cx="1159" cy="540" r="26" />
-          </g>
-          <rect className="scanbar" x="1080" y="400" width="480" height="40" style={{ "--h": "340px" } as React.CSSProperties} />
-        </g>
-
-        <g className={room("hall")}>
-          <rect className="wall" x="540" y="400" width="520" height="380" />
-          <text x="800" y="600" textAnchor="middle" className="qm unk">
+        {/* ── Hall ── */}
+        <g className={cls("hall")}>
+          <rect className="wall" x="331" y="243" width="422" height="311" />
+          <text x="542" y="410" textAnchor="middle" className="qm unk">
             HALL
           </text>
           <g className="content">
-            <text x="560" y="438" className="label">
+            <text x="350" y="280" className="label">
               HALL
             </text>
             <g className="furn">
-              <path className="f" d="M690 470 Q800 430 910 470 L900 505 Q800 470 700 505 Z" />
-              <rect className="f" x="728" y="462" width="34" height="22" />
-              <rect className="f" x="838" y="462" width="34" height="22" />
-              <text x="800" y="530" textAnchor="middle" className="sublabel" style={{ fontSize: 18 }}>
+              <rect className="f" x="360" y="440" width="200" height="90" strokeDasharray="6 6" />
+              <path className="f" d="M390 470 Q460 446 530 470 L524 494 Q460 474 396 494 Z" />
+              <rect className="f" x="410" y="462" width="26" height="18" />
+              <rect className="f" x="484" y="462" width="26" height="18" />
+              <text x="370" y="455" className="sublabel" style={{ fontSize: 15 }}>
                 ACCUEIL · 2 TERMINAUX
               </text>
-              <path className="f" d="M570 600h130v28h-102v110h-28z" />
-              <rect className="f" x="725" y="660" width="40" height="40" rx="6" transform="rotate(-18 745 680)" />
-              <circle className="f" cx="660" cy="680" r="28" />
-              <rect className="f" x="580" y="748" width="70" height="20" />
-              <text x="585" y="592" className="sublabel" style={{ fontSize: 18 }}>
+              <rect className="f" x="700" y="270" width="34" height="50" />
+              <text x="717" y="338" textAnchor="middle" className="sublabel" style={{ fontSize: 13 }}>
+                DISJ.
+              </text>
+              <ellipse className="f" cx="650" cy="470" rx="60" ry="28" />
+              <circle className="f" cx="600" cy="320" r="22" />
+              <text x="560" y="365" className="sublabel" style={{ fontSize: 15 }}>
                 COIN DÉTENTE
               </text>
-              <rect className="f" x="985" y="420" width="44" height="66" />
-              <text x="1007" y="505" textAnchor="middle" className="sublabel" style={{ fontSize: 15 }}>
-                DISTRIB.
-              </text>
-              <ellipse className="f" cx="910" cy="660" rx="80" ry="34" />
-              {Array.from({ length: 8 }, (_, a) => {
-                const t = (a / 8) * Math.PI * 2;
-                return <circle key={a} cx={910 + Math.cos(t) * 100} cy={660 + Math.sin(t) * 50} r="8" className="f" />;
-              })}
             </g>
             <g filter="url(#pj-rough)">
-              <path className="blood hi" d="M770 400 c4 14 -2 26 6 40 c4 8 2 20 -4 24 c-6 -8 -6 -20 -10 -30 c-6 -12 -4 -26 8 -34z" />
-              <path className="blood" d="M800 402 c10 10 6 30 12 46 4 10 14 22 6 30 -10 6 -16 -8 -18 -18 -2 -14 -8 -24 -6 -40 1-8 2-14 6-18z" />
-              <path className="blood" d="M822 404 c6 6 4 16 2 24 -2 6 -8 4 -8 -2 0 -8 2 -16 6 -22z" />
-              <path d="M780 470c18 30 50 54 70 92 14 28 4 60 30 88" fill="none" stroke="#9b0f12" strokeWidth="6" strokeLinecap="round" opacity=".75" />
-              <ellipse className="blood" cx="895" cy="760" rx="22" ry="9" opacity=".8" />
+              <path className="blood hi" d="M512 554 c4 -14 -2 -26 6 -40 c4 -8 2 -20 -4 -24 c-6 8 -6 20 -10 30 c-6 12 -4 26 8 34z" />
+              <path className="blood" d="M540 552 c10 -10 6 -30 12 -46 4 -10 14 -22 6 -30 -10 -6 -16 8 -18 18 -2 14 -8 24 -6 40 1 8 2 14 6 18z" />
+              <path d="M528 500c-18 -30 -40 -50 -60 -80" fill="none" stroke="#9b0f12" strokeWidth="6" strokeLinecap="round" opacity=".7" />
             </g>
-            <circle className={`hot ${hot.accueil ? "live" : ""}`} cx="745" cy="473" r="26" />
+            <circle className={`hot ${hot.accueil ? "live" : ""}`} cx="460" cy="470" r="24" />
           </g>
-          <rect className="scanbar" x="540" y="400" width="520" height="40" style={{ "--h": "340px" } as React.CSSProperties} />
+          <Scan x={331} y={243} w={422} h={311} />
+        </g>
+
+        {/* ── The zones of the access chain ── */}
+        {ZONES.map((z) => (
+          <g key={z.id} className={cls(z.id)}>
+            <rect className="wall" x={z.x} y={z.y} width={z.w} height={z.h} />
+            <text x={z.x + z.w / 2} y={z.y + z.h / 2 + 8} textAnchor="middle" className="qm unk">
+              NON CARTOGRAPHIÉ
+            </text>
+            <g className="content">
+              <text x={z.x + 16} y={z.y + 34} className="label" style={{ fontSize: 24 }}>
+                {z.letter} {z.label}
+              </text>
+              <text x={z.x + 16} y={z.y + z.h - 14} className="sublabel" style={{ fontSize: 14 }}>
+                {z.sub}
+              </text>
+              <g className="furn">{FURNITURE[z.id]}</g>
+              {z.id === "beta" && (
+                <g className={`panic ${panicReady ? "ok" : ""}`}>
+                  <rect className="pbox" x="985" y="262" width="110" height="74" />
+                  <text x="1040" y="294" textAnchor="middle" className="ptxt" style={{ fontSize: 15 }}>
+                    PANIC ROOM
+                  </text>
+                  <text x="1040" y="316" textAnchor="middle" className="ptxt" style={{ fontSize: 13 }}>
+                    {panicReady ? "OPÉRATIONNELLE" : "BOÎTIER HS"}
+                  </text>
+                </g>
+              )}
+              {hot[z.id] !== undefined && <circle className={`hot ${hot[z.id] ? "live" : ""}`} cx={TERMINAL_AT[z.id]![0]} cy={TERMINAL_AT[z.id]![1]} r="24" />}
+            </g>
+            <Scan x={z.x} y={z.y} w={z.w} h={z.h} />
+          </g>
+        ))}
+
+        {/* ── The corridors ── */}
+        <path d="M753 384H1500V664H1447V427H753Z" fill="none" stroke="#2c6f8f" strokeWidth="1.5" strokeDasharray="4 6" />
+        <text x="1474" y="560" textAnchor="middle" className="sublabel" style={{ fontSize: 13 }} transform="rotate(90 1474 560)">
+          COULOIR DE SERVICE
+        </text>
+        <path d="M520 554V664M560 554V664" fill="none" stroke="#2c6f8f" strokeWidth="1.5" strokeDasharray="4 6" />
+
+        {/* ── Α Alpha: always unknown, the blood door ── */}
+        <g className="room unknown">
+          <rect className="wall" x="40" y="664" width="600" height="136" style={{ stroke: "#9b0f12" }} />
+          <rect x="40" y="664" width="600" height="136" fill="url(#pj-hatch)" opacity=".35" />
+          <text x="60" y="700" className="label" style={{ fill: "#d0181c", fontSize: 24 }}>
+            Α ALPHA
+          </text>
+          <text x="340" y="745" textAnchor="middle" className="qm" style={{ fill: "#d0181c" }}>
+            ?
+          </text>
+          <text x="340" y="785" textAnchor="middle" className="sublabel" style={{ fill: "#ff6b6b", fontSize: 15 }}>
+            ACCÈS RESTREINT
+          </text>
         </g>
       </g>
 
-      <g>
-        <rect x="760" y="772" width="90" height="16" fill="#05080c" />
-        <line x1="760" y1="780" x2="850" y2="780" stroke="#7fd8ff" strokeWidth="2" strokeDasharray="3 5" />
-        <text x="805" y="810" textAnchor="middle" className="sublabel" style={{ fontSize: 18 }}>
-          ENTRÉE · EXTÉRIEUR
-        </text>
-      </g>
-      <Door id="dortoir" open={!!doors.dortoir} gap={[520, 708, 40, 56]} leaf={[540, 708, 540, 764]} letter="Δ" at={[548, 700]} lock="M546 728h14v12h-14z M549 728v-5a4 4 0 0 1 8 0v5" turn="rotate(80deg)" />
-      <Door id="beta" open={!!doors.beta} gap={[1050, 560, 40, 64]} leaf={[1070, 560, 1070, 624]} letter="Β" at={[1080, 552]} lock="M1063 585h14v12h-14z M1066 585v-5a4 4 0 0 1 8 0v5" turn="rotate(80deg)" />
-      <Door id="gamma" open={!!doors.gamma} gap={[1190, 370, 66, 40]} leaf={[1190, 390, 1256, 390]} letter="Γ" at={[1264, 398]} lock="M1216 384h14v12h-14z M1219 384v-5a4 4 0 0 1 8 0v5" turn="rotate(-80deg)" />
-      <Door id="alpha" open={false} denied={denied} gap={[768, 370, 66, 40]} leaf={[768, 390, 834, 390]} letter="Α" at={[842, 398]} lock="M794 384h14v12h-14z M797 384v-5a4 4 0 0 1 8 0v5" turn="none" />
+      {confinement && (
+        <g>
+          <rect x="0" y="0" width="945" height="820" fill="rgba(255,178,62,.06)" />
+          <line x1="945" y1="10" x2="945" y2="810" stroke="#ff4d4d" strokeWidth="6" strokeDasharray="22 10" />
+          <text x="925" y="236" textAnchor="end" className="sublabel" style={{ fill: "#ffb23e", fontSize: 20 }}>
+            CHAMBRES IMPAIRES
+          </text>
+          <text x="965" y="236" className="sublabel" style={{ fill: "#7fd8ff", fontSize: 20 }}>
+            CHAMBRES PAIRES
+          </text>
+          <text x="945" y="660" textAnchor="middle" className="sublabel" style={{ fill: "#ff4d4d", fontSize: 22 }}>
+            PORTE COUPE-FEU
+          </text>
+        </g>
+      )}
+
+      <Door open={!!doors.dortoir} x={470} y={214} len={60} letter="Δ" />
+      <Door open={!!doors.sas} x={300} y={400} len={56} vertical letter="Θ" />
+      <Door open={!!doors.beta} x={915} y={384} len={64} letter="Β" left swing={38} />
+      <Door open={!!doors.gamma} x={915} y={427} len={64} letter="Γ" swing={-38} />
+      <Door open={!!doors.generateurs} x={1255} y={384} len={64} letter="Ε" left swing={38} />
+      <Door open={!!doors.securite} x={1255} y={427} len={64} letter="Ζ" swing={-38} />
+      <Door open={!!doors.labo} x={1447} y={664} len={53} letter="Η" below swing={-70} />
+      <Door open={false} denied={denied} x={512} y={664} len={56} letter="Α" blood />
     </svg>
   );
 }
 
-function Door({
-  open,
-  denied = false,
-  gap,
-  leaf,
-  letter,
-  at,
-  lock,
-  turn,
-}: {
-  id: string;
-  open: boolean;
-  denied?: boolean;
-  gap: [number, number, number, number];
-  leaf: [number, number, number, number];
-  letter: string;
-  at: [number, number];
-  lock: string;
-  turn: string;
-}) {
+const TERMINAL_AT: Record<string, [number, number]> = { beta: [860, 300], securite: [1290, 500], labo: [1100, 730] };
+
+const FURNITURE: Record<string, ReactNode> = {
+  sas: (
+    <>
+      {[70, 110, 150].map((x) => (
+        <rect key={x} className="f" x={x} y="300" width="28" height="70" rx="4" />
+      ))}
+      <rect className="f" x="200" y="400" width="80" height="44" rx="10" />
+      <rect className="f" x="70" y="420" width="60" height="34" />
+    </>
+  ),
+  beta: (
+    <>
+      <rect className="f" x="805" y="300" width="150" height="20" />
+      {[835, 865, 895, 925].map((x) => (
+        <line key={x} x1={x} y1="300" x2={x} y2="320" />
+      ))}
+    </>
+  ),
+  generateurs: (
+    <>
+      {[1160, 1250, 1340].map((x) => (
+        <g key={x}>
+          <rect className="f" x={x} y="275" width="70" height="60" rx="4" />
+          <circle cx={x + 35} cy="305" r="16" className="f" />
+        </g>
+      ))}
+    </>
+  ),
+  gamma: (
+    <>
+      {[810, 880, 950].map((x) => (
+        <g key={x}>
+          <rect className="f" x={x} y="470" width="50" height="70" rx="5" />
+          <line x1={x} y1="490" x2={x + 50} y2="490" />
+        </g>
+      ))}
+      <rect className="f" x="1030" y="455" width="60" height="34" />
+      <path className="blood" d="M1010 520c8-6 22-4 30 4 6 7 4 18-4 22-9 5-12 16-22 14-11-2-14-14-10-22 2-6 1-13 6-18z" opacity=".8" filter="url(#pj-rough)" />
+    </>
+  ),
+  securite: (
+    <>
+      {[1160, 1200, 1240].map((x) => (
+        <rect key={x} className="f" x={x} y="470" width="32" height="24" />
+      ))}
+      <rect className="f" x="1150" y="500" width="110" height="20" />
+      <rect className="f" x="1360" y="460" width="60" height="70" />
+      <line x1="1390" y1="460" x2="1390" y2="440" />
+    </>
+  ),
+  labo: (
+    <>
+      {[720, 860, 1000].map((x) => (
+        <rect key={x} className="f" x={x} y="730" width="110" height="26" />
+      ))}
+      <rect className="f" x="1180" y="700" width="160" height="70" />
+      <rect className="f" x="1380" y="700" width="140" height="70" strokeDasharray="5 5" />
+    </>
+  ),
+};
+
+/** The sweep that reveals a zone. */
+function Scan({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
+  return <rect className="scanbar" x={x} y={y} width={w} height="40" style={{ "--h": `${h - 40}px` } as CSSProperties} />;
+}
+
+/** A door in a wall: horizontal (in a wall along x) or vertical; its letter beside, a padlock while closed. */
+function Door({ open, denied = false, x, y, len, vertical = false, below = false, left = false, blood = false, swing = 75, letter }: { open: boolean; denied?: boolean; x: number; y: number; len: number; vertical?: boolean; below?: boolean; left?: boolean; blood?: boolean; swing?: number; letter: string }) {
+  const gap = vertical ? { x: x - 6, y, width: 12 + 19, height: len } : { x, y: y - 8, width: len, height: 16 };
+  const leaf = vertical ? [x + 15, y, x + 15, y + len] : [x, y, x + len, y];
+  const at = vertical ? [x + 8, y - 10] : left ? [x - 30, y + 30] : [x + len + 8, below ? y + 26 : y - 10];
+  const lx = vertical ? x + 8 : x + len / 2 - 7;
+  const ly = vertical ? y + len / 2 - 6 : y - 6;
   return (
     <g className={`door ${open ? "open" : ""} ${denied ? "denied" : ""}`}>
-      <rect className="gap" x={gap[0]} y={gap[1]} width={gap[2]} height={gap[3]} />
-      <line className="leaf" x1={leaf[0]} y1={leaf[1]} x2={leaf[2]} y2={leaf[3]} style={{ transformOrigin: `${leaf[0]}px ${leaf[1]}px`, transform: open ? turn : "none" }} />
-      <text className="greek" x={at[0]} y={at[1]}>
+      <rect className="gap" {...gap} />
+      <line className="leaf" x1={leaf[0]} y1={leaf[1]} x2={leaf[2]} y2={leaf[3]} style={{ transformOrigin: `${leaf[0]}px ${leaf[1]}px`, transform: open ? `rotate(${swing}deg)` : "none", ...(blood ? { stroke: "#d0181c" } : {}) }} />
+      <text className="greek" x={at[0]} y={at[1]} style={blood ? { fill: "#d0181c" } : undefined}>
         {letter}
       </text>
-      <path className="lock" d={lock} />
+      <path className="lock" d={`M${lx} ${ly + 4}h14v12h-14z M${lx + 3} ${ly + 4}v-5a4 4 0 0 1 8 0v5`} />
+      {blood && (
+        <text x={x + len / 2} y={y - 18} textAnchor="middle" className="sublabel" style={{ fill: "#ff4d4d", fontSize: 15 }}>
+          JAMAIS
+        </text>
+      )}
     </g>
   );
 }

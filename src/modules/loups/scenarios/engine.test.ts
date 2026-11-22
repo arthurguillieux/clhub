@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ANTARCTICA } from "./antarctica";
-import { alive, contagionActive, dawnDeaths, missedClues, nightSteps, pack, proposals, recap, registry, replay, suggestedWinner, timeLeft, type Action, type Setup } from "./engine";
+import { actionAvailable, alive, contagionActive, dawnDeaths, doorProposals, missedClues, nightSteps, pack, proposals, recap, registry, replay, suggestedWinner, timeLeft, type Action, type Setup } from "./engine";
 import { checkPassword } from "./index";
 
 const NAMES = ["Ana", "Ben", "Cléo", "Dan", "Eli", "Fanny", "Gus", "Hugo", "Inès", "Jade"];
@@ -21,8 +21,8 @@ const night = (infect: string | null, victim: string | null, chosen = "blizzard"
   { t: "night" },
   ...(infect ? [{ t: "infect", player: infect } as Action] : []),
   { t: "victim", player: victim },
-  { t: "propose", events: ["blizzard", "aurore", "generateurs"] },
-  { t: "deadChoose", event: chosen },
+  { t: "vote", kind: "dead", options: ["blizzard", "delestage"] },
+  { t: "voteResult", choice: chosen },
   { t: "dawn" },
 ];
 
@@ -41,7 +41,7 @@ describe("the evening's course", () => {
     expect(s.event).toBe("blizzard");
     expect(s.blizzard).toBe(true);
     expect(s.announced).toEqual(["p3"]);
-    expect(s.log.at(-2)?.text).toBe("Contamination : Ben. Victime : Cléo. Les morts choisissent : Blizzard (contre Aurore australe, Générateurs).");
+    expect(s.log.at(-2)?.text).toBe("Contamination : Ben. Victime : Cléo. Les morts choisissent : Blizzard (contre Délestage).");
   });
 
   it("saves whoever is in the panic room, and the life syringe's patient", () => {
@@ -95,7 +95,7 @@ describe("the end of a loop", () => {
     const s = run(actions);
     expect(s.phase).toBe("bad");
     expect(missedClues(ANTARCTICA, setup(), s)).toEqual([
-      { at: "Boucle 1 · Arrivée", text: "Un fichier audio de la salle, daté d'il y a 47 minutes" },
+      { at: "Boucle 1 · Arrivée", text: "Un fichier audio de la salle, daté d'il y a quelques minutes" },
       { at: "Boucle 1 · Jour 1", text: "L'en-tête affiche « SIMULATION ALPHA » et la date du jour" },
     ]);
   });
@@ -118,7 +118,7 @@ describe("the journal", () => {
 
   it("proposes as many events as set, and the recap says who contaminated whom", () => {
     const s = run([...start, ...night("p2", "p3")]);
-    expect(proposals(s, setup())).toHaveLength(3);
+    expect(proposals(s, setup())).toHaveLength(2);
     expect(recap(s).find((r) => r.name === "Ben")).toMatchObject({ infected: true, by: "Ana" });
   });
 });
@@ -133,12 +133,14 @@ describe("the password", () => {
 describe("V1.1: the surveillance tapes", () => {
   it("come up every night while their holder lives, and show the side as the night began", () => {
     const given: Action[] = [...start, { t: "giveItem", item: "bandes", player: "p5" }];
-    let s = run([...given, { t: "night" }]);
+    const night2: Action[] = [...given, ...night(null, "p9"), { t: "exile", player: null }, { t: "night" }];
+    expect(nightSteps(run([...given, { t: "night" }]), setup().params)).toEqual(["pz", "infect", "victim"]); // night 1: no tapes yet
+    let s = run(night2);
     expect(nightSteps(s, setup().params)).toEqual(["tapes", "infect", "victim", "dead"]);
-    s = run([...given, { t: "night" }, { t: "infect", player: "p2" }, { t: "tapes", target: "p2" }]);
+    s = run([...night2, { t: "infect", player: "p2" }, { t: "tapes", target: "p2" }]);
     expect(s.tonight.tapes).toEqual({ target: "p2", infected: false }); // contaminated tonight, but only at dawn
     expect(s.log.at(-1)?.text).toBe("Bandes : Eli regarde Ben (sain).");
-    expect(run([...given, { t: "night" }, { t: "tapes", target: "p1" }]).tonight.tapes?.infected).toBe(true);
+    expect(run([...night2, { t: "tapes", target: "p1" }]).tonight.tapes?.infected).toBe(true);
     const dead = run([...given, ...night(null, "p5"), { t: "exile", player: null }, { t: "night" }]);
     expect(nightSteps(dead, setup().params)).not.toContain("tapes");
     const passed = run([...given, ...night(null, "p5"), { t: "giveItem", item: "bandes", player: "p6" }, { t: "exile", player: null }, { t: "night" }]);
@@ -213,5 +215,174 @@ describe("full control for the meneur", () => {
     const resumed = at([...timer, { t: "timer", which: "main", cmd: "resume" }, { t: "timer", which: "main", cmd: "plus" }], [0, 20_000, 50_000, 50_000]);
     expect(timeLeft(resumed.timer!, 60_000)).toBe(90);
     expect(at([...timer, { t: "timer", which: "main", cmd: "stop" }], [0, 1, 2]).timer).toBeNull();
+  });
+});
+
+// ───────── V1.2 ─────────
+
+const lit: Action[] = [{ t: "start" }, { t: "arrive" }, { t: "light", on: true }, { t: "door", door: "dortoir", open: true }, { t: "chief", player: "p10" }, { t: "patientZero", player: "p1" }];
+const door = (id: string): Action[] => [{ t: "vote", kind: "door", options: [id, "fouiller"] }, { t: "voteResult", choice: id }];
+const quiet = (victim: string | null = null): Action[] => [{ t: "night" }, { t: "victim", player: victim }, { t: "dawn" }];
+
+describe("V1.2: the access chain and the two doors", () => {
+  it("proposes the plan's doors once their access is found, skips what's done, and searches when only one is left", () => {
+    let s = run([...lit, ...quiet()]);
+    expect(doorProposals(ANTARCTICA, s)).toEqual(["accueil", "sas"]);
+    expect(actionAvailable(ANTARCTICA, s, "archives-fouille")).toBe(false); // no key yet
+    s = run([...lit, ...quiet(), ...door("accueil")]);
+    expect(s.flags.key).toBe(true);
+    expect(s.actionsDone).toEqual(["accueil"]);
+    s = run([...lit, ...quiet(), ...door("accueil"), { t: "exile", player: null }, ...quiet()]);
+    expect(doorProposals(ANTARCTICA, s)).toEqual(["archives-panic", "archives-fouille"]);
+    // Only the airlock left of what's open: the other door is « Fouiller ce qu'on connaît déjà ».
+    const one = run([...lit, ...quiet(), { t: "dayAction", id: "accueil" }, { t: "dayAction", id: "archives-panic" }, { t: "dayAction", id: "archives-fouille" }, { t: "dayAction", id: "infirmerie" }, { t: "flag", flag: "code", on: false }]);
+    expect(doorProposals(ANTARCTICA, { ...one, round: 4 })).toEqual(["sas", "fouiller"]);
+  });
+
+  it("the first entry into the archives opens their terminal on log 2; the search finds badge 2 and the tapes", () => {
+    const s = run([...lit, ...quiet(), ...door("archives-fouille")]);
+    expect(s).toMatchObject({ terminal: "beta", playing: "log2" });
+    expect(s.flags.badge2).toBe(true);
+    expect(s.found).toContain("bandes");
+    expect(s.doors.beta).toBe(true);
+  });
+
+  it("imposes the laboratory on loop 2 day 3, and Marga forces it without the badge", () => {
+    const loop2: Action[] = [...lit, ...quiet(), { t: "endLoop", winner: "meute" }, { t: "reboot" }, { t: "arrive" }, { t: "patientZero", player: "p2" }];
+    const s = run([...loop2, ...quiet(), { t: "exile", player: null }, ...quiet(), { t: "exile", player: null }, ...quiet()]);
+    expect(s).toMatchObject({ loop: 2, round: 3 });
+    expect(doorProposals(ANTARCTICA, s)).toEqual(["labo"]);
+    expect(doorProposals(ANTARCTICA, { ...s, round: 4 })).toEqual([]);
+    const forced = run([...loop2, ...quiet(), { t: "labForce" }]);
+    expect(forced.doors.labo).toBe(true);
+    expect(forced.log.at(-1)?.text).toBe("Marga Berlioz force la porte du laboratoire.");
+  });
+});
+
+describe("V1.2: the chief", () => {
+  it("resists the pack's first attack in a loop, to kill or to contaminate; the second one works", () => {
+    let s = run([...lit, ...quiet("p10")]);
+    expect(s.players.find((p) => p.id === "p10")?.status).toBe("alive");
+    expect(s.chiefResisted).toBe(true);
+    expect(s.log.at(-1)?.text).toContain("Le chef Jade résiste à l'attaque.");
+    s = run([...lit, ...quiet("p10"), { t: "exile", player: null }, ...quiet("p10")]);
+    expect(s.players.find((p) => p.id === "p10")?.status).toBe("dead");
+    expect(s.chief).toBeNull(); // the title waits for a successor
+    s = run([...lit, { t: "night" }, { t: "infect", player: "p10" }, { t: "victim", player: "p10" }, { t: "dawn" }]);
+    expect(s.players.find((p) => p.id === "p10")).toMatchObject({ status: "dead", infected: false }); // the contamination used the resistance
+  });
+
+  it("exiled while healthy, locks every power of the village until the end of the loop; contaminated, nothing happens", () => {
+    const given: Action[] = [...lit, { t: "dayAction", id: "sas" }, { t: "giveItem", item: "pistolet", player: "p3" }, { t: "giveItem", item: "seringues", player: "p4" }];
+    const exiled: Action[] = [...given, ...quiet(), { t: "exile", player: "p10" }];
+    expect(run(exiled).locked).toBe(true);
+    expect(run([...exiled, { t: "shoot", target: "p1" }]).items.pistolet?.used).toBe(false);
+    expect(nightSteps(run([...exiled, { t: "night" }]), setup().params)).not.toContain("items");
+    expect(run([...exiled, { t: "endLoop", winner: "meute" }, { t: "reboot" }]).locked).toBe(false);
+    expect(run([...given, { t: "setInfected", player: "p10", infected: true }, ...quiet(), { t: "exile", player: "p10" }]).locked).toBe(false);
+  });
+
+  it("is to confirm at the start of loop 2", () => {
+    const s = run([...lit, ...quiet(), { t: "endLoop", winner: "meute" }, { t: "reboot" }]);
+    expect(s).toMatchObject({ chief: null, chiefB1: "p10", chiefToConfirm: true });
+    expect(run([...lit, ...quiet(), { t: "endLoop", winner: "meute" }, { t: "reboot" }, { t: "chiefConfirm" }]).chief).toBe("p10");
+  });
+
+  it("is elected by the vote by moving", () => {
+    const s = run([{ t: "start" }, { t: "arrive" }, { t: "vote", kind: "chief", options: ["p2", "p3"] }, { t: "voteResult", choice: "p3" }]);
+    expect(s).toMatchObject({ chief: "p3", chiefB1: "p3", vote: null, timer: null });
+  });
+});
+
+describe("V1.2: the powers", () => {
+  const armed: Action[] = [...lit, { t: "dayAction", id: "sas" }, { t: "giveItem", item: "pistolet", player: "p3" }, ...quiet()];
+  it("the pistol: a contaminated target dies, the shooter is trusted and loses the gun", () => {
+    const s = run([...armed, { t: "shoot", target: "p1" }]);
+    expect(s.players.find((p) => p.id === "p1")?.status).toBe("dead");
+    expect(s.players.find((p) => p.id === "p3")?.status).toBe("alive");
+    expect(s.trusted).toEqual(["p3"]);
+    expect(s.items.pistolet).toEqual({ holder: null, used: true });
+  });
+
+  it("the pistol: a healthy target dies with the shooter; by day only, one cartridge", () => {
+    const s = run([...armed, { t: "shoot", target: "p5" }]);
+    expect(s.players.filter((p) => p.status === "dead").map((p) => p.id)).toEqual(["p3", "p5"]);
+    expect(s.lastShot).toEqual({ shooter: "p3", target: "p5", infected: false });
+    expect(s.locked).toBe(false); // a shot isn't an exile
+    expect(run([...armed, { t: "night" }, { t: "shoot", target: "p1" }]).items.pistolet?.used).toBe(false);
+    expect(run([...armed, { t: "shoot", target: "p1" }, { t: "giveItem", item: "pistolet", player: "p4" }, { t: "shoot", target: "p5" }]).players.find((p) => p.id === "p5")?.status).toBe("alive");
+  });
+
+  it("the blood test: once a loop, and negative for whoever was contaminated last night", () => {
+    const tested: Action[] = [...lit, { t: "dayAction", id: "infirmerie" }];
+    expect(run([...tested, ...quiet(), { t: "bloodTest", target: "p1" }]).lastTest).toEqual({ target: "p1", positive: true });
+    const fresh = run([...tested, { t: "night" }, { t: "infect", player: "p2" }, { t: "victim", player: null }, { t: "dawn" }, { t: "bloodTest", target: "p2" }]);
+    expect(fresh.lastTest).toEqual({ target: "p2", positive: false });
+    expect(run([...tested, ...quiet(), { t: "bloodTest", target: "p5" }, { t: "bloodTest", target: "p1" }]).lastTest?.target).toBe("p5");
+    expect(run([...lit, ...quiet(), { t: "bloodTest", target: "p1" }]).lastTest).toBeNull(); // not found yet
+  });
+
+  it("the radio: the contaminated still alive, once a loop", () => {
+    const s = run([...lit, { t: "dayAction", id: "securite" }, { t: "night" }, { t: "infect", player: "p2" }, { t: "victim", player: null }, { t: "dawn" }, { t: "radio" }]);
+    expect(s.lastRadio).toBe(2);
+    expect(s.roomUsed.radio).toBe(true);
+  });
+
+  it("the quarantine protects its two players the next night", () => {
+    const s = run([...lit, ...quiet(), { t: "quarantine", players: ["p4", "p5"] }, { t: "exile", player: null }, { t: "night" }, { t: "infect", player: "p5" }, { t: "victim", player: "p4" }, { t: "dawn" }]);
+    expect(s.players.find((p) => p.id === "p4")?.status).toBe("alive");
+    expect(s.players.find((p) => p.id === "p5")?.infected).toBe(false);
+    expect(s.quarantine).toEqual([]);
+  });
+
+  it("the syringes go together, to one holder", () => {
+    const s = run([...lit, { t: "giveItem", item: "seringues", player: "p6" }]);
+    expect(s.items.vie?.holder).toBe("p6");
+    expect(s.items.mort?.holder).toBe("p6");
+  });
+});
+
+describe("V1.2: the dead's moment and the events", () => {
+  it("comes only when someone other than tonight's victim is dead, with two events not played yet", () => {
+    expect(nightSteps(run([...lit, ...quiet(), { t: "exile", player: null }, { t: "night" }]), setup().params)).not.toContain("dead");
+    const s = run([...lit, ...quiet("p5"), { t: "exile", player: null }, { t: "night" }]);
+    expect(nightSteps(s, setup().params)).toContain("dead");
+    expect(proposals(s, setup())).toHaveLength(2);
+  });
+
+  it("plays each event once in the evening", () => {
+    const s = run([...lit, ...night(null, "p5", "blizzard"), { t: "exile", player: null }, { t: "night" }]);
+    expect(s.eventsPlayed).toEqual(["blizzard"]);
+    for (let n = 0; n < 6; n++) expect(proposals({ ...s, round: n + 2 }, setup())).not.toContain("blizzard");
+    expect(run([...lit, ...night(null, "p5", "delestage")]).dark).toBe(true);
+  });
+
+  it("the confinement runs its six minutes, and the fire door opens again", () => {
+    const s = run([...lit, ...quiet(), { t: "confinement", on: true }]);
+    expect(s.confinement).toBe(true);
+    expect(s.timer).toMatchObject({ label: "Confinement", total: 360 });
+    expect(run([...lit, ...quiet(), { t: "confinement", on: true }, { t: "confinement", on: false }])).toMatchObject({ confinement: false, timer: null });
+  });
+});
+
+describe("V1.2: the reboot", () => {
+  it("keeps what was found, resets the uses, clears the holders, and asks to confirm the chief", () => {
+    const s = run([
+      ...lit,
+      { t: "dayAction", id: "infirmerie" },
+      { t: "giveItem", item: "seringues", player: "p4" },
+      { t: "night" },
+      { t: "victim", player: "p5" },
+      { t: "useItem", item: "vie", target: "p5" },
+      { t: "dawn" },
+      { t: "bloodTest", target: "p2" },
+      { t: "endLoop", winner: "meute" },
+      { t: "reboot" },
+    ]);
+    expect(s.found).toEqual(expect.arrayContaining(["seringues", "test"]));
+    expect(s.flags.code).toBe(true);
+    expect(s.items.vie).toEqual({ holder: null, used: false });
+    expect(s.roomUsed).toEqual({ test: false, radio: false });
+    expect(s.chiefToConfirm).toBe(true);
   });
 });
