@@ -176,6 +176,6 @@ export async function updateDietaryPrefsAction(
     .where(eq(member.id, session.member.id));
 
   revalidatePath("/settings");
-  revalidatePath("/menus");
+  revalidatePath("/repas");
   return { status: "success" };
 }

@@ -1947,3 +1947,163 @@ body {
 .scn-veil {
   background: rgba(2, 3, 5, 0.8);
 }
+
+/*
+ * « Les repas du CLHUB »: a bistro table. Dark wood, cream, melted-cheese yellow for what to do,
+ * tomato for what's missing, herb green for what's covered, and a gingham tablecloth along the top.
+ * Scoped to the section (`.repas`), on the club's page and on the link for guests without an account.
+ */
+.repas {
+  --r-bg: #17110c;
+  --r-panel: #221912;
+  --r-raised: #2c2118;
+  --r-line: #3d2e21;
+  --r-ink: #f6ead7;
+  --r-muted: #b8a58c;
+  --r-cheese: #ffc94a;
+  --r-cheese-ink: #2a1d12;
+  --r-tomato: #ff7a59;
+  --r-herb: #8fd694;
+  position: relative;
+  overflow: hidden;
+  color: var(--r-ink);
+  background: var(--r-bg);
+}
+.repas::before {
+  content: "";
+  display: block;
+  height: 14px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 122, 89, 0.85) 0 14px, transparent 14px 28px),
+    repeating-linear-gradient(0deg, rgba(255, 122, 89, 0.55) 0 7px, rgba(246, 234, 215, 0.9) 7px 14px);
+}
+.repas-title {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.repas-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--r-cheese);
+}
+.repas-muted {
+  color: var(--r-muted);
+}
+.repas-card {
+  border: 1px solid var(--r-line);
+  border-radius: 16px;
+  background: var(--r-panel);
+}
+.repas-raised {
+  border: 1px solid var(--r-line);
+  border-radius: 12px;
+  background: var(--r-raised);
+}
+.repas-btn,
+.repas-ghost,
+.repas-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0 1rem;
+  border-radius: 12px;
+  font-weight: 700;
+  text-align: center;
+  transition:
+    transform 0.12s ease,
+    opacity 0.12s ease;
+}
+.repas-btn {
+  background: var(--r-cheese);
+  color: var(--r-cheese-ink);
+}
+.repas-ghost {
+  border: 1px solid var(--r-line);
+  background: var(--r-raised);
+  color: var(--r-ink);
+}
+.repas-danger {
+  border: 1px solid color-mix(in srgb, var(--r-tomato) 50%, transparent);
+  color: var(--r-tomato);
+}
+.repas-btn:active,
+.repas-ghost:active,
+.repas-danger:active {
+  transform: scale(0.98);
+}
+.repas-btn:disabled,
+.repas-ghost:disabled,
+.repas-danger:disabled {
+  opacity: 0.45;
+}
+.repas :focus-visible {
+  outline: 2px solid var(--r-cheese);
+  outline-offset: 2px;
+}
+.repas-field {
+  min-height: 44px;
+  border: 1px solid var(--r-line);
+  border-radius: 10px;
+  background: var(--r-bg);
+  color: var(--r-ink);
+  padding: 0 0.75rem;
+}
+.repas-field::placeholder {
+  color: var(--r-muted);
+}
+.repas-gauge {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--r-raised);
+}
+.repas-gauge > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--r-cheese), var(--r-herb));
+  transition: width 0.6s ease;
+}
+.repas-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--r-cheese-ink);
+}
+@keyframes repas-fall {
+  from {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(110vh) rotate(540deg);
+    opacity: 0.9;
+  }
+}
+.repas-confetti {
+  position: fixed;
+  top: 0;
+  z-index: 60;
+  pointer-events: none;
+  font-size: 1.6rem;
+  animation: repas-fall 2.6s ease-in forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .repas-confetti {
+    display: none;
+  }
+  .repas-gauge > span {
+    transition: none;
+  }
+}

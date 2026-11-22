@@ -24,6 +24,11 @@ export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
     description: "Un mail si un emprunt en cours dépasse sa date de retour prévue.",
   },
   {
+    key: "repas",
+    label: "Les repas",
+    description: "Un mail quand tu es invité à un repas, quand l'organisateur relance, et la veille avec ce que tu ramènes.",
+  },
+  {
     key: "lettre",
     label: "Lettre au Père Noël",
     description: "Un mail quand quelqu'un réserve un cadeau ou promet une part de cagnotte sur une lettre que tu organises, ou se désiste.",

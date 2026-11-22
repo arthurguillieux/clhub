@@ -18,9 +18,9 @@ export const CLUB_SECTIONS: ClubSection[] = [
     live: true,
   },
   {
-    name: "Les menus du club",
-    description: "Organiser un repas de groupe — qui vient, qui apporte quoi.",
-    href: "/menus",
+    name: "Les repas du CLHUB",
+    description: "Une raclette, un barbecue : qui vient, qui ramène quoi, et la liste de courses.",
+    href: "/repas",
     live: true,
   },
   {

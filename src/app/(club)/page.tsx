@@ -65,7 +65,7 @@ function describeActivity(a: ActivityEntry): string {
     case "menu.proposed": {
       const p = a.payload as { title?: string; eventDate?: string };
       const dateLabel = p.eventDate ? ` (${formatFrench(p.eventDate as CalendarDate)})` : "";
-      return `Un repas a été proposé : « ${p.title ?? "?"} »${dateLabel}.`;
+      return `Un repas ouvert à tous : « ${p.title ?? "?"} »${dateLabel}.`;
     }
     case "caisse.event-created": {
       const p = a.payload as { name?: string };
@@ -93,6 +93,8 @@ function describeActivity(a: ActivityEntry): string {
 function notificationHref(n: Notification): string | null {
   const code = (n.payload as { code?: unknown }).code;
   if (n.kind === "bug.report") return "/admin/bugs";
+  const mealId = (n.payload as { mealId?: unknown }).mealId;
+  if (n.kind.startsWith("meal.") && typeof mealId === "string" && /^[0-9a-f-]{36}$/i.test(mealId)) return `/repas/${mealId}`;
   return n.kind.startsWith("lettre.") && typeof code === "string" && /^[A-Z0-9]{6}$/.test(code) ? `/lettre/${code}/panneau` : null;
 }
 
@@ -170,6 +172,16 @@ function describeNotification(n: Notification): string {
     case "menu.response": {
       const p = n.payload as { memberName?: string };
       return `${p.memberName ?? "Quelqu'un"} vient à ton repas.`;
+    }
+    case "meal.response": {
+      const p = n.payload as { name?: string; title?: string };
+      return `🍽️ ${p.name ?? "Quelqu'un"} vient à ton repas « ${p.title ?? "?"} ».`;
+    }
+    case "meal.invited":
+    case "meal.nudge":
+    case "meal.reminder": {
+      const p = n.payload as { text?: string; title?: string };
+      return `🍽️ ${p.text ?? p.title ?? "Un repas"}`;
     }
     case "don.interest": {
       const p = n.payload as { memberName?: string; title?: string };

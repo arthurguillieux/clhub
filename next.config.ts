@@ -16,6 +16,15 @@ const nextConfig: NextConfig = {
   // server a developer might already have running — a separate build cache
   // avoids any contention or cross-talk between the two.
   distDir: process.env.E2E_DIST_DIR || ".next",
+  // « Les menus du club » became « Les repas du CLHUB »: old links and bookmarks still land.
+  async redirects() {
+    return [
+      { source: "/menus", destination: "/repas", permanent: true },
+      { source: "/menus/new", destination: "/repas/nouveau", permanent: true },
+      { source: "/menus/:id/edit", destination: "/repas/:id", permanent: true },
+      { source: "/menus/:id", destination: "/repas/:id", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

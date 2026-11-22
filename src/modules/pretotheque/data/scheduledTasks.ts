@@ -1,4 +1,5 @@
 import { and, eq, lt, lte } from "drizzle-orm";
+import { sendMealReminders } from "@/modules/repas/data/meals";
 import { db } from "@/core/db/client";
 import { booking, item } from "@/core/db/schema";
 import { createNotification } from "@/core/notifications";
@@ -201,16 +202,19 @@ export interface ScheduledTasksSummary {
   overdueBorrowerRemindersSent: number;
   overdueOwnerRemindersSent: number;
   badgesUnlocked: number;
+  mealRemindersSent: number;
 }
 
 export async function runScheduledTasks(): Promise<ScheduledTasksSummary> {
-  const [expired, remindersSent, overdueBorrowerRemindersSent, overdueOwnerRemindersSent, badgesUnlocked] =
+  const [expired, remindersSent, overdueBorrowerRemindersSent, overdueOwnerRemindersSent, badgesUnlocked, mealRemindersSent] =
     await Promise.all([
       expireStalePendingRequests(),
       sendPickupReminders(),
       sendOverdueBorrowerReminders(),
       sendOverdueOwnerReminders(),
       syncAllAchievements(),
+      // The day before a meal: each member guest hears what they bring.
+      sendMealReminders(),
     ]);
-  return { expired, remindersSent, overdueBorrowerRemindersSent, overdueOwnerRemindersSent, badgesUnlocked };
+  return { expired, remindersSent, overdueBorrowerRemindersSent, overdueOwnerRemindersSent, badgesUnlocked, mealRemindersSent };
 }
