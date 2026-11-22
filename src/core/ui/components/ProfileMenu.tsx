@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { authClient } from "@/core/auth/client";
 
 interface HeaderUser {
@@ -14,6 +14,7 @@ export function ProfileMenu({ user }: { user: HeaderUser }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!open) return;
@@ -72,6 +73,13 @@ export function ProfileMenu({ user }: { user: HeaderUser }) {
             className="block rounded-md px-3 py-2.5 text-sm text-ink hover:bg-surface"
           >
             Inviter
+          </Link>
+          <Link
+            href={`/signaler?page=${encodeURIComponent(pathname)}`}
+            onClick={() => setOpen(false)}
+            className="block rounded-md px-3 py-2.5 text-sm text-ink hover:bg-surface"
+          >
+            🐞 Signaler un bug
           </Link>
           <hr className="my-1.5 border-line-soft" />
           <button

@@ -90,6 +90,8 @@ export default async function globalSetup(): Promise<void> {
       ...process.env,
       DATABASE_URL: E2E_DB_URL,
       BETTER_AUTH_SECRET: "e2e-only-not-a-real-secret",
+      // A test code of its own: the admin pages are tested without the real one.
+      ADMIN_ACCESS_CODE: "e2e-admin-code",
       APP_URL: BASE_URL,
       PORT: String(PORT),
       // A separate build cache from whatever dev server might already be

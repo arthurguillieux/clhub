@@ -17,7 +17,8 @@ export default function BienvenuePage() {
           Un bug, une idée, un truc qui te chiffonne ? C&apos;est{" "}
           <strong className="text-ink">Vak</strong>{" "}
           qui pilote le projet avec vous, en direct — les retours et les bugs vont à lui, pas
-          à l&apos;équipe technique.
+          à l&apos;équipe technique. Le plus simple : « 🐞 Signaler un bug » dans ton menu, en haut à
+          droite.
         </p>
         <LinkButton href="/" variant="primary" className="self-start">
           C&apos;est parti

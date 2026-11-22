@@ -92,6 +92,7 @@ function describeActivity(a: ActivityEntry): string {
 /** Where a notification leads, for those that lead somewhere. */
 function notificationHref(n: Notification): string | null {
   const code = (n.payload as { code?: unknown }).code;
+  if (n.kind === "bug.report") return "/admin/bugs";
   return n.kind.startsWith("lettre.") && typeof code === "string" && /^[A-Z0-9]{6}$/.test(code) ? `/lettre/${code}/panneau` : null;
 }
 
@@ -185,6 +186,10 @@ function describeNotification(n: Notification): string {
         amountCents: typeof p.amountCents === "number" ? p.amountCents : null,
         by: typeof p.by === "string" ? p.by : null,
       });
+    }
+    case "bug.report": {
+      const p = n.payload as { name?: string; page?: string | null; excerpt?: string };
+      return `🐞 ${p.name ?? "Un membre"} signale un bug${p.page ? ` sur ${p.page}` : ""} : « ${p.excerpt ?? "…"} »`;
     }
     case "don.reserved": {
       const p = n.payload as { title?: string };

@@ -27,6 +27,12 @@ export default async function AdminPage() {
             </p>
           </Card>
         </Link>
+        <Link href="/admin/bugs">
+          <Card className="h-full p-5 transition-colors hover:border-primary">
+            <h2 className="font-display text-base font-extrabold text-ink">Signalements</h2>
+            <p className="mt-1 text-sm text-muted">Les bugs signalés par les membres, les erreurs du serveur, et le résumé à copier pour Claude.</p>
+          </Card>
+        </Link>
         <Link href="/admin/dons">
           <Card className="h-full p-5 transition-colors hover:border-primary">
             <h2 className="font-display text-base font-extrabold text-ink">Dons</h2>

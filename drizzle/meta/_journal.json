@@ -379,6 +379,13 @@
       "when": 1795360122787,
       "tag": "0053_loups_table_cards",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1795370710287,
+      "tag": "0054_bug_report",
+      "breakpoints": true
     }
   ]
 }

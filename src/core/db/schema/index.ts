@@ -27,3 +27,4 @@ export * from "./santa";
 export * from "./lettre";
 export * from "./loups";
 export * from "./scenario";
+export * from "./bugReport";
