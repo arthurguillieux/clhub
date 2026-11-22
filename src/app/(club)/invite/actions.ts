@@ -1,13 +1,13 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { isAdminModeActive } from "@/core/auth/admin";
 import { getSession } from "@/core/auth/session";
-import { createInvitation } from "@/core/auth/invitations";
-import { sendMail } from "@/core/mail/send";
-import { InvitationEmail } from "@/core/mail/templates/InvitationEmail";
+import { resendInvitation, sendInvitation } from "@/modules/invitations/data";
 
 export type InviteFormState =
   | { status: "idle" }
-  | { status: "success"; url: string }
+  | { status: "success"; email: string }
   | { status: "error"; message: string };
 
 export async function submitInvite(
@@ -24,15 +24,21 @@ export async function submitInvite(
     return { status: "error", message: "Tu dois être connecté pour inviter quelqu'un." };
   }
 
-  const { invitation, token } = await createInvitation(email, session.member.id);
-  const url = `${process.env.APP_URL}/invitations/${token}`;
+  const sent = await sendInvitation(session.member.id, session.user.name, email);
+  if (!sent.ok) return { status: "error", message: sent.error };
+  revalidatePath("/invite");
+  revalidatePath("/admin/membres");
+  return { status: "success", email: email.toLowerCase().trim() };
+}
 
-  await sendMail({
-    to: invitation.email,
-    subject: "LE CLHUB — tu es invité·e",
-    react: InvitationEmail({ inviterName: session.user.name, url }),
-    devFallbackMessage: `Invitation link for ${invitation.email}:\n${url}`,
-  });
-
-  return { status: "success", url };
+/** « Renvoyer l'invitation »: a new link to an address that hasn't joined yet. */
+export async function resendInvitationAction(email: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Tu dois être connecté." };
+  const done = await resendInvitation(session.member.id, session.user.name, email, await isAdminModeActive());
+  if (done.ok) {
+    revalidatePath("/invite");
+    revalidatePath("/admin/membres");
+  }
+  return done;
 }

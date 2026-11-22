@@ -15,7 +15,7 @@ export default async function AdminPage() {
           <Card className="h-full p-5 transition-colors hover:border-primary">
             <h2 className="font-display text-base font-extrabold text-ink">Membres</h2>
             <p className="mt-1 text-sm text-muted">
-              Inviter par mail, changer un rôle, supprimer un compte.
+              Inviter par mail, voir toutes les invitations (qui a invité qui), changer un rôle, supprimer un compte.
             </p>
           </Card>
         </Link>

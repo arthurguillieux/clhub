@@ -3,6 +3,8 @@ import { getMemberDeletionImpact, listAllMembersForAdmin } from "@/modules/admin
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
+import { listInvitations } from "@/modules/invitations/data";
+import { InvitationList } from "@/app/(club)/invite/InvitationList";
 import { InviteByEmailForm } from "./InviteByEmailForm";
 import { RoleToggle } from "./RoleToggle";
 import { DeleteMemberButton } from "./DeleteMemberButton";
@@ -12,6 +14,8 @@ export default async function AdminMembresPage() {
 
   const members = await listAllMembersForAdmin();
   const impacts = await Promise.all(members.map((m) => getMemberDeletionImpact(m.id)));
+  const invitations = await listInvitations(null);
+  const waiting = invitations.filter((i) => i.status !== "joined").length;
 
   return (
     <Container>
@@ -22,6 +26,16 @@ export default async function AdminMembresPage() {
         <Card className="mt-3 p-4">
           <InviteByEmailForm />
         </Card>
+      </section>
+
+      <section className="mt-8" aria-label="Toutes les invitations">
+        <SectionTitle>Toutes les invitations</SectionTitle>
+        <p className="mt-1 text-sm text-muted">
+          {invitations.length} {invitations.length > 1 ? "adresses invitées" : "adresse invitée"} · {waiting} pas encore {waiting > 1 ? "venues" : "venue"}. Qui a invité qui, et si la personne a rejoint le CLHUB.
+        </p>
+        <div className="mt-3">
+          <InvitationList invitations={invitations} showInviters />
+        </div>
       </section>
 
       <section className="mt-8">

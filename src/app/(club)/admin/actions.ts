@@ -1,12 +1,12 @@
 "use server";
 
+import { sendInvitation } from "@/modules/invitations/data";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { unlockAdmin, requireAdmin, lockAdmin, setViewAsMember } from "@/core/auth/admin";
 import { getSession } from "@/core/auth/session";
 import {
   deleteMemberCascade,
-  inviteMemberByEmail,
   setMemberRole,
 } from "@/modules/admin/data/members";
 import { deleteItemCascade, reassignItemOwner } from "@/modules/admin/data/items";
@@ -49,7 +49,8 @@ export async function adminInviteAction(
     return { status: "error", message: "Adresse mail invalide." };
   }
 
-  await inviteMemberByEmail(session.member.id, session.user.name, email);
+  const sent = await sendInvitation(session.member.id, session.user.name, email);
+  if (!sent.ok) return { status: "error", message: sent.error };
   revalidatePath("/admin/membres");
   return { status: "success" };
 }

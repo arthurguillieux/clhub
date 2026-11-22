@@ -25,9 +25,6 @@ import {
   activity,
   invitation,
 } from "@/core/db/schema";
-import { createInvitation } from "@/core/auth/invitations";
-import { sendMail } from "@/core/mail/send";
-import { InvitationEmail } from "@/core/mail/templates/InvitationEmail";
 import { deleteItemsOwnedByMember } from "./items";
 
 export interface AdminMemberRow {
@@ -65,17 +62,6 @@ export async function setMemberRole(memberId: string, role: "member" | "admin"):
 }
 
 /** Reuses the same invitation + mail machinery as the member-facing /invite page. */
-export async function inviteMemberByEmail(adminMemberId: string, adminName: string, email: string): Promise<void> {
-  const { invitation: created, token } = await createInvitation(email, adminMemberId);
-  const url = `${process.env.APP_URL}/invitations/${token}`;
-  await sendMail({
-    to: created.email,
-    subject: "LE CLHUB — tu es invité·e",
-    react: InvitationEmail({ inviterName: adminName, url }),
-    devFallbackMessage: `Invitation link for ${created.email}:\n${url}`,
-  });
-}
-
 export interface MemberDeletionImpact {
   itemsOwned: number;
   bookingsAsBorrower: number;
