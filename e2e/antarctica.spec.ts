@@ -145,3 +145,43 @@ test("antarctica: « Simuler une partie » opens at loop 2 with loop 1's dead se
   await page.getByRole("button", { name: "Supprimer les simulations" }).click();
   await expect(page.getByRole("heading", { name: "Simulations" })).toHaveCount(0);
 });
+
+test("antarctica: the meneur keeps control — faults off, Stop, black screen, back in time", async ({ page, browser, baseURL }) => {
+  test.setTimeout(90_000);
+  await page.goto("/jeux/loups/scenarios");
+  if (await page.getByLabel("Mot de passe du scénario").count()) {
+    await page.getByLabel("Mot de passe du scénario").fill("APE26");
+    await page.getByRole("button", { name: "Ouvrir le scénario" }).click();
+  }
+  await page.locator('select[name="start"]').selectOption("b1-day3");
+  await page.getByRole("button", { name: "🧪 Simuler une partie" }).click();
+  await expect(page.getByText("Boucle 1 · Jour 3").first()).toBeVisible();
+  const link = await page.getByLabel("Lien de la projection").inputValue().catch(() => null);
+  void link;
+
+  await page.locator("summary", { hasText: /^FAILLES/ }).click();
+  // The switch follows the journal: it flips once the server has written it down.
+  await page.getByLabel("Toutes les failles").click();
+  await expect(page.getByRole("button", { name: /Glitch d'en-tête/ })).toBeDisabled();
+  await page.getByLabel("Toutes les failles").click();
+  await expect(page.getByRole("button", { name: /Glitch d'en-tête/ })).toBeEnabled();
+
+  const bar = page.getByRole("navigation", { name: "Commandes" });
+  await bar.getByRole("button", { name: /Écran noir/ }).click();
+  await expect(bar.getByRole("button", { name: /Écran noir/ })).toContainText("revenir");
+  await bar.getByRole("button", { name: /Stop/ }).click();
+  await page.locator("summary", { hasText: /^JOURNAL/ }).click();
+  await expect(page.getByText(/Stop : tout s'arrête/)).toBeVisible();
+
+  await page.getByText("Revenir à un moment passé…").click();
+  await page.getByRole("button", { name: "↺ Boucle 1 · Nuit 2" }).click();
+  await page.getByRole("button", { name: "Revenir à ce moment" }).click();
+  await expect(page.getByText("Boucle 1 · Nuit 2").first()).toBeVisible();
+
+  // A live evening can be deleted from its console.
+  await page.getByRole("button", { name: "Supprimer cette soirée" }).click();
+  await page.getByRole("button", { name: "Supprimer définitivement" }).click();
+  await expect(page).toHaveURL(/\/jeux\/loups\/scenarios$/);
+  void browser;
+  void baseURL;
+});

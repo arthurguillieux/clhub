@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLongPoll } from "@/app/(killer)/killer/useLongPoll";
 import type { ProjectionView } from "@/modules/loups/scenarios/data";
-import { registry, type Action } from "@/modules/loups/scenarios/engine";
+import { registry, timeLeft, type Action } from "@/modules/loups/scenarios/engine";
 import { parseCues, type Cue } from "@/modules/loups/scenarios/subtitles";
 import type { Fault, PublicScenario, Terminal } from "@/modules/loups/scenarios/types";
 import { projectionReportAction } from "../../actions";
@@ -69,6 +69,8 @@ export function Projection({ token, def, initial }: { token: string; def: Public
 
   // ── Sounds: one-shots on a gesture, ambiances while the state says so ──
   const sounds = useRef(new Map<string, HTMLAudioElement>());
+  /** What « lecture, pause, ±10 s » acts on: the tape on the terminal, else the last sound played. */
+  const media = useRef<HTMLMediaElement | null>(null);
   const soundOf = useCallback(
     (slot: string) => {
       const url = urlOf(slot);
@@ -142,7 +144,9 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   }, []);
 
   useEffect(() => {
-    const fresh = view.recent.filter((r) => (lastSeq.current === null ? view.now - r.at < 4000 : r.seq > lastSeq.current));
+    // Only gestures of the last few seconds: after a network cut, the screen catches up with the
+    // journal without replaying the sounds and videos that went by meanwhile.
+    const fresh = view.recent.filter((r) => view.now - r.at < 5000 && (lastSeq.current === null || r.seq > lastSeq.current));
     lastSeq.current = Math.max(lastSeq.current ?? 0, ...view.recent.map((r) => r.seq));
     const allFaults = [...def.faults, ...view.extraFaults];
     for (const { action: a } of fresh) {
@@ -202,12 +206,43 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           if (el && !el.loop) {
             el.currentTime = 0;
             void el.play().catch(() => undefined);
+            media.current = el;
           }
           break;
         }
         case "stopSound":
           if (!a.slot) for (const el of sounds.current.values()) el.pause();
           break;
+        case "stop":
+          // Everything stops: sounds, the tape, the faults on screen, the announcements.
+          for (const el of sounds.current.values()) el.pause();
+          media.current?.pause();
+          timers.current.forEach(clearTimeout);
+          timers.current = [];
+          setTracker(false);
+          setFaultShow(null);
+          setAnnounce(null);
+          setEventBig(false);
+          setReboot(null);
+          setOverlay(null);
+          setDarkOverride(null);
+          break;
+        case "neutral":
+          setTracker(false);
+          setFaultShow(null);
+          setAnnounce(null);
+          setEventBig(false);
+          break;
+        case "media": {
+          const el = media.current;
+          if (!el) break;
+          if (a.cmd === "play") void el.play().catch(() => undefined);
+          if (a.cmd === "pause") el.pause();
+          if (a.cmd === "restart") el.currentTime = 0;
+          if (a.cmd === "back") el.currentTime = Math.max(0, el.currentTime - 10);
+          if (a.cmd === "forward") el.currentTime = Math.min(el.duration || Infinity, el.currentTime + 10);
+          break;
+        }
         case "record":
           void startRecording();
           break;
@@ -258,11 +293,12 @@ export function Projection({ token, def, initial }: { token: string; def: Public
     const timer = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(timer);
   }, []);
-  const gaugeLeft = s.gauge ? Math.max(0, s.gauge.seconds - (now + offset - s.gauge.at) / 1000) : null;
+  const gaugeLeft = s.gauge ? timeLeft(s.gauge, now + offset) : null;
+  const mainLeft = s.timer ? timeLeft(s.timer, now + offset) : null;
   const gaugeDone = useRef<number | null>(null);
   useEffect(() => {
-    if (s.gauge && gaugeLeft === 0 && gaugeDone.current !== s.gauge.at) {
-      gaugeDone.current = s.gauge.at;
+    if (s.gauge && gaugeLeft === 0 && gaugeDone.current !== s.gauge.endsAt) {
+      gaugeDone.current = s.gauge.endsAt;
       SFX.zap();
       flicker([1, 0, 1, 1, 0.6, 1, 0], 200);
     }
@@ -330,6 +366,9 @@ export function Projection({ token, def, initial }: { token: string; def: Public
                 recording={recording}
                 files={view.files}
                 registryLines={registry({ loop: s.loop, players: view.players, past: s.past })}
+                onMedia={(el) => {
+                  if (el) media.current = el;
+                }}
                 subtitlesOf={(slot) => {
                   const file = def.media.find((m) => m.id === slot)?.file;
                   return file ? (subtitles.get(keyOf(file.replace(/\.[^.]+$/, ".vtt"))) ?? null) : null;
@@ -348,7 +387,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
               <div className="absolute right-[2.2%] bottom-[8%] left-[2.2%] z-[7]">
                 <p className="text-[1.3cqw] tracking-[0.2em] text-[var(--scn-amber)]">CARBURANT GÉNÉRATEURS · {Math.ceil(gaugeLeft / 60)} MIN</p>
                 <div className="mt-[0.4%] h-[1.2cqw] border border-[var(--scn-amber)]">
-                  <div className="h-full bg-[var(--scn-amber)] transition-[width] duration-500" style={{ width: `${(gaugeLeft / (s.gauge?.seconds ?? 1)) * 100}%` }} />
+                  <div className="h-full bg-[var(--scn-amber)] transition-[width] duration-500" style={{ width: `${(gaugeLeft / (s.gauge?.total ?? 1)) * 100}%` }} />
                 </div>
               </div>
             )}
@@ -410,6 +449,16 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           </div>
         )}
 
+        {mainLeft !== null && s.timer && !s.neutral && (
+          <div className="absolute top-[9%] left-1/2 z-[12] -translate-x-1/2 border border-[var(--scn-amber)] bg-[rgba(5,8,12,.88)] px-[2%] py-[0.5%] text-center text-[var(--scn-amber)]">
+            {s.timer.label && <p className="text-[1.3cqw] tracking-[0.25em]">{s.timer.label.toUpperCase()}</p>}
+            <p className="text-[4.5cqw] leading-none tabular-nums">
+              {Math.floor(mainLeft / 60)}:{String(Math.floor(mainLeft % 60)).padStart(2, "0")}
+              {s.timer.endsAt === null && <span className="ml-[0.4em] text-[2cqw]">PAUSE</span>}
+            </p>
+          </div>
+        )}
+        {s.neutral === "black" && <div className="pj-full" style={{ zIndex: 20, background: "#000" }} />}
         {!!flash && <div key={flash} className="pj-flash" />}
         {overlay && (
           <div key={overlay.key} className={`pj-banner ${overlay.tone}`}>
@@ -604,6 +653,7 @@ function Crt({
   registryLines,
   subtitlesOf,
   simulated,
+  onMedia,
 }: {
   term: Terminal;
   playing: string | null;
@@ -615,6 +665,7 @@ function Crt({
   registryLines: string[];
   subtitlesOf: (slot: string | undefined) => string | null;
   simulated: boolean;
+  onMedia: (el: HTMLMediaElement | null) => void;
 }) {
   // What the preparation says the files are called and dated (the lore isn't fixed yet).
   const files = term.files.filter((f) => !f.fault || faults.includes(f.fault)).map((f) => ({ ...f, name: shown[f.id]?.name || f.name, date: shown[f.id]?.date || f.date }));
@@ -655,6 +706,7 @@ function Crt({
               cassetteFilter={file.kind === "recording" && !!recording.current}
               cues={parseCues(shown[file.id]?.subs ?? subtitlesOf(file.media) ?? "")}
               simulated={simulated}
+              onMedia={onMedia}
             />
           )}
         </div>
@@ -665,7 +717,21 @@ function Crt({
   );
 }
 
-function Tape({ file, url, cassetteFilter, cues, simulated }: { file: Terminal["files"][number]; url: string | null; cassetteFilter: boolean; cues: Cue[]; simulated: boolean }) {
+function Tape({
+  file,
+  url,
+  cassetteFilter,
+  cues,
+  simulated,
+  onMedia,
+}: {
+  file: Terminal["files"][number];
+  url: string | null;
+  cassetteFilter: boolean;
+  cues: Cue[];
+  simulated: boolean;
+  onMedia: (el: HTMLMediaElement | null) => void;
+}) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const audioEl = useRef<HTMLAudioElement>(null);
   const [line, setLine] = useState("");
@@ -722,7 +788,7 @@ function Tape({ file, url, cassetteFilter, cues, simulated }: { file: Terminal["
     );
   return (
     <>
-      {file.kind === "video" && <video src={url} autoPlay playsInline onTimeUpdate={follow} />}
+      {file.kind === "video" && <video ref={onMedia} src={url} autoPlay playsInline onTimeUpdate={follow} />}
       {file.kind === "image" && (
         // eslint-disable-next-line @next/next/no-img-element -- a local file of the projection computer
         <img src={url} alt="" />
@@ -730,7 +796,14 @@ function Tape({ file, url, cassetteFilter, cues, simulated }: { file: Terminal["
       {(file.kind === "audio" || file.kind === "recording") && (
         <>
           <canvas ref={canvas} />
-          <audio ref={audioEl} src={url} onTimeUpdate={follow} />
+          <audio
+            ref={(el) => {
+              audioEl.current = el;
+              onMedia(el);
+            }}
+            src={url}
+            onTimeUpdate={follow}
+          />
         </>
       )}
       {file.kind !== "image" && (

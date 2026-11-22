@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ANTARCTICA } from "./antarctica";
-import { alive, contagionActive, dawnDeaths, missedClues, nightSteps, pack, proposals, recap, registry, replay, suggestedWinner, type Action, type Setup } from "./engine";
+import { alive, contagionActive, dawnDeaths, missedClues, nightSteps, pack, proposals, recap, registry, replay, suggestedWinner, timeLeft, type Action, type Setup } from "./engine";
 import { checkPassword } from "./index";
 
 const NAMES = ["Ana", "Ben", "Cléo", "Dan", "Eli", "Fanny", "Gus", "Hugo", "Inès", "Jade"];
@@ -172,5 +172,46 @@ describe("V1.1: SUJETS.DAT", () => {
     expect(lines.join("\n")).toMatch(/SESSION 01 : EXCLU  \(SESSION 01, JOUR 1\)/);
     expect(lines.find((l) => l.includes("FANNY"))).toMatch(/DÉCÉDÉ \(SESSION 02, NUIT 1\)/);
     expect(lines.join("\n")).not.toMatch(/CONTAMIN|SAIN/);
+  });
+});
+
+describe("full control for the meneur", () => {
+  it("a fault switched off never goes off, and comes back once switched on", () => {
+    expect(run([...start, { t: "faultToggle", id: "glitch", on: false }, { t: "fault", id: "glitch" }]).faults).toEqual([]);
+    expect(run([...start, { t: "faultToggle", id: null, on: false }, { t: "fault", id: "hallmic" }]).terminal).toBeNull();
+    expect(run([...start, { t: "faultToggle", id: null, on: false }, { t: "faultToggle", id: "glitch", on: true }, { t: "fault", id: "glitch" }]).faults).toHaveLength(1);
+  });
+
+  it("Stop silences everything that plays, the base stays as it is", () => {
+    const s = run([...start, { t: "light", on: true }, { t: "sound", slot: "son-vent" }, { t: "intrusion", text: "Bonsoir." }, { t: "blizzard", on: true }, { t: "gauge", seconds: 120 }, { t: "fault", id: "hallmic" }, { t: "stop" }]);
+    expect(s).toMatchObject({ playing: null, ambiances: [], intrusion: null, blizzard: false, gauge: null, light: true });
+  });
+
+  it("the neutral screen closes what's open; jump goes anywhere; rooms swap", () => {
+    expect(run([...start, { t: "terminal", id: "accueil" }, { t: "neutral", mode: "plan" }])).toMatchObject({ neutral: "plan", terminal: null });
+    expect(run([...start, { t: "jump", phase: "day" }])).toMatchObject({ phase: "day", round: 1 });
+    const s = run([...start, { t: "room", player: "p1", room: 3 }]);
+    expect(s.players.find((p) => p.id === "p1")?.room).toBe(3);
+    expect(s.players.find((p) => p.id === "p3")?.room).toBe(1);
+  });
+
+  it("a locked door opens only when forced", () => {
+    expect(run([...start, { t: "door", door: "alpha", open: true }]).doors.alpha).toBe(false);
+    expect(run([...start, { t: "door", door: "alpha", open: true, force: true }]).doors.alpha).toBe(true);
+  });
+
+  it("timers pause, resume and take a minute more or less", () => {
+    const at = (actions: Action[], times: number[]) =>
+      replay(
+        ANTARCTICA,
+        setup(),
+        actions.map((action, i) => ({ action, at: times[i] ?? 0 })),
+      );
+    const timer: Action[] = [{ t: "timer", which: "main", cmd: "start", seconds: 60, label: "Débat" }, { t: "timer", which: "main", cmd: "pause" }];
+    const paused = at(timer, [0, 20_000]);
+    expect(timeLeft(paused.timer!, 99_000)).toBe(40);
+    const resumed = at([...timer, { t: "timer", which: "main", cmd: "resume" }, { t: "timer", which: "main", cmd: "plus" }], [0, 20_000, 50_000, 50_000]);
+    expect(timeLeft(resumed.timer!, 60_000)).toBe(90);
+    expect(at([...timer, { t: "timer", which: "main", cmd: "stop" }], [0, 1, 2]).timer).toBeNull();
   });
 });

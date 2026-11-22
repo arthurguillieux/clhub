@@ -12,6 +12,7 @@ import {
   simulateEvening,
   finish,
   getByToken,
+  rewind,
   getConsoleView,
   launch,
   reportProjection,
@@ -114,7 +115,20 @@ const actionSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("patientZero"), player }),
   z.object({ t: z.literal("light"), on: z.boolean() }),
   z.object({ t: z.literal("cut") }),
-  z.object({ t: z.literal("door"), door: id, open: z.boolean() }),
+  z.object({ t: z.literal("door"), door: id, open: z.boolean(), force: z.boolean().optional() }),
+  z.object({
+    t: z.literal("timer"),
+    which: z.enum(["gauge", "main"]),
+    cmd: z.enum(["start", "pause", "resume", "plus", "minus", "stop"]),
+    seconds: z.number().int().min(5).max(3600).optional(),
+    label: text(40).optional(),
+  }),
+  z.object({ t: z.literal("faultToggle"), id: id.nullable(), on: z.boolean() }),
+  z.object({ t: z.literal("stop") }),
+  z.object({ t: z.literal("neutral"), mode: z.enum(["plan", "black"]).nullable() }),
+  z.object({ t: z.literal("media"), cmd: z.enum(["play", "pause", "restart", "back", "forward"]) }),
+  z.object({ t: z.literal("jump"), phase: z.enum(["welcome", "bus", "arrival", "night", "day", "loopEnd", "good", "bad"]) }),
+  z.object({ t: z.literal("room"), player, room: z.number().int().min(1).max(40) }),
   z.object({ t: z.literal("terminal"), id: id.nullable() }),
   z.object({ t: z.literal("play"), file: id }),
   z.object({ t: z.literal("circuit"), show: z.boolean() }),
@@ -156,6 +170,7 @@ const consoleSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("launch") }),
   z.object({ type: z.literal("act"), action: actionSchema }),
   z.object({ type: z.literal("undo") }),
+  z.object({ type: z.literal("rewind"), seq: z.number().int().min(0) }),
   z.object({ type: z.literal("finish") }),
   z.object({ type: z.literal("cohost"), memberId: z.string().uuid(), on: z.boolean() }),
 ]);
@@ -183,6 +198,8 @@ export async function consoleAction(code: string, input: unknown): Promise<Conso
         return act(game, a.action as Action);
       case "undo":
         return undo(game);
+      case "rewind":
+        return rewind(game, a.seq);
       case "finish":
         return finish(game);
       case "cohost":

@@ -69,7 +69,7 @@ export function Console({
   const s = view.state;
   const p = view.projection;
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-3 px-3 pt-4 pb-24">
+    <div className="mx-auto flex max-w-lg flex-col gap-3 px-3 pt-4 pb-36">
       <header className="flex flex-col gap-1 border-b border-[var(--scn-line)] pb-3">
         <div className="flex items-center justify-between gap-2">
           <h1 className="scn-vt text-2xl tracking-wider text-[var(--scn-ice)]">CONSOLE · {def.title.toUpperCase()}</h1>
@@ -107,10 +107,80 @@ export function Console({
           <Faults def={def} view={view} busy={busy} act={act} />
           <Sounds def={def} view={view} busy={busy} act={act} />
           <Effects def={def} view={view} busy={busy} act={act} />
-          <Journal view={view} />
+          <Journal view={view} send={send} />
+          {view.role === "host" && <DeleteEvening code={code} live />}
         </>
       )}
       {view.status === "done" && <Done code={code} view={view} />}
+      {view.status === "live" && <CommandBar view={view} busy={busy} act={act} send={send} />}
+    </div>
+  );
+}
+
+/**
+ * Always there, one gesture away, above everything (no dialog ever covers it): Stop, the neutral
+ * screen, Annuler. The meneur is never stuck.
+ */
+function CommandBar({ view, busy, act, send }: { view: ConsoleView; busy: boolean; act: Act; send: Send }) {
+  const s = view.state;
+  return (
+    <nav aria-label="Commandes" className="fixed inset-x-0 bottom-0 z-[70] border-t border-[var(--scn-line)] bg-[rgba(12,18,24,.97)] px-2 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto grid max-w-lg grid-cols-4 gap-1.5">
+        <button type="button" className="scn-btn scn-btn-danger min-h-12 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "stop" })}>
+          ■ Stop<small>tout ce qui joue</small>
+        </button>
+        <button type="button" className={`scn-btn min-h-12 px-1 text-xs ${s.neutral === "plan" ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "neutral", mode: s.neutral === "plan" ? null : "plan" })}>
+          Écran neutre<small>{s.neutral === "plan" ? "revenir" : "le plan"}</small>
+        </button>
+        <button type="button" className={`scn-btn min-h-12 px-1 text-xs ${s.neutral === "black" ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "neutral", mode: s.neutral === "black" ? null : "black" })}>
+          Écran noir<small>{s.neutral === "black" ? "revenir" : "secours"}</small>
+        </button>
+        <button type="button" className="scn-btn min-h-12 px-1 text-xs" disabled={busy || !view.canUndo} onClick={() => void send({ type: "undo" })}>
+          ↶ Annuler<small>dernière action</small>
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+/** Play, pause, back to the start, ±10 s: for the tape on the terminal, or the last sound played. */
+function MediaControls({ busy, act }: { busy: boolean; act: Act }) {
+  return (
+    <div className="grid grid-cols-5 gap-1">
+      {(
+        [
+          ["restart", "⏮", "Au début"],
+          ["back", "−10 s", "Reculer de 10 s"],
+          ["pause", "⏸", "Pause"],
+          ["play", "▶", "Lecture"],
+          ["forward", "+10 s", "Avancer de 10 s"],
+        ] as const
+      ).map(([cmd, label, aria]) => (
+        <button key={cmd} type="button" aria-label={aria} className="scn-btn min-h-10 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "media", cmd })}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** A timer's controls: pause or resume, one minute more or less, stop. */
+function TimerControls({ which, timer, busy, act }: { which: "gauge" | "main"; timer: { endsAt: number | null } | null; busy: boolean; act: Act }) {
+  if (!timer) return null;
+  return (
+    <div className="grid grid-cols-4 gap-1">
+      <button type="button" className="scn-btn min-h-10 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "timer", which, cmd: timer.endsAt === null ? "resume" : "pause" })}>
+        {timer.endsAt === null ? "▶ Reprendre" : "⏸ Pause"}
+      </button>
+      <button type="button" className="scn-btn min-h-10 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "timer", which, cmd: "minus" })}>
+        −1 min
+      </button>
+      <button type="button" className="scn-btn min-h-10 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "timer", which, cmd: "plus" })}>
+        +1 min
+      </button>
+      <button type="button" className="scn-btn scn-btn-danger min-h-10 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "timer", which, cmd: "stop" })}>
+        ■ Arrêter
+      </button>
     </div>
   );
 }
@@ -249,13 +319,14 @@ function PhaseSection({ def, view, busy, act, send }: Props & { send: Send }) {
           </button>
         </>
       )}
+      <Jump busy={busy} act={act} />
       {(s.phase === "day" || s.phase === "night" || s.phase === "arrival" || s.phase === "loopEnd") && (
         <button type="button" className="scn-btn scn-btn-danger mt-1" disabled={busy} onClick={() => setConfirmGood(true)}>
           Le village vote contre le meneur
         </button>
       )}
       {confirmBad && (
-        <div role="dialog" aria-modal="true" aria-label="Mauvaise fin" className="scn-veil fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center" onClick={() => setConfirmBad(false)}>
+        <div role="dialog" aria-modal="true" aria-label="Mauvaise fin" className="scn-veil fixed inset-x-0 top-0 bottom-[4.75rem] z-50 flex items-end justify-center p-3 sm:items-center" onClick={() => setConfirmBad(false)}>
           <div className="scn-sec w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
             <p className="scn-vt text-2xl text-[var(--scn-bad)]">FIN DE SESSION</p>
             <p className="mt-1 text-sm text-[var(--scn-muted)]">C&apos;était la dernière boucle : la mauvaise fin s&apos;affiche, puis les indices manqués défilent.</p>
@@ -278,7 +349,7 @@ function PhaseSection({ def, view, busy, act, send }: Props & { send: Send }) {
         </div>
       )}
       {confirmGood && (
-        <div role="dialog" aria-modal="true" aria-label="Bonne fin" className="scn-veil fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center" onClick={() => setConfirmGood(false)}>
+        <div role="dialog" aria-modal="true" aria-label="Bonne fin" className="scn-veil fixed inset-x-0 top-0 bottom-[4.75rem] z-50 flex items-end justify-center p-3 sm:items-center" onClick={() => setConfirmGood(false)}>
           <div className="scn-sec w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
             <p className="scn-vt text-2xl text-[var(--scn-ok)]">LE VILLAGE VOTE CONTRE LE MENEUR</p>
             <p className="mt-1 text-sm text-[var(--scn-muted)]">La simulation s&apos;interrompt : c&apos;est la vraie fin.</p>
@@ -301,6 +372,43 @@ function PhaseSection({ def, view, busy, act, send }: Props & { send: Send }) {
         </div>
       )}
     </Section>
+  );
+}
+
+/** « Sauter à »: any phase, out of the expected order, for a meneur who knows better. */
+function Jump({ busy, act }: { busy: boolean; act: Act }) {
+  const [phase, setPhase] = useState("");
+  const PHASES = [
+    ["bus", "Le bus"],
+    ["arrival", "L'arrivée"],
+    ["night", "La nuit"],
+    ["day", "Le jour"],
+    ["loopEnd", "La fin de boucle (reboot)"],
+  ] as const;
+  return (
+    <details className="text-xs">
+      <summary className="cursor-pointer py-2 text-[var(--scn-muted)]">Sauter à une autre phase…</summary>
+      <div className="grid grid-cols-[1fr_auto] gap-2">
+        <select aria-label="Phase" value={phase} onChange={(e) => setPhase(e.target.value)} className="scn-field">
+          <option value="">Phase…</option>
+          {PHASES.map(([id, label]) => (
+            <option key={id} value={id}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="scn-btn"
+          disabled={busy || !phase}
+          onClick={async () => {
+            if (!(await act({ t: "jump", phase: phase as "bus" | "arrival" | "night" | "day" | "loopEnd" }))) setPhase("");
+          }}
+        >
+          Sauter
+        </button>
+      </div>
+    </details>
   );
 }
 
@@ -529,6 +637,19 @@ function Players({ def, view, busy, act }: Props) {
                 <button type="button" className="scn-btn min-h-9 px-2 text-[0.66rem]" disabled={busy} onClick={() => void act({ t: "setInfected", player: p.id, infected: !p.infected })}>
                   {p.infected ? "Sain" : "Contaminé"}
                 </button>
+                <select
+                  aria-label={`Chambre de ${p.name}`}
+                  value={p.room}
+                  disabled={busy}
+                  onChange={(e) => void act({ t: "room", player: p.id, room: Number(e.target.value) })}
+                  className="scn-field min-h-9 px-1 text-[0.66rem]"
+                >
+                  {s.players.map((_, i) => (
+                    <option key={i} value={i + 1}>
+                      ch. {i + 1}
+                    </option>
+                  ))}
+                </select>
               </span>
             </li>
           );
@@ -605,6 +726,11 @@ function Base({ def, view, busy, act }: Props) {
           >
             {d.locked ? "Tenter" : s.doors[d.id] ? "Fermer" : "Ouvrir"}
           </button>
+          {d.locked && (
+            <button type="button" className="scn-btn w-20 px-1 text-[0.66rem]" disabled={busy} onClick={() => void act({ t: "door", door: d.id, open: !s.doors[d.id], force: true })}>
+              {s.doors[d.id] ? "Refermer" : "Forcer"}
+            </button>
+          )}
         </div>
       ))}
     </Section>
@@ -636,6 +762,7 @@ function Terminals({ def, view, busy, act }: Props) {
                 <small>{view.setup.files?.[f.id]?.date || f.meta}</small>
               </button>
             ))}
+          {s.playing && <MediaControls busy={busy} act={act} />}
           <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "terminal", id: null })}>
             Retour au plan
           </button>
@@ -680,21 +807,38 @@ function Faults({ def, view, busy, act }: Props) {
   const s = view.state;
   const all = [...def.faults, ...view.setup.extraFaults];
   const done = new Set(s.faults.map((f) => f.id));
+  const off = new Set(s.faultsOff);
+  const allOn = all.every((f) => !off.has(f.id));
   return (
-    <Section title="FAILLES" chip={<span className="scn-chip">{s.faults.length} déclenchées</span>}>
+    <Section title="FAILLES" chip={<span className="scn-chip">{s.faults.length} déclenchées · {all.length - off.size} actives</span>}>
+      <label className="flex min-h-11 items-center justify-between gap-3 text-sm">
+        <span>Toutes les failles</span>
+        <input type="checkbox" checked={allOn} disabled={busy} onChange={(e) => void act({ t: "faultToggle", id: null, on: e.target.checked })} className="h-6 w-6" />
+      </label>
       {all
         .slice()
         .sort((a, b) => Number(!a.loops.includes(s.loop)) - Number(!b.loops.includes(s.loop)))
         .map((f) => (
-          <button key={f.id} type="button" className={`scn-btn text-left ${done.has(f.id) ? "scn-btn-on" : f.loops.includes(s.loop) ? "scn-btn-fault" : ""}`} disabled={busy} onClick={() => void act({ t: "fault", id: f.id })}>
-            {done.has(f.id) ? "✓ " : ""}
-            {f.title}
-            <small>
-              boucle {f.loops.join(" et ")}
-              {f.kind === "terminalFile" && f.id === "hallmic" ? (view.projection.mic ? " · joue l'enregistrement de la salle" : " · joue le fichier de secours") : ""}
-            </small>
-          </button>
+          <div key={f.id} className="flex items-stretch gap-2">
+            <input type="checkbox" aria-label={`${f.title} : activée`} checked={!off.has(f.id)} disabled={busy} onChange={(e) => void act({ t: "faultToggle", id: f.id, on: e.target.checked })} className="h-6 w-6 shrink-0 self-center" />
+            <button
+              type="button"
+              className={`scn-btn flex-1 text-left ${done.has(f.id) ? "scn-btn-on" : f.loops.includes(s.loop) ? "scn-btn-fault" : ""}`}
+              disabled={busy || off.has(f.id)}
+              onClick={() => void act({ t: "fault", id: f.id })}
+            >
+              {done.has(f.id) ? "✓ " : ""}
+              {f.title}
+              <small>
+                {off.has(f.id) ? "désactivée" : `boucle ${f.loops.join(" et ")}`}
+                {f.kind === "terminalFile" && f.id === "hallmic" ? (view.projection.mic ? " · joue l'enregistrement de la salle" : " · joue le fichier de secours") : ""}
+              </small>
+            </button>
+          </div>
         ))}
+      <button type="button" className="scn-btn scn-btn-danger" disabled={busy} onClick={() => void act({ t: "stop" })}>
+        Arrêter la faille en cours
+      </button>
     </Section>
   );
 }
@@ -723,6 +867,8 @@ function Sounds({ def, view, busy, act }: Props) {
           </Row>
         </div>
       ))}
+      <p className="scn-head mt-1">LECTURE</p>
+      <MediaControls busy={busy} act={act} />
       <button type="button" className="scn-btn scn-btn-danger" disabled={busy} onClick={() => void act({ t: "stopSound", slot: null })}>
         Couper tous les sons
       </button>
@@ -749,6 +895,22 @@ function Effects({ view, busy, act }: Props) {
           Jauge des générateurs<small>{s.gauge ? "arrêter" : `${Math.round(view.setup.params.gaugeSeconds / 60)} min`}</small>
         </button>
       </Row>
+      <TimerControls which="gauge" timer={s.gauge} busy={busy} act={act} />
+      <p className="scn-head mt-1">MINUTEUR</p>
+      {s.timer ? (
+        <TimerControls which="main" timer={s.timer} busy={busy} act={act} />
+      ) : (
+        <Row>
+          {[
+            ["Débat", 300],
+            ["Chrono", 60],
+          ].map(([label, seconds]) => (
+            <button key={label} type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "timer", which: "main", cmd: "start", seconds: Number(seconds), label: String(label) })}>
+              {label} · {Number(seconds) / 60} min
+            </button>
+          ))}
+        </Row>
+      )}
       <p className="scn-head mt-1">INTRUSION</p>
       {s.intrusion ? (
         <>
@@ -776,9 +938,43 @@ function Effects({ view, busy, act }: Props) {
   );
 }
 
-function Journal({ view }: { view: ConsoleView }) {
+function Journal({ view, send }: { view: ConsoleView; send?: Send }) {
+  const [target, setTarget] = useState<{ seq: number; label: string } | null>(null);
   return (
     <Section title="JOURNAL" chip={<span className="scn-chip">{view.state.log.length}</span>}>
+      {send && view.marks.length > 0 && (
+        <details className="text-xs">
+          <summary className="cursor-pointer py-2 text-[var(--scn-muted)]">Revenir à un moment passé…</summary>
+          <div className="flex flex-col gap-1">
+            {[...view.marks].reverse().map((m) => (
+              <button key={m.seq} type="button" className="scn-btn min-h-10 text-left text-xs" onClick={() => setTarget(m)}>
+                ↺ {m.label}
+              </button>
+            ))}
+          </div>
+        </details>
+      )}
+      {target && send && (
+        <div className="rounded-xl border border-[var(--scn-amber)] p-3 text-sm">
+          <p>
+            Revenir au début de <b>{target.label}</b> ? Tout ce qui a suivi est effacé du journal.
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              className="scn-btn scn-btn-amber"
+              onClick={async () => {
+                if (!(await send({ type: "rewind", seq: target.seq }))) setTarget(null);
+              }}
+            >
+              Revenir à ce moment
+            </button>
+            <button type="button" className="scn-btn" onClick={() => setTarget(null)}>
+              Rester ici
+            </button>
+          </div>
+        </div>
+      )}
       <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto text-xs">
         {[...view.state.log].reverse().map((l, i) => (
           <li key={i} className={i === 0 ? "" : "text-[var(--scn-muted)]"}>
@@ -787,6 +983,39 @@ function Journal({ view }: { view: ConsoleView }) {
         ))}
       </ul>
     </Section>
+  );
+}
+
+/** Deleting an evening, at any stage (a rehearsal, a false start): its journal goes with it. */
+function DeleteEvening({ code, live = false }: { code: string; live?: boolean }) {
+  const [asking, setAsking] = useState(false);
+  const [going, setGoing] = useState(false);
+  if (!asking)
+    return (
+      <button type="button" className="py-2 text-sm text-[var(--scn-bad)] underline" onClick={() => setAsking(true)}>
+        Supprimer cette soirée
+      </button>
+    );
+  return (
+    <div className="rounded-xl border border-[var(--scn-bad)] p-3 text-sm">
+      <p>{live ? "La soirée est en cours : elle s'arrête, et son journal et sa préparation sont effacés définitivement." : "Son journal et sa préparation sont effacés définitivement."}</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          className="scn-btn scn-btn-danger"
+          disabled={going}
+          onClick={() => {
+            setGoing(true);
+            deleteEveningAction(code).catch(() => setGoing(false));
+          }}
+        >
+          {going ? "Suppression…" : "Supprimer définitivement"}
+        </button>
+        <button type="button" className="scn-btn" onClick={() => setAsking(false)}>
+          Garder la soirée
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -827,7 +1056,7 @@ function Done({ code, view }: { code: string; view: ConsoleView }) {
         </button>
       )}
       {asking && (
-        <div role="dialog" aria-modal="true" aria-label="Supprimer la soirée" className="scn-veil fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center" onClick={() => setAsking(false)}>
+        <div role="dialog" aria-modal="true" aria-label="Supprimer la soirée" className="scn-veil fixed inset-x-0 top-0 bottom-[4.75rem] z-50 flex items-end justify-center p-3 sm:items-center" onClick={() => setAsking(false)}>
           <div className="scn-sec w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
             <p className="scn-vt text-2xl text-[var(--scn-bad)]">SUPPRIMER LA SOIRÉE ?</p>
             <p className="mt-1 text-sm text-[var(--scn-muted)]">Son journal et sa préparation sont effacés définitivement.</p>

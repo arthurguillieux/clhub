@@ -4,7 +4,7 @@ import { getSession } from "@/core/auth/session";
 import { db } from "@/core/db/client";
 import { member, scenarioAction, scenarioCohost, scenarioGame, scenarioUnlock, user, type ScenarioGame } from "@/core/db/schema";
 import { notifyGame } from "@/modules/killer/data/notifier";
-import { initialState, missedClues, recap, replay, suggestedWinner, type Action, type Setup, type State } from "./engine";
+import { apply, initialState, missedClues, momentOf, recap, replay, suggestedWinner, type Action, type Setup, type State } from "./engine";
 import { simulatedJournal, simulatedPlayers, type StartPoint } from "./simulate";
 import { checkPassword, scenarioOf } from "./index";
 import type { ScenarioDef } from "./types";
@@ -176,6 +176,14 @@ export async function act(g: ScenarioGame, action: Action): Promise<Result> {
   return { ok: true };
 }
 
+/** « Revenir à »: the journal is cut just after this action, as if what followed never happened. */
+export async function rewind(g: ScenarioGame, seq: number): Promise<Result> {
+  if (g.status !== "live") return fail("La soirée n'est pas en cours.");
+  await db.delete(scenarioAction).where(and(eq(scenarioAction.gameId, g.id), sql`${scenarioAction.seq} > ${seq}`));
+  await bump(g);
+  return { ok: true };
+}
+
 export async function undo(g: ScenarioGame): Promise<Result> {
   const [last] = await db.select({ seq: scenarioAction.seq }).from(scenarioAction).where(eq(scenarioAction.gameId, g.id)).orderBy(desc(scenarioAction.seq)).limit(1);
   if (!last) return fail("Rien à annuler.");
@@ -199,13 +207,22 @@ export interface ConsoleView {
   suggested: "village" | "meute" | null;
   clues: { at: string; text: string }[];
   recap: ReturnType<typeof recap>;
+  /** Where « Revenir à » can go: each arrival, nightfall and dawn, with its journal position. */
+  marks: { seq: number; label: string }[];
   cohosts: { memberId: string; name: string }[];
 }
 
 export async function getConsoleView(g: ScenarioGame, def: ScenarioDef, role: "host" | "cohost"): Promise<ConsoleView> {
   const setup = setupOf(g, def);
   const rows = await journal(g);
-  const state = g.status === "setup" ? initialState(def, setup) : stateOf(def, setup, rows);
+  let state = initialState(def, setup);
+  const marks: ConsoleView["marks"] = [];
+  if (g.status !== "setup")
+    for (const r of rows) {
+      const action = r.action as unknown as Action;
+      state = apply(def, setup, state, action, r.createdAt.getTime());
+      if (["arrive", "night", "dawn", "reboot"].includes(action.t)) marks.push({ seq: r.seq, label: momentOf(state) });
+    }
   return {
     code: g.code,
     link: projectionLink(g.token),
@@ -224,6 +241,7 @@ export async function getConsoleView(g: ScenarioGame, def: ScenarioDef, role: "h
     suggested: suggestedWinner(state),
     clues: missedClues(def, setup, state),
     recap: recap(state),
+    marks,
     cohosts: await cohostsOf(g),
   };
 }

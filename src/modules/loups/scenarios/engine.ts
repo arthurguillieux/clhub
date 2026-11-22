@@ -22,7 +22,7 @@ export type Action =
   | { t: "patientZero"; player: string }
   | { t: "light"; on: boolean }
   | { t: "cut" }
-  | { t: "door"; door: string; open: boolean }
+  | { t: "door"; door: string; open: boolean; force?: boolean }
   | { t: "terminal"; id: string | null }
   | { t: "play"; file: string }
   | { t: "circuit"; show: boolean }
@@ -32,6 +32,13 @@ export type Action =
   | { t: "blizzard"; on: boolean }
   | { t: "aurora"; on: boolean }
   | { t: "gauge"; seconds: number | null }
+  | { t: "timer"; which: "gauge" | "main"; cmd: "start" | "pause" | "resume" | "plus" | "minus" | "stop"; seconds?: number; label?: string }
+  | { t: "faultToggle"; id: string | null; on: boolean }
+  | { t: "stop" }
+  | { t: "neutral"; mode: "plan" | "black" | null }
+  | { t: "media"; cmd: "play" | "pause" | "restart" | "back" | "forward" }
+  | { t: "jump"; phase: Phase }
+  | { t: "room"; player: string; room: number }
   | { t: "intrusion"; text: string | null }
   | { t: "sound"; slot: string }
   | { t: "stopSound"; slot: string | null }
@@ -56,6 +63,33 @@ export type Action =
   | { t: "reboot" }
   | { t: "goodEnd" }
   | { t: "badEnd" };
+
+/** A countdown: running until `endsAt` (ms), or paused with `remaining` seconds left. */
+export interface Timer {
+  label: string;
+  total: number;
+  endsAt: number | null;
+  remaining: number | null;
+}
+
+/** Seconds left on a timer at `now` (ms). */
+export function timeLeft(t: Timer, now: number): number {
+  return Math.max(0, t.endsAt !== null ? (t.endsAt - now) / 1000 : (t.remaining ?? 0));
+}
+
+function runTimer(t: Timer | null, cmd: "start" | "pause" | "resume" | "plus" | "minus" | "stop", when: number, seconds?: number, label?: string): Timer | null {
+  if (cmd === "stop") return null;
+  if (cmd === "start") {
+    const total = Math.max(1, seconds ?? t?.total ?? 60);
+    return { label: label ?? t?.label ?? "", total, endsAt: when + total * 1000, remaining: null };
+  }
+  if (!t) return null;
+  const left = timeLeft(t, when);
+  if (cmd === "pause") return t.endsAt === null ? t : { ...t, endsAt: null, remaining: left };
+  if (cmd === "resume") return t.endsAt !== null ? t : { ...t, endsAt: when + left * 1000, remaining: null };
+  const next = Math.max(0, left + (cmd === "plus" ? 60 : -60));
+  return t.endsAt !== null ? { ...t, endsAt: when + next * 1000, total: Math.max(t.total, next) } : { ...t, remaining: next, total: Math.max(t.total, next) };
+}
 
 export type Phase = "welcome" | "bus" | "arrival" | "night" | "day" | "loopEnd" | "good" | "bad";
 export type NightStepId = "panic" | "tapes" | "infect" | "victim" | "items" | "dead";
@@ -94,8 +128,13 @@ export interface State {
   lastPower: boolean | null;
   blizzard: boolean;
   aurora: boolean;
-  /** The generators' gauge: its length in seconds and when it started (ms), for the projection to time it. */
-  gauge: { seconds: number; at: number } | null;
+  /** The generators' gauge, and the evening's main timer (votes, debate…). */
+  gauge: Timer | null;
+  timer: Timer | null;
+  /** Faults switched off: they can't be triggered, even by mistake. */
+  faultsOff: string[];
+  /** « Écran neutre »: the plan alone, or black, whatever was going on. */
+  neutral: "plan" | "black" | null;
   intrusion: string | null;
   /** Looping sounds playing on the projection. */
   ambiances: string[];
@@ -144,6 +183,9 @@ export function initialState(def: ScenarioDef, setup: Setup): State {
     blizzard: false,
     aurora: false,
     gauge: null,
+    timer: null,
+    faultsOff: [],
+    neutral: null,
     intrusion: null,
     ambiances: [],
     items: Object.fromEntries(def.items.map((i) => [i.id, { holder: null, used: false }])),
@@ -253,7 +295,7 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
     case "door": {
       const door = def.doors.find((d) => d.id === a.door);
       if (!door) return s;
-      if (door.locked) return { ...s, log: log(`Porte ${door.letter} ${door.label} : accès refusé.`) };
+      if (door.locked && !a.force) return { ...s, log: log(`Porte ${door.letter} ${door.label} : accès refusé.`) };
       return { ...s, doors: { ...s.doors, [a.door]: a.open }, log: log(`Porte ${a.open ? "ouverte" : "fermée"} : ${door.letter} ${door.label}.`) };
     }
     case "terminal": {
@@ -285,7 +327,40 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
     case "aurora":
       return { ...s, aurora: a.on };
     case "gauge":
-      return { ...s, gauge: a.seconds ? { seconds: a.seconds, at: when } : null };
+      return { ...s, gauge: a.seconds ? runTimer(null, "start", when, a.seconds, "Carburant") : null };
+    case "timer": {
+      const next = runTimer(a.which === "gauge" ? s.gauge : s.timer, a.cmd, when, a.seconds, a.label);
+      return a.which === "gauge" ? { ...s, gauge: next } : { ...s, timer: next };
+    }
+    case "faultToggle": {
+      const all = [...def.faults, ...setup.extraFaults].map((f) => f.id);
+      const ids = a.id ? [a.id] : all;
+      const faultsOff = a.on ? s.faultsOff.filter((x) => !ids.includes(x)) : [...new Set([...s.faultsOff, ...ids])];
+      return { ...s, faultsOff, log: log(a.id ? `Faille ${a.on ? "activée" : "désactivée"} : ${[...def.faults, ...setup.extraFaults].find((f) => f.id === a.id)?.title ?? a.id}.` : `Toutes les failles ${a.on ? "activées" : "désactivées"}.`) };
+    }
+    case "stop":
+      // Everything that plays on the projection stops; the base itself stays as it is.
+      return { ...s, playing: null, ambiances: [], gauge: null, timer: null, intrusion: null, blizzard: false, aurora: false, log: log("Stop : tout s'arrête sur la projection.") };
+    case "neutral":
+      return { ...s, neutral: a.mode, ...(a.mode ? { terminal: null, playing: null, circuitShown: false, intrusion: null } : {}) };
+    case "media":
+      // Play, pause, rewind… happen on the projection only: the evening's state doesn't change.
+      return s;
+    case "jump": {
+      // The meneur's « Sauter à »: no rule checked, the phase is simply set.
+      const round = a.phase === "night" ? s.round + 1 : a.phase === "bus" || a.phase === "arrival" ? 0 : Math.max(1, s.round);
+      return { ...s, phase: a.phase, round, tonight: a.phase === "night" ? emptyNight() : s.tonight, log: log(`Saut à : ${momentOf({ ...s, phase: a.phase, round })}.`) };
+    }
+    case "room": {
+      const p = s.players.find((x) => x.id === a.player);
+      if (!p || a.room < 1 || a.room > s.players.length) return s;
+      const other = s.players.find((x) => x.room === a.room);
+      return {
+        ...s,
+        players: s.players.map((x) => (x.id === p.id ? { ...x, room: a.room } : other && x.id === other.id ? { ...x, room: p.room } : x)),
+        log: log(`Correction : ${p.name} passe en chambre ${a.room}${other ? ` (${other.name} prend la ${p.room})` : ""}.`),
+      };
+    }
     case "intrusion":
       return { ...s, intrusion: a.text, log: a.text ? log("Intrusion dans la simulation.") : s.log };
     case "sound": {
@@ -299,7 +374,8 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
       return { ...s, log: log("Enregistrement de la salle : 30 s.") };
     case "fault": {
       const fault = [...def.faults, ...setup.extraFaults].find((f) => f.id === a.id);
-      if (!fault) return s;
+      // A fault switched off never goes off, not even by mistake.
+      if (!fault || s.faultsOff.includes(fault.id)) return s;
       const next = { ...s, faults: [...s.faults, { id: fault.id, at }], log: log(`Faille : ${fault.title.charAt(0).toLowerCase()}${fault.title.slice(1)}.`) };
       if (fault.kind === "terminalFile" && fault.terminal && fault.file) return { ...next, terminal: fault.terminal, playing: fault.file, circuitShown: false };
       return next;
