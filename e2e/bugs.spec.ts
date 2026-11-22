@@ -41,6 +41,11 @@ test("the admin sorts the reports out and copies them for Claude", async ({ page
   await expect(page.getByText(/Copié : colle-le/)).toBeVisible();
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   expect(copied).toContain("La partie ne se lance pas à 9 joueurs.");
+  // In admin mode, the header's menus open above the admin banner (a click checks nothing covers them).
+  await page.getByRole("button", { expanded: false }).filter({ hasText: /e2e/i }).first().click();
+  await page.getByRole("link", { name: "Réglages" }).click({ trial: true, timeout: 5000 });
+  await page.keyboard.press("Escape");
+  await page.mouse.click(5, 400);
   // « Voir comme un membre »: no admin page any more, then back without the code.
   await page.getByRole("button", { name: "Voir comme un membre" }).click();
   await expect(page.getByText("👁 Vue membre")).toBeVisible();

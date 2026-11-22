@@ -23,7 +23,7 @@ export async function Header({ user }: { user: HeaderUser }) {
   const isAdmin = await isAdminModeActive();
 
   return (
-    <header className="border-b border-line-soft bg-surface print:hidden">
+    <header className="relative z-50 border-b border-line-soft bg-surface print:hidden">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <AdminGateLogo />
 
