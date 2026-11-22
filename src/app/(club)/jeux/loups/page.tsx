@@ -33,9 +33,14 @@ export default async function LoupsHomePage() {
         L&apos;aide du meneur : le deck proposé selon le nombre de joueurs, les cartes tirées au sort si personne n&apos;a de jeu, l&apos;ordre des appels de la nuit, et la mémoire de
         tout ce qui s&apos;est passé (amoureux, potions, protections…). Les joueurs reçoivent un lien avec les règles de leurs cartes.
       </p>
-      <form action={newGameAction} className="mt-5">
-        <NewGameButton />
-      </form>
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <form action={newGameAction}>
+          <NewGameButton />
+        </form>
+        <Link href="/jeux/loups/scenarios" className="inline-flex min-h-12 items-center rounded-md border border-line px-5 text-base font-semibold text-ink hover:bg-surface">
+          🎭 Scénarios spéciaux
+        </Link>
+      </div>
 
       {games.length > 0 && (
         <section className="mt-8">

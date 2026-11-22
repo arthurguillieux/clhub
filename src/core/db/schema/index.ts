@@ -26,3 +26,4 @@ export * from "./killer";
 export * from "./santa";
 export * from "./lettre";
 export * from "./loups";
+export * from "./scenario";

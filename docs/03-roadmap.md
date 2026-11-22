@@ -223,6 +223,13 @@ effectuée pour de vrai au moins une fois.
       club : un compteur de points (joueurs, couleurs, +/-, persistant en local) et un
       lanceur de dés (d4 à d100, plusieurs dés, animation) — première version, aucune donnée
       persistée en base
+- [x] **Scénarios spéciaux des Loups-garous** (`/jeux/loups/scenarios`, 22/11/2026) — moteur générique
+  (un scénario = des données : plan, portes, terminaux, médias, événements, failles), un mot de passe
+  par scénario (empreinte seulement dans le code), la soirée = un journal d'actions rejoué
+  (« Annuler » fiable), console du meneur sur téléphone + projection 16:9 par lien secret, synchro par
+  long-polling. Premier scénario : **Antarctica : Sang-froid** (soirée APE du 06/02/2027) — boucles,
+  contagion paramétrable, panic room, objets, failles, intrusion, enregistrement de la salle gardé en
+  mémoire de la projection, médias gardés sur l'ordinateur de projection (IndexedDB), jamais envoyés.
 - [x] **Loups-garous** (`/jeux/loups`, 22/11/2026) — l'aide du meneur : deck proposé selon le
   nombre de joueurs (ordre d'Arthur, peste noire en option), vraies cartes ou tirage par le CLHUB
   (QR code par joueur, ou téléphone qu'on fait passer), appels de la nuit réordonnables, morts

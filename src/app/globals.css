@@ -1545,3 +1545,137 @@ body {
     radial-gradient(circle at 50% 18%, rgba(230, 207, 143, 0.28), transparent 50%),
     linear-gradient(160deg, #2a2316, #14110b);
 }
+
+/*
+ * Loups-garous › Scénarios spéciaux (Antarctica): a 1988 polar base under surveillance. Glacier blue for
+ * the plan and the interface, amber for the terminals, red only for blood and refusals, green for
+ * successes, magenta and cyan only for the faults (they don't belong to 1988).
+ */
+.scn {
+  --scn-bg: #05080c;
+  --scn-panel: #0c1218;
+  --scn-card: #121a22;
+  --scn-line: #1f2c38;
+  --scn-ice: #7fd8ff;
+  --scn-ice-dim: #2c6f8f;
+  --scn-ice-faint: #12303f;
+  --scn-amber: #ffb23e;
+  --scn-blood: #9b0f12;
+  --scn-blood-hi: #d0181c;
+  --scn-ok: #5fe39a;
+  --scn-bad: #ff4d4d;
+  --scn-magenta: #ff5fa2;
+  --scn-cyan: #00ffe1;
+  --scn-txt: #d8e6ef;
+  --scn-muted: #7f93a3;
+  min-height: 100dvh;
+  background: #020305;
+  color: var(--scn-txt);
+  font-family: var(--scn-font-mono), ui-monospace, monospace;
+}
+.scn-vt {
+  font-family: var(--scn-font-vt), ui-monospace, monospace;
+  font-weight: 400;
+}
+.scn-sec {
+  border: 1px solid var(--scn-line);
+  border-radius: 14px;
+  background: var(--scn-card);
+}
+.scn-sec > summary {
+  list-style: none;
+}
+.scn-sec > summary::-webkit-details-marker {
+  display: none;
+}
+.scn-head {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--scn-muted);
+}
+.scn-btn {
+  min-height: 48px;
+  border-radius: 11px;
+  border: 1px solid #2a3a48;
+  background: #17222d;
+  color: var(--scn-txt);
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.2;
+  padding: 6px 10px;
+  text-align: center;
+}
+.scn-btn small {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--scn-muted);
+  font-weight: 400;
+  margin-top: 2px;
+}
+.scn-btn:active {
+  transform: scale(0.98);
+}
+.scn-btn:disabled {
+  opacity: 0.35;
+}
+.scn-btn-primary {
+  background: #103042;
+  border-color: #1f6b8f;
+  color: #bfeaff;
+}
+.scn-btn-danger {
+  background: #2a1214;
+  border-color: #6b2226;
+  color: #ffc9c9;
+}
+.scn-btn-amber {
+  background: #2c210d;
+  border-color: #7a5418;
+  color: #ffd79a;
+}
+.scn-btn-on {
+  background: #0f3a28;
+  border-color: #2f8f5c;
+  color: #c8ffe0;
+}
+.scn-btn-fault {
+  background: #2a0f22;
+  border-color: #8f2f6b;
+  color: #ffc4e3;
+}
+.scn-chip {
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--scn-line);
+  color: var(--scn-muted);
+}
+.scn-chip-ok {
+  color: var(--scn-ok);
+  border-color: #1f5a3c;
+}
+.scn-chip-bad {
+  color: var(--scn-bad);
+  border-color: #5a1f1f;
+}
+.scn-chip-warn {
+  color: var(--scn-amber);
+  border-color: #5a4214;
+}
+.scn-field {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid #2a3a48;
+  background: var(--scn-bg);
+  color: var(--scn-txt);
+  padding: 0 10px;
+}
+.scn :focus-visible {
+  outline: 2px solid var(--scn-ice);
+  outline-offset: 2px;
+}
+.scn-veil {
+  background: rgba(2, 3, 5, 0.8);
+}
