@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm";
 import { createInvitation } from "@/core/auth/invitations";
 import { db } from "@/core/db/client";
 import { invitation, member, user } from "@/core/db/schema";
@@ -6,8 +6,8 @@ import { sendMail } from "@/core/mail/send";
 import { InvitationEmail } from "@/core/mail/templates/InvitationEmail";
 
 /**
- * The invitations sent to join the club: who invited whom, whether they joined, and sending one
- * again. A member sees the addresses they invited; the admin sees them all.
+ * The invitations sent to join the club: who invited whom, whether they joined, sending one again,
+ * revoking one. A member sees (and revokes) the addresses they invited; the admin, all of them.
  */
 
 export type Result = { ok: true } | { ok: false; error: string };
@@ -97,4 +97,31 @@ export async function resendInvitation(memberId: string, memberName: string, raw
   if (sent.status === "joined") return { ok: false, error: `${sent.joined?.name ?? email} a déjà rejoint le CLHUB.` };
   if (Date.now() - sent.lastSentAt.getTime() < RESEND_DELAY_MS) return { ok: false, error: "L'invitation vient de partir : attends quelques minutes avant de la renvoyer." };
   return sendInvitation(memberId, memberName, email);
+}
+
+/**
+ * « Révoquer l'invitation »: the address leaves the list of those allowed in. Its links stop working and
+ * it can't create an account any more. A member revokes their own invitations (another member's stays);
+ * the admin revokes them all. Someone who already joined isn't touched: that's deleting an account.
+ */
+export async function revokeInvitation(memberId: string, rawEmail: string, admin: boolean): Promise<{ ok: true; info: string } | { ok: false; error: string }> {
+  const email = normalize(rawEmail);
+  const joined = await memberNamed(email);
+  if (joined) return { ok: false, error: `${joined} a déjà rejoint le CLHUB : révoquer ne sert plus à rien (en admin, c'est « Supprimer » dans la liste des membres).` };
+  const gone = await db
+    .delete(invitation)
+    .where(and(eq(invitation.email, email), isNull(invitation.acceptedAt), admin ? undefined : eq(invitation.invitedById, memberId)))
+    .returning({ id: invitation.id });
+  if (!gone.length) return { ok: false, error: "Aucune invitation à révoquer pour cette adresse." };
+  const others = await db
+    .select({ name: user.name })
+    .from(invitation)
+    .innerJoin(member, eq(member.id, invitation.invitedById))
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(and(eq(invitation.email, email), isNull(invitation.acceptedAt), gt(invitation.expiresAt, new Date())));
+  const by = [...new Set(others.map((o) => o.name))];
+  return {
+    ok: true,
+    info: by.length ? `Ton invitation est révoquée, mais ${by.join(" et ")} ${by.length > 1 ? "ont" : "a"} aussi invité ${email} : la sienne reste valable.` : `${email} n'est plus sur la liste : le lien ne marche plus.`,
+  };
 }

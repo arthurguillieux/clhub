@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { isAdminModeActive } from "@/core/auth/admin";
 import { getSession } from "@/core/auth/session";
-import { resendInvitation, sendInvitation } from "@/modules/invitations/data";
+import { resendInvitation, revokeInvitation, sendInvitation } from "@/modules/invitations/data";
 
 export type InviteFormState =
   | { status: "idle" }
@@ -41,4 +41,12 @@ export async function resendInvitationAction(email: string): Promise<{ ok: true 
     revalidatePath("/admin/membres");
   }
   return done;
+}
+
+/** « Révoquer l'invitation »: the address leaves the list (one's own invitations; all of them in admin mode). */
+export async function revokeInvitationAction(email: string): Promise<{ ok: true; info: string } | { ok: false; error: string }> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Tu dois être connecté." };
+  // No revalidation here: the row says what happened first, then the page refreshes itself.
+  return revokeInvitation(session.member.id, email, await isAdminModeActive());
 }

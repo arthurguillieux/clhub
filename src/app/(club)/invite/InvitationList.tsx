@@ -1,7 +1,7 @@
 import { Card } from "@/core/ui/components/Card";
 import { RelativeTime } from "@/core/ui/components/RelativeTime";
 import type { InvitedAddress } from "@/modules/invitations/data";
-import { ResendButton } from "./ResendButton";
+import { InvitationActions } from "./InvitationActions";
 
 const STATUS: Record<InvitedAddress["status"], { label: string; className: string }> = {
   joined: { label: "a rejoint le CLHUB", className: "bg-primary/15 text-primary" },
@@ -11,9 +11,10 @@ const STATUS: Record<InvitedAddress["status"], { label: string; className: strin
 
 /**
  * The invited addresses: whether they joined (and under which name), the link still valid or not,
- * and « Renvoyer l'invitation » for those who haven't come yet. `showInviters` for the admin's list.
+ * and « Renvoyer l'invitation » or « Révoquer » for those who haven't come yet. `showInviters` for the admin's list.
  */
 export function InvitationList({ invitations, showInviters = false }: { invitations: InvitedAddress[]; showInviters?: boolean }) {
+  // showInviters: the admin's list, where « Révoquer » takes every invitation of the address.
   return (
     <ul className="flex flex-col gap-2">
       {invitations.map((i) => {
@@ -49,7 +50,7 @@ export function InvitationList({ invitations, showInviters = false }: { invitati
                   {showInviters && <span className="block">Invitée par {i.inviters.join(", ")}.</span>}
                 </p>
               </div>
-              {i.status !== "joined" && <ResendButton email={i.email} />}
+              {i.status !== "joined" && <InvitationActions email={i.email} admin={showInviters} />}
             </Card>
           </li>
         );
