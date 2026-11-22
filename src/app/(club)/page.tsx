@@ -216,7 +216,7 @@ export default async function HomePage() {
 
   return (
     <Container>
-      <PageTitle>Salut, {session.user.name}</PageTitle>
+      <PageTitle>Salut {session.user.name} !</PageTitle>
 
       <section className="mt-8">
         <SectionTitle>Sections du club</SectionTitle>
