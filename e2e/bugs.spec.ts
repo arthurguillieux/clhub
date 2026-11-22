@@ -41,6 +41,15 @@ test("the admin sorts the reports out and copies them for Claude", async ({ page
   await expect(page.getByText(/Copié : colle-le/)).toBeVisible();
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   expect(copied).toContain("La partie ne se lance pas à 9 joueurs.");
+  // « Voir comme un membre »: no admin page any more, then back without the code.
+  await page.getByRole("button", { name: "Voir comme un membre" }).click();
+  await expect(page.getByText("👁 Vue membre")).toBeVisible();
+  await page.goto("/admin/bugs");
+  await expect(page).not.toHaveURL(/\/admin/);
+  await page.getByRole("button", { name: "Revenir en mode admin" }).click();
+  await expect(page.getByText("🛡️ Mode admin actif")).toBeVisible();
+  await page.goto("/admin/bugs");
+  await expect(page.getByRole("heading", { name: "Signalements", exact: true })).toBeVisible();
   // The admin hears of it on the home page too.
   await page.goto("/");
   await expect(page.getByText(/🐞 .* signale un bug sur \/jeux\/loups/).first()).toBeVisible();

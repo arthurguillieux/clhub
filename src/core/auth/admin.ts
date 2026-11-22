@@ -11,6 +11,12 @@ import { getSession } from "./session";
  * code doesn't help someone who isn't a club admin.
  */
 const COOKIE_NAME = "clhub_admin_unlock";
+/**
+ * « Voir comme un membre »: an unlocked admin sees the CLHUB as an ordinary member does, powers off,
+ * until they come back (without the code again, while the unlock lasts). It only ever takes powers
+ * away, so it needs no signature.
+ */
+const VIEW_COOKIE = "clhub_view_as_member";
 const UNLOCK_DURATION_MS = 4 * 60 * 60 * 1000; // 4h — long enough for one admin session, short enough to matter
 
 function sign(value: string): string {
@@ -58,11 +64,16 @@ async function hasValidUnlockCookie(): Promise<boolean> {
   return Number.isFinite(expiresAt) && Date.now() < expiresAt;
 }
 
+async function isViewingAsMember(): Promise<boolean> {
+  const cookieStore = await cookies();
+  return cookieStore.get(VIEW_COOKIE)?.value === "1";
+}
+
 /** Guards every admin page and action. Redirects home rather than revealing why — no distinction shown between "not admin" and "not unlocked". */
 export async function requireAdmin() {
   const session = await getSession();
   if (!session) redirect("/sign-in");
-  if (session.member.role !== "admin" || !(await hasValidUnlockCookie())) {
+  if (session.member.role !== "admin" || !(await hasValidUnlockCookie()) || (await isViewingAsMember())) {
     redirect("/");
   }
   return session;
@@ -76,11 +87,32 @@ export async function requireAdmin() {
 export async function isAdminModeActive(): Promise<boolean> {
   const session = await getSession();
   if (!session || session.member.role !== "admin") return false;
+  if (await isViewingAsMember()) return false;
   return hasValidUnlockCookie();
+}
+
+/** What the banner shows: admin mode, the member's view of an admin, or nothing. */
+export async function adminBannerState(): Promise<"admin" | "member-view" | null> {
+  const session = await getSession();
+  if (!session || session.member.role !== "admin" || !(await hasValidUnlockCookie())) return null;
+  return (await isViewingAsMember()) ? "member-view" : "admin";
+}
+
+/** « Voir comme un membre » on or off; only an unlocked admin can turn it on. */
+export async function setViewAsMember(on: boolean): Promise<void> {
+  const cookieStore = await cookies();
+  if (!on) {
+    cookieStore.delete(VIEW_COOKIE);
+    return;
+  }
+  const session = await getSession();
+  if (!session || session.member.role !== "admin" || !(await hasValidUnlockCookie())) return;
+  cookieStore.set(VIEW_COOKIE, "1", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: UNLOCK_DURATION_MS / 1000 });
 }
 
 /** Ends the current unlock early, without waiting out the 4h expiry. */
 export async function lockAdmin(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete(VIEW_COOKIE);
 }

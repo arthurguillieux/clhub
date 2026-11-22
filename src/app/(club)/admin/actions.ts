@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { unlockAdmin, requireAdmin, lockAdmin } from "@/core/auth/admin";
+import { unlockAdmin, requireAdmin, lockAdmin, setViewAsMember } from "@/core/auth/admin";
 import { getSession } from "@/core/auth/session";
 import {
   deleteMemberCascade,
@@ -88,4 +88,10 @@ export async function adminReassignItemAction(itemId: string, newOwnerId: string
 /** Ends admin mode early, from the site-wide banner — see AdminModeBanner.tsx. */
 export async function lockAdminAction(): Promise<void> {
   await lockAdmin();
+}
+
+/** « Voir comme un membre » / « Revenir en mode admin »: the whole CLHUB redrawn with or without the powers. */
+export async function viewAsMemberAction(on: boolean): Promise<void> {
+  await setViewAsMember(on);
+  revalidatePath("/", "layout");
 }
