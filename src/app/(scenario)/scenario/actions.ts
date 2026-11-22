@@ -50,7 +50,8 @@ export async function simulateAction(scenarioId: string, _prev: FormState, formD
   if (!start.success) return { status: "error", message: "Choisis un moment de départ." };
   const result = await simulateEvening(session.member.id, def, start.data);
   if (!result.ok) return { status: "error", message: result.error };
-  redirect(`/scenario/${result.game.code}/console`);
+  // Phone and projection side by side: a rehearsal is checked on one screen.
+  redirect(`/scenario/${result.game.code}/repetition`);
 }
 
 export async function deleteSimulationsAction(): Promise<void> {

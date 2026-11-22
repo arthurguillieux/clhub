@@ -134,7 +134,10 @@ test("antarctica: « Simuler une partie » opens at loop 2 with loop 1's dead se
   }
   await page.locator('select[name="start"]').selectOption("b2-arrival");
   await page.getByRole("button", { name: "🧪 Simuler une partie" }).click();
-  await expect(page).toHaveURL(/\/scenario\/[A-Z0-9]{6}\/console$/);
+  // Phone and projection side by side, then the console alone for the checks.
+  await expect(page).toHaveURL(/\/scenario\/[A-Z0-9]{6}\/repetition$/);
+  await expect(page.locator('iframe[title="Projection"]')).toBeVisible();
+  await page.goto(page.url().replace(/repetition$/, "console"));
   await expect(page.getByText("SIMULATION", { exact: true })).toBeVisible();
   await expect(page.getByText("Boucle 2 · Arrivée").first()).toBeVisible();
   await page.locator("summary", { hasText: /^JOURNAL/ }).click();
@@ -155,7 +158,11 @@ test("antarctica: the meneur keeps control — faults off, Stop, black screen, b
   }
   await page.locator('select[name="start"]').selectOption("b1-day3");
   await page.getByRole("button", { name: "🧪 Simuler une partie" }).click();
+  await expect(page).toHaveURL(/repetition$/);
+  await page.goto(page.url().replace(/repetition$/, "console"));
   await expect(page.getByText("Boucle 1 · Jour 3").first()).toBeVisible();
+  await page.locator("summary", { hasText: /^PROJECTION/ }).click();
+  await expect(page.getByRole("link", { name: "Ouvrir la projection ↗" })).toBeVisible();
   const link = await page.getByLabel("Lien de la projection").inputValue().catch(() => null);
   void link;
 

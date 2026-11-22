@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { alive, contagionActive, dawnDeaths, momentOf, nightSteps, pack, proposals, type Action, type NightStepId } from "@/modules/loups/scenarios/engine";
 import type { ConsoleView } from "@/modules/loups/scenarios/data";
 import type { PublicScenario } from "@/modules/loups/scenarios/types";
@@ -108,6 +108,7 @@ export function Console({
           <Sounds def={def} view={view} busy={busy} act={act} />
           <Effects def={def} view={view} busy={busy} act={act} />
           <Journal view={view} send={send} />
+          <ProjectionLink view={view} qrSvg={qrSvg} code={code} />
           {view.role === "host" && <DeleteEvening code={code} live />}
         </>
       )}
@@ -982,6 +983,32 @@ function Journal({ view, send }: { view: ConsoleView; send?: Send }) {
           </li>
         ))}
       </ul>
+    </Section>
+  );
+}
+
+/** The projection's link and QR code, during the evening too: a closed window opens again in one gesture. */
+function ProjectionLink({ view, qrSvg, code }: { view: ConsoleView; qrSvg: string; code: string }) {
+  // Inside the side-by-side rehearsal, the link to it is pointless.
+  const inFrame = useSyncExternalStore(
+    () => () => undefined,
+    () => window.self !== window.top,
+    () => false,
+  );
+  return (
+    <Section title="PROJECTION" chip={<span className={`scn-chip ${view.projection.connected ? "scn-chip-ok" : "scn-chip-bad"}`}>{view.projection.connected ? "connectée" : "déconnectée"}</span>}>
+      <input readOnly value={view.link} onFocus={(e) => e.target.select()} aria-label="Lien de la projection" className="scn-field text-xs" />
+      <div className="grid grid-cols-2 gap-2">
+        <a href={view.link} target="_blank" rel="noopener noreferrer" className="scn-btn flex items-center justify-center">
+          Ouvrir la projection ↗
+        </a>
+        {!inFrame && (
+          <a href={`/scenario/${code}/repetition`} className="scn-btn flex items-center justify-center">
+            Vue côte à côte<small>téléphone + écran</small>
+          </a>
+        )}
+      </div>
+      <div className="mx-auto w-48 rounded-xl bg-white p-2" aria-label="QR code de la projection" dangerouslySetInnerHTML={{ __html: qrSvg }} />
     </Section>
   );
 }
