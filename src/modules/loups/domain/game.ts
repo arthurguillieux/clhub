@@ -346,6 +346,8 @@ export interface PlayedSeat {
   deathOrder: number | null;
   /** The game's last turn. */
   lastTurn: number;
+  /** Their side won the game. */
+  won?: boolean;
 }
 
 export interface PlayerStats {
@@ -358,14 +360,17 @@ export interface PlayerStats {
   firstOut: number;
   /** Turns (nights and days) lived, on average: the higher, the longer they lasted. */
   averageTurns: number;
+  /** Games their side won. */
+  wins: number;
 }
 
 /** Per player, in alphabetical order: no podium in the club. */
 export function playerStats(rows: PlayedSeat[]): PlayerStats[] {
   const by = new Map<string, PlayerStats & { turns: number }>();
   for (const r of rows) {
-    const s = by.get(r.playerId) ?? { playerId: r.playerId, name: r.name, games: 0, survived: 0, firstOut: 0, averageTurns: 0, turns: 0 };
+    const s = by.get(r.playerId) ?? { playerId: r.playerId, name: r.name, games: 0, survived: 0, firstOut: 0, averageTurns: 0, wins: 0, turns: 0 };
     s.games += 1;
+    if (r.won) s.wins += 1;
     if (r.alive) s.survived += 1;
     if (r.deathOrder === 1) s.firstOut += 1;
     s.turns += r.alive ? r.lastTurn : (r.diedTurn ?? r.lastTurn);
@@ -374,4 +379,59 @@ export function playerStats(rows: PlayedSeat[]): PlayerStats[] {
   return [...by.values()]
     .map(({ turns, ...s }) => ({ ...s, averageTurns: Math.round((turns / s.games) * 10) / 10 }))
     .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+}
+
+/** Whether this seat's side won: the lovers, the white wolf, the pack (the infected and a turned wild child too), or the village. */
+export function seatWon(seat: Seat, t: Tracker, winner: Winner): boolean {
+  if (winner === "personne") return false;
+  if (winner === "amoureux") return !!t.lovers?.includes(seat.id);
+  if (winner === "loupblanc") return seat.role === "loupblanc";
+  const wolf = isWolf(seat, t) && seat.role !== "loupblanc";
+  return winner === "loups" ? wolf : !isWolf(seat, t);
+}
+
+export interface PlayedGame {
+  startedAt: Date | null;
+  endedAt: Date | null;
+  winner: Winner;
+  blackPlague: boolean;
+  players: number;
+  /** The game's last turn: 1 = first night, 2 = first day… */
+  lastTurn: number;
+}
+
+export interface Activity {
+  games: number;
+  evenings: number;
+  /** Games per evening, players per game, nights per game, minutes per game (null: no game timed). */
+  perEvening: number;
+  players: number;
+  nights: number;
+  minutes: number | null;
+  /** Share of each outcome, in percent (rounded), in WINNER_LABELS' order. */
+  shares: { winner: Winner; games: number; percent: number }[];
+  blackPlagues: number;
+}
+
+/** Two games more than six hours apart belong to two evenings. */
+const EVENING_GAP_MS = 6 * 3600_000;
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** The table's activity: how much, how long, who wins. */
+export function activity(games: PlayedGame[]): Activity {
+  const timed = games.filter((g) => g.startedAt && g.endedAt && g.endedAt > g.startedAt);
+  const starts = games.map((g) => (g.startedAt ?? g.endedAt)?.getTime()).filter((x): x is number => x !== undefined).sort((a, b) => a - b);
+  const evenings = starts.reduce((n, at, i) => (i === 0 || at - starts[i - 1]! > EVENING_GAP_MS ? n + 1 : n), 0);
+  const count = (w: Winner) => games.filter((g) => g.winner === w).length;
+  const n = Math.max(1, games.length);
+  return {
+    games: games.length,
+    evenings,
+    perEvening: evenings ? round1(games.length / evenings) : 0,
+    players: round1(games.reduce((s, g) => s + g.players, 0) / n),
+    nights: round1(games.reduce((s, g) => s + Math.ceil(g.lastTurn / 2), 0) / n),
+    minutes: timed.length ? Math.round(timed.reduce((s, g) => s + (g.endedAt!.getTime() - g.startedAt!.getTime()), 0) / timed.length / 60_000) : null,
+    shares: (Object.keys(WINNER_LABELS) as Winner[]).map((w) => ({ winner: w, games: count(w), percent: Math.round((count(w) / n) * 100) })).filter((x) => x.games > 0),
+    blackPlagues: games.filter((g) => g.blackPlague).length,
+  };
 }

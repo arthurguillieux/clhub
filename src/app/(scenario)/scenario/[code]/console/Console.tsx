@@ -1,5 +1,6 @@
 "use client";
 
+import { callError } from "@/core/ui/callError";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { actionAvailable, alive, contagionActive, dawnDeaths, doorProposals, flagName, momentOf, nightSteps, pack, proposals, secretFoundToday, type Action, type NightStepId, type VoteKind } from "@/modules/loups/scenarios/engine";
 import type { ConsoleView } from "@/modules/loups/scenarios/data";
@@ -44,8 +45,8 @@ export function Console({
       }
       setView(result.view);
       return null;
-    } catch {
-      setError("Pas de connexion : le geste n'est pas passé, réessaie.");
+    } catch (e) {
+      setError(callError(e));
       return "offline";
     } finally {
       moves.current += 1;

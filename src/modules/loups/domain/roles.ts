@@ -12,6 +12,7 @@ export interface RoleCard {
   rule: string;
 }
 
+/** In Arthur's order: the wolves, then the cards of his usual table, then all the others. */
 export const ROLES = [
   {
     id: "loup",
@@ -20,22 +21,10 @@ export const ROLES = [
     rule: "Chaque nuit, les loups-garous se réveillent ensemble et choisissent une victime. Le jour, ils se font passer pour de simples villageois. Ils gagnent quand il ne reste plus que des loups.",
   },
   {
-    id: "infect",
-    name: "Infect père des loups",
-    camp: "loups",
-    rule: "C'est un loup-garou. Une seule fois dans la partie, au lieu de laisser mourir la victime des loups, il peut l'infecter : elle survit, mais devient loup-garou en secret, tout en gardant son pouvoir.",
-  },
-  {
-    id: "loupblanc",
-    name: "Loup blanc",
-    camp: "solo",
-    rule: "Il se réveille avec les loups, mais ne joue que pour lui : une nuit sur deux, il peut dévorer un loup-garou. Il gagne s'il est le dernier en vie.",
-  },
-  {
-    id: "villageois",
-    name: "Simple villageois",
+    id: "enfant",
+    name: "Enfant sauvage",
     camp: "village",
-    rule: "Aucun pouvoir : seulement son vote et son flair. Il gagne avec le village quand tous les loups sont morts.",
+    rule: "La première nuit, il choisit en secret un modèle. Tant que son modèle vit, il est villageois. Si le modèle meurt, il devient loup-garou et rejoint la meute.",
   },
   {
     id: "vv",
@@ -44,28 +33,22 @@ export const ROLES = [
     rule: "Sa carte a deux faces identiques : tout le monde sait qu'il est innocent. Pas de pouvoir, mais une parole à laquelle on peut se fier.",
   },
   {
-    id: "cupidon",
-    name: "Cupidon",
+    id: "villageois",
+    name: "Simple villageois",
     camp: "village",
-    rule: "La première nuit, il désigne deux joueurs qui tombent amoureux (il peut se choisir). Si l'un meurt, l'autre meurt de chagrin. Si les amoureux sont dans deux camps différents, ils forment un troisième camp et gagnent en étant les deux derniers en vie.",
-  },
-  {
-    id: "enfant",
-    name: "Enfant sauvage",
-    camp: "village",
-    rule: "La première nuit, il choisit en secret un modèle. Tant que son modèle vit, il est villageois. Si le modèle meurt, il devient loup-garou et rejoint la meute.",
-  },
-  {
-    id: "barbier",
-    name: "Barbier",
-    camp: "village",
-    rule: "Une fois dans la partie, de jour, il peut dévoiler sa carte et tuer un joueur sans débat. Si c'est un loup-garou, le barbier reste en jeu mais perd son pouvoir. Sinon, il meurt avec lui.",
+    rule: "Aucun pouvoir : seulement son vote et son flair. Il gagne avec le village quand tous les loups sont morts.",
   },
   {
     id: "ancien",
     name: "Ancien",
     camp: "village",
     rule: "Il résiste à la première attaque des loups-garous et ne meurt qu'à la deuxième. Mais si c'est le village qui le tue (vote, sorcière, chasseur…), les villageois perdent tous leurs pouvoirs.",
+  },
+  {
+    id: "cupidon",
+    name: "Cupidon",
+    camp: "village",
+    rule: "La première nuit, il désigne deux joueurs qui tombent amoureux (il peut se choisir). Si l'un meurt, l'autre meurt de chagrin. Si les amoureux sont dans deux camps différents, ils forment un troisième camp et gagnent en étant les deux derniers en vie.",
   },
   {
     id: "salvateur",
@@ -78,6 +61,24 @@ export const ROLES = [
     name: "Sorcière",
     camp: "village",
     rule: "Elle a deux potions pour toute la partie : une pour sauver la victime des loups, une pour tuer le joueur de son choix. Elle peut s'en servir la même nuit, ou les garder.",
+  },
+  {
+    id: "barbier",
+    name: "Barbier",
+    camp: "village",
+    rule: "Une fois dans la partie, de jour, il peut dévoiler sa carte et tuer un joueur sans débat. Si c'est un loup-garou, le barbier reste en jeu mais perd son pouvoir. Sinon, il meurt avec lui.",
+  },
+  {
+    id: "infect",
+    name: "Infect père des loups",
+    camp: "loups",
+    rule: "C'est un loup-garou. Une seule fois dans la partie, au lieu de laisser mourir la victime des loups, il peut l'infecter : elle survit, mais devient loup-garou en secret, tout en gardant son pouvoir.",
+  },
+  {
+    id: "loupblanc",
+    name: "Loup blanc",
+    camp: "solo",
+    rule: "Il se réveille avec les loups, mais ne joue que pour lui : une nuit sur deux, il peut dévorer un loup-garou. Il gagne s'il est le dernier en vie.",
   },
   {
     id: "idiot",

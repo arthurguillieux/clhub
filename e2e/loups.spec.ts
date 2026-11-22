@@ -11,6 +11,12 @@ test("loups-garous: table, deck, draw, a night, a day, the end", async ({ page, 
   await page.getByRole("button", { name: "🐺 Nouvelle partie" }).click();
   await expect(page).toHaveURL(/\/loups\/[A-Z0-9]{6}\/meneur$/);
 
+  // The usual table is there: cleared, for a table of five.
+  while (await page.getByRole("button", { name: /^Retirer / }).count()) {
+    const n = await page.getByRole("button", { name: /^Retirer / }).count();
+    await page.getByRole("button", { name: /^Retirer / }).first().click();
+    await expect(page.getByRole("button", { name: /^Retirer / })).toHaveCount(n - 1);
+  }
   for (const name of ["Ana", "Ben", "Cléo", "Dan", "Eli"]) {
     await page.getByLabel("Prénom du joueur").fill(name);
     await page.getByRole("button", { name: "Ajouter", exact: true }).first().click();
@@ -59,7 +65,7 @@ test("loups-garous: table, deck, draw, a night, a day, the end", async ({ page, 
   await expect(page.getByRole("heading", { name: /Victoire du village/ })).toBeVisible();
 
   await page.goto("/jeux/loups");
-  await expect(page.getByText(/parties? menées?/)).toBeVisible();
+  await expect(page.getByText(/parties? jouées?/)).toBeVisible();
   await expect(page.getByRole("cell", { name: wolfName })).toBeVisible();
 
   // A test game can go, and leaves the stats with it.

@@ -10,6 +10,10 @@ import {
   outcome,
   phaseLabel,
   playerStats,
+  activity,
+  seatWon,
+  type PlayedGame,
+  type Winner,
   toDay,
   toNight,
   voteOut,
@@ -149,8 +153,35 @@ describe("playerStats", () => {
       { playerId: "a", name: "Arthur", alive: false, diedTurn: 5, deathOrder: 3, lastTurn: 8 },
     ]);
     expect(stats).toEqual([
-      { playerId: "a", name: "Arthur", games: 1, survived: 0, firstOut: 0, averageTurns: 5 },
-      { playerId: "z", name: "Zoé", games: 2, survived: 1, firstOut: 1, averageTurns: 5 },
+      { playerId: "a", name: "Arthur", games: 1, survived: 0, firstOut: 0, averageTurns: 5, wins: 0 },
+      { playerId: "z", name: "Zoé", games: 2, survived: 1, firstOut: 1, averageTurns: 5, wins: 0 },
     ]);
+  });
+});
+
+describe("the table's activity", () => {
+  const at = (h: number, m = 0) => new Date(Date.UTC(2026, 10, 21, h, m));
+  const game = (start: Date, minutes: number, winner: Winner, players = 9, lastTurn = 6): PlayedGame => ({ startedAt: start, endedAt: new Date(start.getTime() + minutes * 60_000), winner, blackPlague: false, players, lastTurn });
+
+  it("counts evenings, averages, and the share of each side", () => {
+    const a = activity([game(at(19), 30, "village"), game(at(20), 40, "loups", 11, 7), game(at(21), 20, "village"), { ...game(new Date(Date.UTC(2026, 10, 28, 20)), 30, "amoureux"), blackPlague: true }]);
+    expect(a).toMatchObject({ games: 4, evenings: 2, perEvening: 2, minutes: 30, players: 9.5, nights: 3.3, blackPlagues: 1 });
+    expect(a.shares).toEqual([
+      { winner: "village", games: 2, percent: 50 },
+      { winner: "loups", games: 1, percent: 25 },
+      { winner: "amoureux", games: 1, percent: 25 },
+    ]);
+    expect(activity([]).minutes).toBeNull();
+  });
+
+  it("knows who won: the village, the pack with its infected and turned wild child, the lovers", () => {
+    const t = { ...newTracker(), infected: ["c"], lovers: ["a", "d"] as [string, string], transformed: true };
+    const seat = (id: string, role: RoleId | null): Seat => ({ id, name: id, position: 0, role, alive: true, diedTurn: null, deathOrder: null });
+    const [a, b, c, d, e] = [seat("a", "loup"), seat("b", "sorciere"), seat("c", "villageois"), seat("d", "enfant"), seat("e", "loupblanc")];
+    expect([a, b, c, d, e].map((s) => seatWon(s, t, "loups"))).toEqual([true, false, true, true, false]);
+    expect([a, b, c, d, e].map((s) => seatWon(s, t, "village"))).toEqual([false, true, false, false, false]);
+    expect([a, b, c, d, e].map((s) => seatWon(s, t, "amoureux"))).toEqual([true, false, false, true, false]);
+    expect(seatWon(e, t, "loupblanc")).toBe(true);
+    expect(seatWon(b, t, "personne")).toBe(false);
   });
 });

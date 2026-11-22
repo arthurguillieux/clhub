@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { callError } from "@/core/ui/callError";
 import { useEffect, useRef, useState } from "react";
 import { CAUSE_LABELS, WINNER_LABELS, isNight, phaseLabel, type Cause } from "@/modules/loups/domain/game";
 import { roleName, roleOf } from "@/modules/loups/domain/roles";
 import type { HostView } from "@/modules/loups/views";
 import { deleteGameAction, meneurAction, replayAction } from "../../actions";
+import { FlipCard, Reveal } from "../../Card";
 import { Setup } from "./Setup";
 import { Tracker } from "./Tracker";
-import { LoupsDialog, type Send } from "./ui";
+import { LoupsDialog, SeatSelect, type Send } from "./ui";
 
 /** The meneur's phone, from the setup to the end of the game. */
 export function MeneurPanel({
@@ -41,8 +43,8 @@ export function MeneurPanel({
       }
       setView(result.view);
       return null;
-    } catch {
-      setError("Pas de connexion — réessaie.");
+    } catch (e) {
+      setError(callError(e));
       return "Pas de connexion";
     } finally {
       actions.current += 1;
@@ -76,8 +78,8 @@ export function MeneurPanel({
       }
       const name = "name" in who ? who.name.replace(/\s+/g, " ").trim() : (members.find((m) => m.id === who.memberId)?.name ?? "?");
       return { id: result.playerId, name: book.find((p) => p.id === result.playerId)?.name ?? name };
-    } catch {
-      setError("Pas de connexion — réessaie.");
+    } catch (e) {
+      setError(callError(e));
       return null;
     } finally {
       setBusy(false);
@@ -109,6 +111,7 @@ export function MeneurPanel({
         {view.status === "playing" && <Tracker view={view} busy={busy} send={send} />}
         {/* Folded during the game: a white QR code lights up the room at night. */}
         {view.status === "playing" && <ShareRules key="playing" view={view} qrSvg={qrSvg} />}
+        {view.status !== "setup" && <RoomScreen view={view} busy={busy} send={send} />}
         {view.status === "done" && <Done view={view} code={code} />}
         <DeleteGame code={code} done={view.status === "done"} />
       </div>
@@ -189,23 +192,23 @@ function Dealing({ view, busy, send }: { view: HostView; busy: boolean; send: Se
       <button type="button" className="loups-btn min-h-14 px-6 text-lg" disabled={busy} onClick={() => void send({ type: "startNight" })}>
         🌙 Tout le monde a sa carte : la nuit tombe
       </button>
-      {seat && <PassPhone name={seat.name} role={seat.role} onDone={() => void send({ type: "seen", seat: seat.id, seen: true }).then(() => setPassing(null))} onClose={() => setPassing(null)} />}
+      {seat && <PassPhone name={seat.name} role={seat.role} art={view.art} onDone={() => void send({ type: "seen", seat: seat.id, seen: true }).then(() => setPassing(null))} onClose={() => setPassing(null)} />}
     </section>
   );
 }
 
 /** The meneur's phone in a player's hands: their name first, the card only once they tap. */
-function PassPhone({ name, role, onDone, onClose }: { name: string; role: string | null; onDone: () => void; onClose: () => void }) {
+function PassPhone({ name, role, art, onDone, onClose }: { name: string; role: string | null; art: Record<string, string>; onDone: () => void; onClose: () => void }) {
   const [shown, setShown] = useState(false);
   return (
     <LoupsDialog title={shown ? name : `Passe le téléphone à ${name}`} onClose={onClose}>
       {shown ? (
         <>
-          <div className="loups-card loups-card-face flex flex-col items-center justify-center p-6 text-center">
-            <p className="loups-label">Ta carte</p>
-            <p className="loups-title mt-2 text-3xl">{roleName(role)}</p>
-            <p className="loups-muted mt-3 text-sm">{role ? roleOf(role)?.rule : ""}</p>
+          <div className="mx-auto w-56">
+            <FlipCard role={role} art={art} face />
           </div>
+          <p className="loups-title text-center text-2xl">{roleName(role)}</p>
+          <p className="loups-muted text-sm">{role ? roleOf(role)?.rule : ""}</p>
           <button type="button" className="loups-btn min-h-12 px-4" onClick={onDone}>
             J&apos;ai vu, je cache et je rends le téléphone
           </button>
@@ -222,6 +225,50 @@ function PassPhone({ name, role, onDone, onClose }: { name: string; role: string
         </>
       )}
     </LoupsDialog>
+  );
+}
+
+/**
+ * The room's screen, for the evenings that want it on a projector (the game, the dead, the time),
+ * and « Révéler une carte » when the CLHUB dealt: it turns over on this phone and on the screen.
+ */
+function RoomScreen({ view, busy, send }: { view: HostView; busy: boolean; send: Send }) {
+  const [who, setWho] = useState<string | null>(null);
+  const [shown, setShown] = useState<{ name: string; role: string } | null>(null);
+  const screen = view.link.replace("/loups/partie/", "/loups/ecran/");
+  const reveal = async () => {
+    const seat = view.seats.find((s) => s.id === who);
+    if (!seat?.role) return;
+    if (!(await send({ type: "reveal", seat: seat.id }))) {
+      setShown({ name: seat.name, role: seat.role });
+      setWho(null);
+    }
+  };
+  return (
+    <details className="loups-panel p-4">
+      <summary className="loups-label cursor-pointer py-1">L&apos;écran de la salle{view.dealMode === "app" ? " · révéler une carte" : ""}</summary>
+      <p className="loups-muted mt-2 text-sm">
+        Pour un vidéoprojecteur ou une télé : les joueurs, les morts et leur carte, ce qui reste en jeu, la durée de la partie{view.dealMode === "app" ? ", et le QR code dans un coin" : ""}.
+      </p>
+      <a href={screen} target="_blank" rel="noopener noreferrer" className="loups-btn-ghost mt-2 flex min-h-11 px-3 text-sm">
+        Ouvrir l&apos;écran ↗
+      </a>
+      {view.dealMode === "app" && (
+        <div className="mt-4 flex flex-col gap-2">
+          <p className="text-sm">Un joueur sans son téléphone : sa carte se retourne ici et sur l&apos;écran.</p>
+          <SeatSelect seats={view.seats.filter((s) => s.role)} value={who} onChange={setWho} label="Carte à révéler" none="Quel joueur ?" />
+          <button type="button" className="loups-btn min-h-12 px-4" disabled={busy || !who} onClick={() => void reveal()}>
+            Révéler sa carte
+          </button>
+          {view.reveal && (
+            <button type="button" className="loups-muted py-2 text-sm underline" disabled={busy} onClick={() => void send({ type: "reveal", seat: null })}>
+              Retirer la carte de l&apos;écran
+            </button>
+          )}
+        </div>
+      )}
+      {shown && <Reveal name={shown.name} role={shown.role} art={view.art} onClose={() => setShown(null)} />}
+    </details>
   );
 }
 

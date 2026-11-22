@@ -1,5 +1,6 @@
 "use client";
 
+import { FlipCard } from "../../Card";
 import { useEffect, useState } from "react";
 import { WINNER_LABELS } from "@/modules/loups/domain/game";
 import type { PlayerView } from "@/modules/loups/views";
@@ -81,7 +82,7 @@ export function PlayerScreen({ token, initialView }: { token: string; initialVie
 
         {view.end && <End view={view} />}
 
-        {!view.end && view.me && <MyCard me={view.me} />}
+        {!view.end && view.me && <MyCard art={view.art} me={view.me} />}
 
         {!view.end && !view.me && dealing && (
           <section className="loups-panel p-4">
@@ -132,36 +133,26 @@ export function PlayerScreen({ token, initialView }: { token: string; initialVie
 }
 
 /** The card, face down until its player taps it, and turned back with one more tap. */
-function MyCard({ me }: { me: NonNullable<PlayerView["me"]> }) {
+function MyCard({ me, art }: { me: NonNullable<PlayerView["me"]>; art: Record<string, string> }) {
   const [shown, setShown] = useState(false);
   return (
     <section className="flex flex-col items-center gap-3">
-      <button
-        type="button"
-        onClick={() => setShown(!shown)}
-        aria-label={shown ? "Cacher ma carte" : "Voir ma carte"}
-        className={`loups-card ${shown ? "loups-card-face" : ""} flex w-64 flex-col items-center justify-center p-6 text-center`}
-      >
-        {shown ? (
-          <>
-            <span className="loups-label">Ta carte</span>
-            <span className="loups-title mt-2 text-3xl">{me.roleName}</span>
-            <span className="loups-muted mt-3 text-sm">{me.rule}</span>
-          </>
-        ) : (
-          <>
-            <span className="text-6xl" aria-hidden="true">
-              🌕
-            </span>
-            <span className="loups-title mt-4 text-xl">Touche pour voir ta carte</span>
-            <span className="loups-muted mt-1 text-xs">Cache l&apos;écran des autres</span>
-          </>
-        )}
+      <button type="button" onClick={() => setShown(!shown)} aria-label={shown ? "Cacher ma carte" : "Voir ma carte"} className="w-60">
+        <FlipCard role={me.role} art={art} face={shown} />
       </button>
-      {shown && (
-        <button type="button" className="loups-btn-ghost min-h-11 px-4 text-sm" onClick={() => setShown(false)}>
-          Cacher ma carte
-        </button>
+      {shown ? (
+        <>
+          <p className="loups-title text-center text-3xl">{me.roleName}</p>
+          <p className="loups-muted max-w-sm text-center text-sm">{me.rule}</p>
+          <button type="button" className="loups-btn-ghost min-h-11 px-4 text-sm" onClick={() => setShown(false)}>
+            Cacher ma carte
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="loups-title text-xl">Touche pour voir ta carte</p>
+          <p className="loups-muted text-xs">Cache l&apos;écran des autres</p>
+        </>
       )}
     </section>
   );

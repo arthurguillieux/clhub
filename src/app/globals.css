@@ -1399,60 +1399,91 @@ body {
 }
 
 /*
- * « Loups-garous »: a village under the moon. The meneur's phone lies on the table while everyone has
- * their eyes shut, so the pages are dark and warm, and darker still at night (`.loups-night`): no
- * white, only parchment and moonlight, and red for what the wolves do.
+ * « Loups-garous », after the APE poster (Soirée Loups-garous, 2e édition): rust, poster cream and a
+ * warm black, the rust printed in halftone like the moon in the corner. Onciales for the titles,
+ * condensed spaced capitals for the rest. The meneur's phone lies on the table while everyone has
+ * their eyes shut: its pages stay dark, cream on black, darker still at night (`.loups-night`). The
+ * home page and the room's screen take the poster's cream paper.
  */
 .loups {
-  --w-bg: #0e1220;
-  --w-surface: #161b2c;
-  --w-raised: #1e2539;
-  --w-line: #2e3653;
-  --w-ink: #ece5d3;
-  --w-muted: #9aa1b9;
-  --w-moon: #e6cf8f;
-  --w-moon-ink: #1b1608;
-  --w-blood: #e0675a;
-  --w-village: #86c194;
+  --w-bg: #141011;
+  --w-surface: #1d1716;
+  --w-raised: #271e1c;
+  --w-line: #3a2c27;
+  --w-ink: #efe6cf;
+  --w-muted: #a89a86;
+  --w-rust: #d0552d;
+  --w-rust-ink: #fff4e2;
+  --w-moon: #e9dcb8;
+  --w-moon-ink: #1a1210;
+  --w-blood: #e0603c;
+  --w-village: #e9dcb8;
+  --w-halftone: radial-gradient(rgba(208, 85, 45, 0.55) 1px, transparent 1.4px) 0 0 / 5px 5px;
   min-height: 100dvh;
   color: var(--w-ink);
   background:
-    radial-gradient(circle at 82% -8%, rgba(230, 207, 143, 0.16), transparent 34%),
-    radial-gradient(ellipse at 50% 120%, rgba(36, 48, 84, 0.9), transparent 60%),
+    radial-gradient(circle at 92% -4%, rgba(208, 85, 45, 0.35), transparent 26%),
+    radial-gradient(circle at -6% 104%, rgba(208, 85, 45, 0.22), transparent 30%),
     var(--w-bg);
   transition: background-color 0.8s ease;
+  position: relative;
+  isolation: isolate;
+}
+/* The rust « moon » printed in halftone, top right, as on the poster. */
+.loups::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto auto;
+  width: min(46vw, 260px);
+  height: min(46vw, 260px);
+  background: var(--w-halftone);
+  -webkit-mask-image: radial-gradient(circle at 70% 30%, #000 0 34%, transparent 62%);
+  mask-image: radial-gradient(circle at 70% 30%, #000 0 34%, transparent 62%);
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.75;
 }
 .loups-night {
-  --w-bg: #05060a;
-  --w-surface: #0c0e16;
-  --w-raised: #121521;
-  --w-line: #1f2433;
-  --w-ink: #c9b994;
-  --w-muted: #7d7a72;
-  --w-moon: #b89b5b;
+  --w-bg: #090707;
+  --w-surface: #110d0c;
+  --w-raised: #181211;
+  --w-line: #2a201d;
+  --w-ink: #cdbf9f;
+  --w-muted: #7f7365;
+  --w-rust: #9e3f22;
+  --w-moon: #b9a87f;
+  --w-blood: #b6492b;
   background: var(--w-bg);
+}
+.loups-night::before {
+  opacity: 0.25;
 }
 .loups-panel {
   border: 1px solid var(--w-line);
-  border-radius: 18px;
+  border-radius: 14px;
   background: var(--w-surface);
 }
 .loups-raised {
   border: 1px solid var(--w-line);
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--w-raised);
 }
 .loups-title {
-  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-family: var(--lg-font-title), Georgia, serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
   text-wrap: balance;
 }
 .loups-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-family: var(--lg-font-caps), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
+  color: var(--w-rust);
+}
+.loups-night .loups-label {
   color: var(--w-moon);
 }
 .loups-muted {
@@ -1465,21 +1496,26 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  border-radius: 999px;
-  font-weight: 700;
+  border-radius: 10px;
+  font-family: var(--lg-font-caps), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   text-align: center;
   transition:
     transform 0.12s ease,
     opacity 0.12s ease;
 }
 .loups-btn {
-  background: var(--w-moon);
-  color: var(--w-moon-ink);
+  background: var(--w-rust);
+  color: var(--w-rust-ink);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
 }
 .loups-btn-ghost {
   border: 1px solid var(--w-line);
   background: var(--w-raised);
   color: var(--w-ink);
+  letter-spacing: 0.04em;
 }
 .loups-btn-red {
   background: var(--w-blood);
@@ -1495,13 +1531,15 @@ body {
 .loups-btn-red:disabled {
   opacity: 0.45;
 }
-.loups :focus-visible {
-  outline: 2px solid var(--w-moon);
+.loups :focus-visible,
+.lg-screen :focus-visible,
+.loups-poster :focus-visible {
+  outline: 2px solid var(--w-rust);
   outline-offset: 2px;
 }
 .loups-field {
   border: 1px solid var(--w-line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--w-bg);
   color: var(--w-ink);
 }
@@ -1528,22 +1566,252 @@ body {
   border-color: color-mix(in srgb, var(--w-village) 45%, transparent);
 }
 .loups-veil {
-  background: rgba(3, 4, 8, 0.78);
+  background: rgba(8, 5, 4, 0.82);
 }
-/* The card a player turns over on their phone. */
-.loups-card {
+
+/*
+ * The cards: the meneur's own pictures when uploaded, else a card in the poster's colours. A card is
+ * 5 × 7; it turns over in 3D (`.lg-flip.is-face`), and the reveal plays it once in the dark.
+ */
+.lg-card-art {
   aspect-ratio: 5 / 7;
-  border-radius: 22px;
-  border: 1px solid var(--w-line);
-  background:
-    radial-gradient(circle at 50% 30%, rgba(230, 207, 143, 0.22), transparent 55%),
-    linear-gradient(160deg, #222a45, #10142a);
-  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.45);
+  border-radius: 6% / 4.3%;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 22px 50px rgba(0, 0, 0, 0.5);
 }
-.loups-card-face {
+.lg-card-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.lg-card-back {
   background:
-    radial-gradient(circle at 50% 18%, rgba(230, 207, 143, 0.28), transparent 50%),
-    linear-gradient(160deg, #2a2316, #14110b);
+    radial-gradient(circle at 50% 38%, #141011 0 23%, transparent 23.4%),
+    radial-gradient(circle at 50% 38%, #d0552d 0 31%, transparent 31.4%),
+    radial-gradient(rgba(20, 16, 17, 0.5) 1px, transparent 1.5px) 0 0 / 6px 6px,
+    #d0552d;
+  border: 6px solid #141011;
+}
+.lg-card-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9% 7%;
+  text-align: center;
+  color: #141011;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(208, 85, 45, 0.2), transparent 45%),
+    #ede5cc;
+  border: 6px solid #141011;
+}
+.lg-card-face.is-wolf {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(208, 85, 45, 0.55), transparent 48%),
+    #ede5cc;
+}
+.lg-card-face .lg-card-name {
+  font-family: var(--lg-font-title), Georgia, serif;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+.lg-card-face .lg-card-camp {
+  font-family: var(--lg-font-caps), ui-sans-serif, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #b8441f;
+}
+.lg-flip {
+  perspective: 1400px;
+}
+.lg-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.9s cubic-bezier(0.3, 1.25, 0.45, 1);
+}
+.lg-flip.is-face .lg-flip-inner {
+  transform: rotateY(180deg);
+}
+.lg-flip-side {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.lg-flip-side.is-front {
+  transform: rotateY(180deg);
+}
+@keyframes lg-rise {
+  from {
+    transform: translateY(18px) scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.lg-rise {
+  animation: lg-rise 0.5s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lg-flip-inner {
+    transition: none;
+  }
+  .lg-rise {
+    animation: none;
+  }
+}
+
+/* The poster's cream paper: the Loups-garous home page and the cards page, in the club's frame. */
+.loups-poster {
+  --w-bg: #ede5cc;
+  --w-surface: #f5efdc;
+  --w-raised: #e5dcbf;
+  --w-line: #d3c6a3;
+  --w-ink: #171213;
+  --w-muted: #6e5f4f;
+  --w-rust: #c8502a;
+  --w-rust-ink: #fff4e2;
+  --w-moon: #171213;
+  --w-blood: #b8441f;
+  --w-village: #4f5c35;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 10px solid #141011;
+  border-radius: 6px;
+  color: var(--w-ink);
+  background: var(--w-bg);
+}
+.loups-poster::before,
+.loups-poster::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(rgba(200, 80, 42, 0.9) 1.1px, transparent 1.6px) 0 0 / 5px 5px;
+}
+/* The rust moon, top left, and a halftone stain, bottom right. */
+.loups-poster::before {
+  top: -95px;
+  left: -95px;
+  width: 200px;
+  height: 200px;
+  -webkit-mask-image: radial-gradient(circle, #000 0 52%, transparent 70%);
+  mask-image: radial-gradient(circle, #000 0 52%, transparent 70%);
+}
+.loups-poster::after {
+  right: -80px;
+  bottom: -80px;
+  width: 260px;
+  height: 220px;
+  -webkit-mask-image: radial-gradient(ellipse at 70% 70%, #000 0 35%, transparent 68%);
+  mask-image: radial-gradient(ellipse at 70% 70%, #000 0 35%, transparent 68%);
+  opacity: 0.7;
+}
+
+/*
+ * The room's screen (`/loups/ecran/TOKEN`), on a projector: the poster itself by day, cream paper in a
+ * black frame; black and rust at night, the moon rising. Sized on the screen's width (cqw).
+ */
+.lg-screen {
+  --w-bg: #ede5cc;
+  --w-ink: #141011;
+  --w-muted: #6e5f4f;
+  --w-rust: #c8502a;
+  --w-line: #d3c6a3;
+  position: fixed;
+  inset: 0;
+  container-type: size;
+  overflow: hidden;
+  background: #141011;
+  color: var(--w-ink);
+  cursor: none;
+}
+.lg-screen-paper {
+  position: absolute;
+  inset: 2.2cqw;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 0.6cqw;
+  background: var(--w-bg);
+  transition:
+    background-color 1.2s ease,
+    color 1.2s ease;
+}
+.lg-screen.is-night {
+  --w-bg: #120d0c;
+  --w-ink: #e9dcb8;
+  --w-muted: #94846d;
+  --w-line: #3a2c27;
+}
+.lg-screen-moon {
+  position: absolute;
+  z-index: -1;
+  top: -7cqw;
+  left: -7cqw;
+  width: 20cqw;
+  height: 20cqw;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 40%, rgba(20, 16, 17, 0.85) 0 9%, transparent 9.5%),
+    radial-gradient(circle at 60% 66%, rgba(20, 16, 17, 0.8) 0 6%, transparent 6.5%),
+    radial-gradient(circle at 70% 30%, rgba(20, 16, 17, 0.7) 0 4%, transparent 4.5%),
+    #c8502a;
+  transition: transform 2.4s ease;
+}
+.lg-screen.is-night .lg-screen-moon {
+  transform: translate(2cqw, 2cqw) scale(1.05);
+  box-shadow: 0 0 6cqw rgba(200, 80, 42, 0.45);
+}
+.lg-screen-stain {
+  position: absolute;
+  z-index: -1;
+  right: -6cqw;
+  top: -4cqw;
+  width: 46cqw;
+  height: 26cqw;
+  background: radial-gradient(rgba(200, 80, 42, 0.95) 0.12cqw, transparent 0.18cqw) 0 0 / 0.55cqw 0.55cqw;
+  -webkit-mask-image: radial-gradient(ellipse at 70% 30%, #000 0 40%, transparent 70%);
+  mask-image: radial-gradient(ellipse at 70% 30%, #000 0 40%, transparent 70%);
+}
+.lg-screen-title {
+  font-family: var(--lg-font-title), Georgia, serif;
+  line-height: 0.95;
+}
+.lg-screen-caps {
+  font-family: var(--lg-font-caps), ui-sans-serif, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.lg-screen-seat {
+  border-bottom: 0.12cqw solid var(--w-line);
+}
+.lg-screen-seat.is-dead .lg-screen-seat-name {
+  text-decoration: line-through;
+  text-decoration-thickness: 0.18cqw;
+  text-decoration-color: var(--w-rust);
+  opacity: 0.55;
+}
+.lg-screen-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2cqw;
+  background: rgba(10, 7, 6, 0.9);
+  color: #ede5cc;
 }
 
 /*

@@ -4,8 +4,14 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getSession } from "@/core/auth/session";
 import {
+  CARD_FACES,
   claimSeat,
   createGame,
+  deleteCardArt,
+  getScreenView,
+  revealCard,
+  saveCardArt,
+  saveUsualTable,
   deleteGame,
   endGame,
   findOrAddPlayer,
@@ -24,7 +30,7 @@ import {
 import { MAX_PLAYERS } from "@/modules/loups/domain/deck";
 import { ROLES } from "@/modules/loups/domain/roles";
 import { checkMeneur } from "@/modules/loups/host";
-import type { HostView, PlayerView } from "@/modules/loups/views";
+import type { HostView, PlayerView, ScreenView } from "@/modules/loups/views";
 
 export async function newGameAction(): Promise<void> {
   const session = await getSession();
@@ -80,6 +86,8 @@ const meneurSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("seen"), seat: id, seen: z.boolean() }),
   z.object({ type: z.literal("play"), command }),
   z.object({ type: z.literal("end"), winner, blackPlague: z.boolean() }),
+  z.object({ type: z.literal("reveal"), seat: id.nullable() }),
+  z.object({ type: z.literal("usualTable"), playerIds: z.array(id).max(MAX_PLAYERS) }),
 ]);
 
 export type MeneurResult = { ok: true; view: HostView; playerId?: string } | { ok: false; error: string };
@@ -116,6 +124,10 @@ export async function meneurAction(code: string, action: unknown): Promise<Meneu
         return play(g, a.command as Command);
       case "end":
         return endGame(g, a.winner, a.blackPlague);
+      case "reveal":
+        return revealCard(g, a.seat);
+      case "usualTable":
+        return saveUsualTable(g.hostMemberId, a.playerIds);
     }
   })();
   if (!result.ok) return result;
@@ -166,4 +178,29 @@ export async function playerAction(token: string, rawKey: unknown, action: unkno
     mine = claimed.key;
   }
   return { ok: true, view: await getPlayerView(g, mine), key: mine };
+}
+
+// ───────── The room's screen ─────────
+
+/** The projection screen asks every few seconds: public facts only (see getScreenView). */
+export async function screenAction(token: string): Promise<ScreenView | null> {
+  const g = await getGameByToken(token);
+  return g ? getScreenView(g) : null;
+}
+
+// ───────── The card pictures ─────────
+
+const MAX_CARD_BYTES = 8 * 1024 * 1024;
+
+/** A meneur's own picture of a card (or of the back), uploaded once. */
+export async function cardArtAction(formData: FormData): Promise<Result> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Connecte-toi d'abord." };
+  const face = String(formData.get("face") ?? "");
+  if (!(CARD_FACES as readonly string[]).includes(face)) return { ok: false, error: "Cette carte n'existe pas." };
+  if (formData.get("remove") === "1") return deleteCardArt(session.member.id, face);
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choisis une image." };
+  if (file.size > MAX_CARD_BYTES) return { ok: false, error: "Image trop lourde (8 Mo au plus)." };
+  return saveCardArt(session.member.id, face, Buffer.from(await file.arrayBuffer()));
 }

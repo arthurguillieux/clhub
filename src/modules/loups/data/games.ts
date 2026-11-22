@@ -1,11 +1,16 @@
 import { randomBytes, randomInt } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/core/db/client";
-import { member, user, wolfGame, wolfPlayer, wolfRule, wolfSeat, type WolfGame } from "@/core/db/schema";
+import { member, user, wolfCardArt, wolfGame, wolfPlayer, wolfRule, wolfSeat, type WolfGame } from "@/core/db/schema";
+import { saveUpload } from "@/core/storage";
+import sharp from "sharp";
 import { deckEntries, deckError, draw, type Deck } from "../domain/deck";
 import {
+  activity,
   applyDeaths,
+  isNight,
   newTracker,
+  seatWon,
   noWolfDrawn,
   playerStats,
   toDay,
@@ -17,7 +22,7 @@ import {
   type Winner,
 } from "../domain/game";
 import { ROLES, isRoleId, roleName, type RoleId } from "../domain/roles";
-import type { HostView, PlayerView } from "../views";
+import type { HostView, PlayerView, ScreenView } from "../views";
 
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 export type Result = { ok: true } | { ok: false; error: string };
@@ -95,6 +100,8 @@ export async function getHostView(g: WolfGame): Promise<HostView> {
     blackPlague: g.blackPlague,
     canUndo: g.history.length > 0,
     rules: await rulesFor(g.hostMemberId),
+    art: await cardArt(g.hostMemberId),
+    reveal: g.reveal ?? null,
   };
 }
 
@@ -106,6 +113,7 @@ export async function getPlayerView(g: WolfGame, key: string | null): Promise<Pl
   const done = g.status === "done";
   return {
     meneur: host?.name ?? "le meneur",
+    art: await cardArt(g.hostMemberId),
     status: g.status as PlayerView["status"],
     dealMode: g.dealMode === "app" ? "app" : "cards",
     players: rows.length,
@@ -144,7 +152,7 @@ export async function listGames(hostId: string) {
 /** The meneur's stats: games by winning side, and per player, how long they last. */
 export async function getStats(hostId: string) {
   const games = await db
-    .select({ winner: wolfGame.winner, blackPlague: wolfGame.blackPlague, state: wolfGame.state, id: wolfGame.id })
+    .select({ winner: wolfGame.winner, blackPlague: wolfGame.blackPlague, state: wolfGame.state, id: wolfGame.id, startedAt: wolfGame.startedAt, endedAt: wolfGame.endedAt })
     .from(wolfGame)
     .where(and(eq(wolfGame.hostMemberId, hostId), eq(wolfGame.status, "done"), isNotNull(wolfGame.winner)));
   const byWinner: Record<string, number> = {};
@@ -154,7 +162,7 @@ export async function getStats(hostId: string) {
     games.length === 0
       ? []
       : await db
-          .select({ gameId: wolfSeat.gameId, playerId: wolfSeat.playerId, name: wolfPlayer.name, alive: wolfSeat.alive, diedTurn: wolfSeat.diedTurn, deathOrder: wolfSeat.deathOrder })
+          .select({ id: wolfSeat.id, gameId: wolfSeat.gameId, playerId: wolfSeat.playerId, name: wolfPlayer.name, alive: wolfSeat.alive, diedTurn: wolfSeat.diedTurn, deathOrder: wolfSeat.deathOrder, role: wolfSeat.role, position: wolfSeat.position })
           .from(wolfSeat)
           .innerJoin(wolfPlayer, eq(wolfPlayer.id, wolfSeat.playerId))
           .where(
@@ -163,11 +171,28 @@ export async function getStats(hostId: string) {
               games.map((g) => g.id),
             ),
           );
+  const byGame = new Map(games.map((g) => [g.id, g]));
+  const won = (s: (typeof seats)[number]) => {
+    const g = byGame.get(s.gameId);
+    if (!g?.winner) return false;
+    const seat: Seat = { id: s.id, name: s.name, position: s.position, role: s.role && isRoleId(s.role) ? s.role : null, alive: s.alive, diedTurn: s.diedTurn, deathOrder: s.deathOrder };
+    return seatWon(seat, { ...newTracker(), ...(g.state as Partial<Tracker> | null) }, g.winner as Winner);
+  };
   return {
     games: games.length,
     blackPlagues: games.filter((g) => g.blackPlague).length,
     byWinner,
-    players: playerStats(seats.map((s) => ({ ...s, lastTurn: lastTurn.get(s.gameId) ?? 1 }))),
+    activity: activity(
+      games.map((g) => ({
+        startedAt: g.startedAt,
+        endedAt: g.endedAt,
+        winner: (g.winner ?? "personne") as Winner,
+        blackPlague: g.blackPlague,
+        players: seats.filter((s) => s.gameId === g.id).length,
+        lastTurn: lastTurn.get(g.id) ?? 1,
+      })),
+    ),
+    players: playerStats(seats.map((s) => ({ ...s, lastTurn: lastTurn.get(s.gameId) ?? 1, won: won(s) }))),
   };
 }
 
@@ -208,6 +233,73 @@ export async function findOrAddPlayer(ownerId: string, who: { name: string } | {
   return row ? { ok: true, id: row.id } : fail("Impossible d'ajouter ce joueur.");
 }
 
+// ───────── The usual table ─────────
+
+/** Arthur's table, 95 % of the games: where a new game starts until the meneur keeps another one. */
+export const DEFAULT_TABLE = ["Marine", "Vak", "Marie", "Taran", "Tanguy", "Momo", "Mélissa", "Jordan"];
+
+/** Names match without case or accents: « melissa » is « Mélissa ». */
+const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+
+/** The player ids of the meneur's usual table, in order (the default one, found or added to the book). */
+export async function usualTable(ownerId: string): Promise<string[]> {
+  const book = await db.select({ id: wolfPlayer.id, name: wolfPlayer.name, usual: wolfPlayer.usualPosition }).from(wolfPlayer).where(eq(wolfPlayer.ownerMemberId, ownerId));
+  const kept = book.filter((p) => p.usual !== null).sort((a, b) => a.usual! - b.usual!);
+  if (kept.length) return kept.map((p) => p.id);
+  const ids: string[] = [];
+  for (const name of DEFAULT_TABLE) {
+    const known = book.find((p) => fold(p.name) === fold(name));
+    if (known) ids.push(known.id);
+    else {
+      const added = await findOrAddPlayer(ownerId, { name });
+      if (added.ok) ids.push(added.id);
+    }
+  }
+  return ids;
+}
+
+/** « Garder cette table par défaut »: the next new games start with it. */
+export async function saveUsualTable(ownerId: string, playerIds: string[]): Promise<Result> {
+  await db.transaction(async (tx) => {
+    await tx.update(wolfPlayer).set({ usualPosition: null }).where(eq(wolfPlayer.ownerMemberId, ownerId));
+    for (const [i, id] of playerIds.entries()) await tx.update(wolfPlayer).set({ usualPosition: i }).where(and(eq(wolfPlayer.id, id), eq(wolfPlayer.ownerMemberId, ownerId)));
+  });
+  return { ok: true };
+}
+
+// ───────── The card pictures ─────────
+
+/** « verso » and the role ids: what a meneur can upload a picture for. */
+export const CARD_FACES = ["verso", ...ROLES.map((r) => r.id)] as const;
+
+/** The meneur's own pictures of their cards, by face. */
+export async function cardArt(ownerId: string): Promise<Record<string, string>> {
+  const rows = await db.select({ face: wolfCardArt.face, path: wolfCardArt.path }).from(wolfCardArt).where(eq(wolfCardArt.ownerMemberId, ownerId));
+  return Object.fromEntries(rows.map((r) => [r.face, r.path]));
+}
+
+/** A card picture, resized and kept on the NAS (never sent anywhere else). */
+export async function saveCardArt(ownerId: string, face: string, file: Buffer): Promise<Result> {
+  if (!(CARD_FACES as readonly string[]).includes(face)) return fail("Cette carte n'existe pas.");
+  let data: Buffer;
+  try {
+    data = await sharp(file).rotate().resize({ width: 720, height: 1008, fit: "inside", withoutEnlargement: true }).webp({ quality: 86 }).toBuffer();
+  } catch {
+    return fail("Ce fichier n'est pas une image lisible.");
+  }
+  const path = await saveUpload("loups", `${face}-${randomBytes(12).toString("hex")}.webp`, data);
+  await db
+    .insert(wolfCardArt)
+    .values({ ownerMemberId: ownerId, face, path })
+    .onConflictDoUpdate({ target: [wolfCardArt.ownerMemberId, wolfCardArt.face], set: { path, createdAt: new Date() } });
+  return { ok: true };
+}
+
+export async function deleteCardArt(ownerId: string, face: string): Promise<Result> {
+  await db.delete(wolfCardArt).where(and(eq(wolfCardArt.ownerMemberId, ownerId), eq(wolfCardArt.face, face)));
+  return { ok: true };
+}
+
 // ───────── Setting up ─────────
 
 async function newCode(): Promise<string> {
@@ -221,14 +313,19 @@ async function newCode(): Promise<string> {
 /** A new game: blank, or the same table and deck as `from` (« Rejouer », « Ajuster le deck »). */
 export async function createGame(hostId: string, from: WolfGame | null): Promise<WolfGame> {
   if (!from) {
-    // Same players as last time: the table rarely changes from one game to the next.
+    // The settings of last time (deal, peste noire, night order), and the usual table.
     const [last] = await db.select().from(wolfGame).where(eq(wolfGame.hostMemberId, hostId)).orderBy(desc(wolfGame.createdAt)).limit(1);
-    if (last) {
-      const game = await createGame(hostId, last);
-      await db.update(wolfGame).set({ deck: {}, previousGameId: null }).where(eq(wolfGame.id, game.id));
-      return { ...game, deck: {} };
-    }
+    const created = await insertGame(hostId, last ?? null);
+    await db.update(wolfGame).set({ deck: {}, previousGameId: null }).where(eq(wolfGame.id, created.id));
+    await db.delete(wolfSeat).where(eq(wolfSeat.gameId, created.id));
+    const table = await usualTable(hostId);
+    if (table.length) await db.insert(wolfSeat).values(table.map((playerId, position) => ({ gameId: created.id, playerId, position })));
+    return { ...created, deck: {}, previousGameId: null };
   }
+  return insertGame(hostId, from);
+}
+
+async function insertGame(hostId: string, from: WolfGame | null): Promise<WolfGame> {
   const [game] = await db
     .insert(wolfGame)
     .values({
@@ -543,4 +640,56 @@ export async function claimSeat(g: WolfGame, seatId: string): Promise<{ ok: true
     .returning({ id: wolfSeat.id });
   if (!row) return fail("Quelqu'un a déjà pris ce prénom. Si c'est une erreur, demande au meneur de le libérer.");
   return { ok: true, key };
+}
+
+// ───────── The reveal, and the room's screen ─────────
+
+/** « Révéler la carte »: flipped on the meneur's phone and on the projection screen. Only when the CLHUB dealt. */
+export async function revealCard(g: WolfGame, seatId: string | null): Promise<Result> {
+  if (g.dealMode !== "app") return fail("Avec de vraies cartes, le joueur retourne la sienne.");
+  if (seatId) {
+    const [seat] = await db.select({ id: wolfSeat.id }).from(wolfSeat).where(and(eq(wolfSeat.id, seatId), eq(wolfSeat.gameId, g.id))).limit(1);
+    if (!seat) return fail("Ce joueur n'est pas à la table.");
+  }
+  await db
+    .update(wolfGame)
+    .set({ reveal: seatId ? { seatId, at: Date.now() } : null })
+    .where(eq(wolfGame.id, g.id));
+  return { ok: true };
+}
+
+/**
+ * What the room's screen shows: the table, the dead with their card, the cards still in play, the
+ * time, and the reveal. Never a living player's card (unless the meneur reveals it), never the night.
+ */
+export async function getScreenView(g: WolfGame): Promise<ScreenView> {
+  const rows = await loadSeats(g.id);
+  const t = trackerOf(g);
+  const app = g.dealMode === "app";
+  const dead = rows.filter((r) => !r.seat.alive);
+  const shownRole = (r: (typeof rows)[number]) => (r.seat.alive ? null : (r.seat.role ?? r.seat.startRole));
+  // The cards still in play: the deck, minus the cards of the dead that are known.
+  const left = { ...(g.deck as Deck) };
+  for (const r of dead) {
+    const role = shownRole(r) as RoleId | null;
+    if (role && left[role]) left[role] = left[role]! - 1;
+  }
+  const revealRow = g.reveal ? rows.find((r) => r.seat.id === g.reveal!.seatId) : undefined;
+  const revealRole = revealRow ? (revealRow.seat.role ?? revealRow.seat.startRole) : null;
+  return {
+    status: g.status as ScreenView["status"],
+    dealMode: app ? "app" : "cards",
+    link: gameLink(g.token),
+    turn: t.turn,
+    night: isNight(t.turn),
+    startedAt: g.startedAt?.getTime() ?? null,
+    endedAt: g.endedAt?.getTime() ?? null,
+    now: Date.now(),
+    seats: rows.map((r) => ({ id: r.seat.id, name: r.name, alive: r.seat.alive, deathOrder: r.seat.deathOrder, role: shownRole(r), roleName: shownRole(r) ? roleName(shownRole(r)) : null })),
+    cardsLeft: deckEntries(left).map((e) => ({ id: e.id, name: roleName(e.id), count: e.count })),
+    spare: Math.max(0, Object.values(left).reduce((s, n) => s + (n ?? 0), 0) - rows.filter((r) => r.seat.alive).length),
+    winner: g.status === "done" ? ((g.winner as Winner | null) ?? "personne") : null,
+    art: await cardArt(g.hostMemberId),
+    reveal: g.reveal && revealRow && revealRole ? { seatId: revealRow.seat.id, name: revealRow.name, role: revealRole, roleName: roleName(revealRole), at: g.reveal.at } : null,
+  };
 }

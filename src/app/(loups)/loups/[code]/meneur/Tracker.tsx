@@ -46,7 +46,7 @@ export function Tracker({ view, busy, send }: { view: HostView; busy: boolean; s
       </div>
 
       {result && (
-        <div className="loups-panel flex flex-wrap items-center justify-between gap-3 border-[var(--w-moon)] p-4">
+        <div className="loups-panel flex flex-wrap items-center justify-between gap-3 border-[var(--w-rust)] p-4">
           <p className="font-semibold">🏁 {WINNER_LABELS[result]} ?</p>
           <button type="button" className="loups-btn min-h-11 px-4 text-sm" onClick={() => setEnding(result)}>
             Terminer la partie
@@ -103,7 +103,7 @@ function Night({ view, busy, play }: { view: HostView; busy: boolean; play: Play
                 type="checkbox"
                 checked={t.tonight.done.includes(step.id)}
                 onChange={(e) => void play({ t: "step", step: step.id, done: e.target.checked })}
-                className="mt-1 h-5 w-5 shrink-0 accent-[var(--w-moon)]"
+                className="mt-1 h-5 w-5 shrink-0 accent-[var(--w-rust)]"
                 aria-label={`${step.label} : fait`}
               />
               <span className="min-w-0">
@@ -455,7 +455,7 @@ function Vote({ view, busy, play }: { view: HostView; busy: boolean; play: Play 
         <SeatSelect seats={alive} value={target} onChange={setTarget} label="Joueur éliminé par le vote" none="Le village désigne…" disabled={busy} />
         {target && maid && !t.used.servante && maid.id !== target && (
           <label className="flex min-h-11 items-center gap-3 text-sm">
-            <input type="checkbox" checked={servant} onChange={(e) => setServant(e.target.checked)} className="h-5 w-5 accent-[var(--w-moon)]" />
+            <input type="checkbox" checked={servant} onChange={(e) => setServant(e.target.checked)} className="h-5 w-5 accent-[var(--w-rust)]" />
             La servante ({maid.name}) se dévoile et prend sa carte
           </label>
         )}
@@ -679,7 +679,7 @@ function EndDialog({ initial, plague, busy, send, onClose }: { initial: Winner; 
         <legend className="loups-muted mb-1 text-sm">Qui a gagné ?</legend>
         {(Object.keys(WINNER_LABELS) as Winner[]).map((w) => (
           <label key={w} className="flex min-h-11 items-center gap-3">
-            <input type="radio" name="winner" checked={winner === w} onChange={() => setWinner(w)} className="h-5 w-5 accent-[var(--w-moon)]" />
+            <input type="radio" name="winner" checked={winner === w} onChange={() => setWinner(w)} className="h-5 w-5 accent-[var(--w-rust)]" />
             {WINNER_LABELS[w]}
           </label>
         ))}

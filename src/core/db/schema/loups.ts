@@ -18,6 +18,8 @@ export const wolfPlayer = pgTable(
     name: text("name").notNull(),
     /** When the player is a club member. */
     memberId: uuid("member_id").references(() => member.id, { onDelete: "set null" }),
+    /** Their place at the meneur's usual table (a new game starts with it); null: not part of it. */
+    usualPosition: integer("usual_position"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("wolf_player_owner_name_idx").on(t.ownerMemberId, sql`lower(${t.name})`)],
@@ -51,6 +53,8 @@ export const wolfGame = pgTable("wolf_game", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   startedAt: timestamp("started_at", { withTimezone: true }),
   endedAt: timestamp("ended_at", { withTimezone: true }),
+  /** The last card the meneur asked to show (flipped on their phone and on the projection screen). */
+  reveal: jsonb("reveal").$type<{ seatId: string; at: number }>(),
 });
 
 /** One player at the table. `role` is the card now (the servante can change it), `startRole` the one dealt. */
@@ -90,6 +94,24 @@ export const wolfRule = pgTable(
     text: text("text").notNull(),
   },
   (t) => [uniqueIndex("wolf_rule_owner_role_idx").on(t.ownerMemberId, t.roleId)],
+);
+
+/**
+ * The meneur's own card pictures, uploaded once (their own scans of their own deck), kept on the NAS:
+ * `face` is a role id, or « verso » for the back shared by all the cards.
+ */
+export const wolfCardArt = pgTable(
+  "wolf_card_art",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerMemberId: uuid("owner_member_id")
+      .notNull()
+      .references(() => member.id, { onDelete: "cascade" }),
+    face: text("face").notNull(),
+    path: text("path").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("wolf_card_art_owner_face_idx").on(t.ownerMemberId, t.face)],
 );
 
 export type WolfGame = typeof wolfGame.$inferSelect;

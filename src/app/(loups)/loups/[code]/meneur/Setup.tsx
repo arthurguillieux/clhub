@@ -9,7 +9,7 @@ import type { Send } from "./ui";
 type Player = { id: string; name: string };
 
 /**
- * Before the game: the table (club members or free first names, in seating order) and the deck,
+ * Before the game: the table (club members or free first names, the usual table to start with) and the deck,
  * suggested from the number of players until the meneur touches it.
  */
 export function Setup({
@@ -35,6 +35,7 @@ export function Setup({
   const [name, setName] = useState("");
   const [member, setMember] = useState("");
   const [adding, setAdding] = useState("");
+  const [kept, setKept] = useState(false);
 
   const save = (next: { players?: Player[]; deck?: Deck; plague?: boolean; dealMode?: "cards" | "app"; auto?: boolean }) => {
     const p = next.players ?? players;
@@ -59,14 +60,6 @@ export function Setup({
     await save({ players: [...players, player] });
   };
 
-  const move = (i: number, by: number) => {
-    const next = [...players];
-    const [p] = next.splice(i, 1);
-    if (!p) return;
-    next.splice(Math.max(0, Math.min(next.length, i + by)), 0, p);
-    void save({ players: next });
-  };
-
   const setCount = (id: RoleId, count: number) => {
     const next = { ...deck, [id]: Math.max(0, count) };
     if (next[id] === 0) delete next[id];
@@ -86,25 +79,18 @@ export function Setup({
     <div className="flex flex-col gap-5">
       <section className="loups-panel p-4">
         <p className="loups-label">Les joueurs · {players.length}</p>
-        <p className="loups-muted mt-1 text-sm">Dans l&apos;ordre autour de la table, à partir de ta gauche : les voisins comptent pour certaines cartes.</p>
+        <p className="loups-muted mt-1 text-sm">Ta table habituelle est déjà là : retire les absents, ajoute les autres.</p>
         {players.length > 0 && (
-          <ol className="mt-3 flex flex-col gap-1.5">
-            {players.map((p, i) => (
-              <li key={p.id} className="loups-raised flex items-center gap-2 py-1 pr-1 pl-3">
-                <span className="loups-muted w-5 text-xs tabular-nums">{i + 1}</span>
+          <ul className="mt-3 grid grid-cols-2 gap-1.5">
+            {players.map((p) => (
+              <li key={p.id} className="loups-raised flex items-center gap-1 py-0.5 pr-0.5 pl-3">
                 <span className="min-w-0 flex-1 truncate font-semibold">{p.name}</span>
-                <button type="button" aria-label={`Monter ${p.name}`} className="h-10 w-10 rounded-full" disabled={busy || i === 0} onClick={() => move(i, -1)}>
-                  ↑
-                </button>
-                <button type="button" aria-label={`Descendre ${p.name}`} className="h-10 w-10 rounded-full" disabled={busy || i === players.length - 1} onClick={() => move(i, 1)}>
-                  ↓
-                </button>
                 <button type="button" aria-label={`Retirer ${p.name}`} className="h-10 w-10 rounded-full text-[var(--w-blood)]" disabled={busy} onClick={() => void save({ players: players.filter((x) => x.id !== p.id) })}>
                   ✕
                 </button>
               </li>
             ))}
-          </ol>
+          </ul>
         )}
         <form
           className="mt-3 flex gap-2"
@@ -139,6 +125,18 @@ export function Setup({
           </div>
         )}
         {adding && <p className="mt-2 text-sm text-[var(--w-blood)]">{adding}</p>}
+        {players.length > 0 && (
+          <button
+            type="button"
+            className="loups-muted mt-2 py-2 text-sm underline"
+            disabled={busy}
+            onClick={async () => {
+              if (!(await send({ type: "usualTable", playerIds: players.map((p) => p.id) }))) setKept(true);
+            }}
+          >
+            {kept ? "Table gardée : les prochaines parties commenceront avec elle ✓" : "Garder cette table par défaut pour les prochaines parties"}
+          </button>
+        )}
       </section>
 
       <section className="loups-panel p-4">
@@ -177,7 +175,7 @@ export function Setup({
           </select>
         )}
         <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
-          <input type="checkbox" checked={plague} onChange={(e) => void save({ plague: e.target.checked })} className="h-5 w-5 accent-[var(--w-moon)]" />
+          <input type="checkbox" checked={plague} onChange={(e) => void save({ plague: e.target.checked })} className="h-5 w-5 accent-[var(--w-rust)]" />
           <span>
             <b>Peste noire</b> : autant de cartes en plus que de loups ({wolfCount(deck)}), pour qu&apos;il arrive qu&apos;aucun loup ne soit tiré.
           </span>
@@ -193,14 +191,14 @@ export function Setup({
         <p className="loups-label">La distribution</p>
         <div className="mt-2 flex flex-col gap-1">
           <label className="flex min-h-11 items-center gap-3">
-            <input type="radio" name="deal" checked={dealMode === "cards"} onChange={() => void save({ dealMode: "cards" })} className="h-5 w-5 accent-[var(--w-moon)]" />
+            <input type="radio" name="deal" checked={dealMode === "cards"} onChange={() => void save({ dealMode: "cards" })} className="h-5 w-5 accent-[var(--w-rust)]" />
             <span>
               Je distribue de vraies cartes
               <span className="loups-muted block text-xs">Tu noteras qui a quoi au fil de la première nuit.</span>
             </span>
           </label>
           <label className="flex min-h-11 items-center gap-3">
-            <input type="radio" name="deal" checked={dealMode === "app"} onChange={() => void save({ dealMode: "app" })} className="h-5 w-5 accent-[var(--w-moon)]" />
+            <input type="radio" name="deal" checked={dealMode === "app"} onChange={() => void save({ dealMode: "app" })} className="h-5 w-5 accent-[var(--w-rust)]" />
             <span>
               Le CLHUB tire les cartes au sort
               <span className="loups-muted block text-xs">Chacun scanne le QR code et découvre sa carte, ou tu fais passer ton téléphone.</span>
