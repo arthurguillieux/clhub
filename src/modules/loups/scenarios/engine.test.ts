@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ANTARCTICA } from "./antarctica";
-import { alive, contagionActive, dawnDeaths, missedClues, nightSteps, pack, proposals, recap, replay, suggestedWinner, type Action, type Setup } from "./engine";
+import { alive, contagionActive, dawnDeaths, missedClues, nightSteps, pack, proposals, recap, registry, replay, suggestedWinner, type Action, type Setup } from "./engine";
 import { checkPassword } from "./index";
 
 const NAMES = ["Ana", "Ben", "Cléo", "Dan", "Eli", "Fanny", "Gus", "Hugo", "Inès", "Jade"];
@@ -127,5 +127,50 @@ describe("the password", () => {
   it("opens Antarctica with APE26, whatever the case and the spaces", () => {
     expect(checkPassword(ANTARCTICA, " ape26 ")).toBe(true);
     expect(checkPassword(ANTARCTICA, "APE27")).toBe(false);
+  });
+});
+
+describe("V1.1: the surveillance tapes", () => {
+  it("come up every night while their holder lives, and show the side as the night began", () => {
+    const given: Action[] = [...start, { t: "giveItem", item: "bandes", player: "p5" }];
+    let s = run([...given, { t: "night" }]);
+    expect(nightSteps(s, setup().params)).toEqual(["tapes", "infect", "victim", "dead"]);
+    s = run([...given, { t: "night" }, { t: "infect", player: "p2" }, { t: "tapes", target: "p2" }]);
+    expect(s.tonight.tapes).toEqual({ target: "p2", infected: false }); // contaminated tonight, but only at dawn
+    expect(s.log.at(-1)?.text).toBe("Bandes : Eli regarde Ben (sain).");
+    expect(run([...given, { t: "night" }, { t: "tapes", target: "p1" }]).tonight.tapes?.infected).toBe(true);
+    const dead = run([...given, ...night(null, "p5"), { t: "exile", player: null }, { t: "night" }]);
+    expect(nightSteps(dead, setup().params)).not.toContain("tapes");
+    const passed = run([...given, ...night(null, "p5"), { t: "giveItem", item: "bandes", player: "p6" }, { t: "exile", player: null }, { t: "night" }]);
+    expect(nightSteps(passed, setup().params)).toContain("tapes");
+    expect(run([...given, ...night(null, "p3"), { t: "exile", player: "p7" }, { t: "endLoop", winner: "meute" }, { t: "reboot" }]).items.bandes?.holder).toBeNull();
+  });
+});
+
+describe("V1.1: the life syringe follows the witch's rule", () => {
+  const given: Action[] = [...start, { t: "giveItem", item: "vie", player: "p4" }, { t: "night" }, { t: "infect", player: "p5" }, { t: "victim", player: "p5" }];
+  it("saves tonight's victim only, and the contamination stays", () => {
+    expect(run([...given, { t: "useItem", item: "vie", target: "p6" }]).items.vie?.used).toBe(false);
+    const saved = run([...given, { t: "useItem", item: "vie", target: "p5" }, { t: "dawn" }]);
+    expect(saved.players.find((p) => p.id === "p5")).toMatchObject({ status: "alive", infected: true });
+  });
+
+  it("has no victim to save when the victim sleeps in the panic room", () => {
+    const repaired: Action[] = [{ t: "switch", index: 0, up: true }, { t: "switch", index: 2, up: true }, { t: "switch", index: 3, up: true }, { t: "power" }];
+    const s = run([...start, ...repaired, { t: "giveItem", item: "vie", player: "p4" }, { t: "night" }, { t: "panic", player: "p5" }, { t: "victim", player: "p5" }, { t: "useItem", item: "vie", target: "p5" }]);
+    expect(s.items.vie?.used).toBe(false);
+  });
+});
+
+describe("V1.1: SUJETS.DAT", () => {
+  it("lists every subject with this loop's status and the loops before, never a side", () => {
+    const s = run([...start, ...night("p2", "p3"), { t: "exile", player: "p4" }, { t: "endLoop", winner: "meute" }, { t: "reboot" }, { t: "arrive" }, { t: "patientZero", player: "p5" }, ...night(null, "p6")]);
+    const lines = registry(s);
+    expect(lines[0]).toBe("PROTOCOLE ALPHA — REGISTRE DES SUJETS — SESSION 02");
+    expect(lines.find((l) => l.includes("CLÉO"))).toMatch(/STATUT : ACTIF$/);
+    expect(lines.join("\n")).toMatch(/SESSION 01 : DÉCÉDÉ \(SESSION 01, NUIT 1\)/);
+    expect(lines.join("\n")).toMatch(/SESSION 01 : EXCLU  \(SESSION 01, JOUR 1\)/);
+    expect(lines.find((l) => l.includes("FANNY"))).toMatch(/DÉCÉDÉ \(SESSION 02, NUIT 1\)/);
+    expect(lines.join("\n")).not.toMatch(/CONTAMIN|SAIN/);
   });
 });

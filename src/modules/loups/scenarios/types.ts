@@ -9,7 +9,8 @@ export interface TerminalFile {
   /** As listed on the terminal, « LOG_871220.VID ». */
   name: string;
   meta: string;
-  kind: "video" | "audio" | "recording" | "image";
+  /** text: words typed on the tube (from the preparation); registry: the subjects, built from the players. */
+  kind: "video" | "audio" | "recording" | "image" | "text" | "registry";
   /** The media slot that holds the file (projection computer), when it has one. */
   media?: string;
   date: string;
@@ -48,6 +49,8 @@ export interface MediaSlot {
   file: string;
   /** A sound of the pupitre: its category, and whether it loops (ambiances). */
   category?: "Bus" | "Nuit" | "Jour" | "Ambiances" | "Scénario";
+  /** Needed for the evening (a missing one is flagged on the projection's list); sounds are optional. */
+  required?: boolean;
   loop?: boolean;
 }
 
@@ -89,7 +92,7 @@ export interface ScenarioParams {
 export interface Item {
   id: string;
   name: string;
-  effect: "life" | "death" | "pistol" | "key";
+  effect: "life" | "death" | "pistol" | "key" | "tapes";
 }
 
 export interface ScenarioDef {

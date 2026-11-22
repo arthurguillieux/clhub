@@ -1,0 +1,1 @@
+ALTER TABLE "scenario_game" ADD COLUMN "simulated" boolean DEFAULT false NOT NULL;

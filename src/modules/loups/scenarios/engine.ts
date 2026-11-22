@@ -10,6 +10,10 @@ export interface Setup {
   params: ScenarioParams;
   events: DayEvent[];
   extraFaults: Fault[];
+  /** Per terminal file: the name and date shown, a text file's words, subtitles (« 0:03 Réplique » per line). */
+  files?: Record<string, { name?: string; date?: string; text?: string; subs?: string }>;
+  /** The HUD's in-world date and the real one a fault shows. */
+  dates?: { world?: string; real?: string };
 }
 
 export type Action =
@@ -35,6 +39,7 @@ export type Action =
   | { t: "fault"; id: string }
   | { t: "night" }
   | { t: "panic"; player: string | null }
+  | { t: "tapes"; target: string | null }
   | { t: "infect"; player: string | null }
   | { t: "victim"; player: string | null }
   | { t: "useItem"; item: string; target: string | null }
@@ -53,7 +58,7 @@ export type Action =
   | { t: "badEnd" };
 
 export type Phase = "welcome" | "bus" | "arrival" | "night" | "day" | "loopEnd" | "good" | "bad";
-export type NightStepId = "panic" | "infect" | "victim" | "items" | "dead";
+export type NightStepId = "panic" | "tapes" | "infect" | "victim" | "items" | "dead";
 
 export interface PlayerState {
   id: string;
@@ -65,6 +70,8 @@ export interface PlayerState {
   infectedAt: string | null;
   /** The pack that night, by name. */
   infectedBy: string | null;
+  /** When they died or were exiled in this loop: « Boucle 1 · Nuit 2 ». */
+  diedAt: string | null;
 }
 
 export interface State {
@@ -99,6 +106,8 @@ export interface State {
     victim: string | null;
     life: string | null;
     death: string | null;
+    /** The surveillance tapes: who was watched, and their side at the start of the night. */
+    tapes: { target: string; infected: boolean } | null;
     proposed: string[];
     chosen: string | null;
     done: NightStepId[];
@@ -108,18 +117,20 @@ export interface State {
   /** Deaths announced this morning, for the projection. */
   announced: string[];
   faults: { id: string; at: string }[];
+  /** The loops gone by: who died or was exiled, and when (for SUJETS.DAT). */
+  past: { loop: number; players: { id: string; status: PlayerState["status"]; at: string | null }[] }[];
   winner: "village" | "meute" | null;
   log: { at: string; text: string }[];
 }
 
-const emptyNight = (): State["tonight"] => ({ panic: null, infect: null, victim: null, life: null, death: null, proposed: [], chosen: null, done: [] });
+const emptyNight = (): State["tonight"] => ({ panic: null, infect: null, victim: null, life: null, death: null, tapes: null, proposed: [], chosen: null, done: [] });
 
 export function initialState(def: ScenarioDef, setup: Setup): State {
   return {
     phase: "welcome",
     loop: 1,
     round: 0,
-    players: setup.players.map((p, i) => ({ id: p.id, name: p.name, room: i + 1, status: "alive", infected: false, infectedAt: null, infectedBy: null })),
+    players: setup.players.map((p, i) => ({ id: p.id, name: p.name, room: i + 1, status: "alive", infected: false, infectedAt: null, infectedBy: null, diedAt: null })),
     patientZero: null,
     light: false,
     doors: Object.fromEntries(def.doors.map((d) => [d.id, false])),
@@ -140,6 +151,7 @@ export function initialState(def: ScenarioDef, setup: Setup): State {
     event: null,
     announced: [],
     faults: [],
+    past: [],
     winner: null,
     log: [],
   };
@@ -169,10 +181,16 @@ export function contagionActive(s: State, params: ScenarioParams): boolean {
 /** The steps of tonight's wizard, in order. */
 export function nightSteps(s: State, params: ScenarioParams): NightStepId[] {
   const steps: NightStepId[] = [];
+  const holderAlive = (id: string) => {
+    const held = s.items[id];
+    return !!held && !held.used && !!held.holder && s.players.find((p) => p.id === held.holder)?.status === "alive";
+  };
   if (s.panicReady) steps.push("panic");
+  // The tapes are used every night while their holder lives: they're never spent.
+  if (holderAlive("bandes")) steps.push("tapes");
   if (contagionActive(s, params)) steps.push("infect");
   steps.push("victim");
-  if (Object.values(s.items).some((i) => !i.used && i.holder && s.players.find((p) => p.id === i.holder)?.status === "alive")) steps.push("items");
+  if (holderAlive("vie") || holderAlive("mort")) steps.push("items");
   steps.push("dead");
   return steps;
 }
@@ -294,6 +312,19 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
     }
     case "panic":
       return s.phase === "night" ? { ...s, tonight: { ...s.tonight, panic: a.player, done: [...new Set([...s.tonight.done, "panic" as const])] } } : s;
+    case "tapes": {
+      if (s.phase !== "night") return s;
+      const done = [...new Set([...s.tonight.done, "tapes" as const])];
+      const target = s.players.find((p) => p.id === a.target);
+      if (!target) return { ...s, tonight: { ...s.tonight, done } };
+      // Their side as the night began: tonight's contamination only lands at dawn.
+      const holder = nameOf(s, s.items.bandes?.holder ?? null);
+      return {
+        ...s,
+        tonight: { ...s.tonight, tapes: { target: target.id, infected: target.infected }, done },
+        log: log(`Bandes : ${holder} regarde ${target.name} (${target.infected ? "contaminé" : "sain"}).`),
+      };
+    }
     case "infect": {
       if (s.phase !== "night") return s;
       const tonight = { ...s.tonight, infect: a.player, done: [...new Set([...s.tonight.done, "infect" as const])] };
@@ -305,11 +336,13 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
       const item = def.items.find((i) => i.id === a.item);
       const held = s.items[a.item];
       if (!item || !held || held.used) return s;
+      // The life syringe follows the witch's rule: it saves tonight's victim, and no one else.
+      if (item.effect === "life" && (!s.tonight.victim || a.target !== s.tonight.victim || s.tonight.victim === s.tonight.panic)) return s;
       const items = { ...s.items, [a.item]: { ...held, used: true } };
       const by = nameOf(s, held.holder);
       if (item.effect === "life") return { ...s, items, tonight: { ...s.tonight, life: a.target, done: [...new Set([...s.tonight.done, "items" as const])] }, log: log(`${item.name} (${by}) sur ${nameOf(s, a.target)}.`) };
       if (item.effect === "death") return { ...s, items, tonight: { ...s.tonight, death: a.target, done: [...new Set([...s.tonight.done, "items" as const])] }, log: log(`${item.name} (${by}) sur ${nameOf(s, a.target)}.`) };
-      if (item.effect === "pistol" && a.target) return { ...s, items, players: setPlayer(a.target, { status: "dead" }), log: log(`${item.name} : ${by} abat ${nameOf(s, a.target)}.`) };
+      if (item.effect === "pistol" && a.target) return { ...s, items, players: setPlayer(a.target, { status: "dead", diedAt: at }), log: log(`${item.name} : ${by} abat ${nameOf(s, a.target)}.`) };
       return { ...s, items, log: log(`${item.name} utilisée.`) };
     }
     case "giveItem": {
@@ -327,7 +360,7 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
       if (s.phase !== "night") return s;
       const n = s.tonight;
       const deaths = dawnDeaths(s);
-      let players = s.players.map((p) => (deaths.includes(p.id) ? { ...p, status: "dead" as const } : p));
+      let players = s.players.map((p) => (deaths.includes(p.id) ? { ...p, status: "dead" as const, diedAt: at } : p));
       if (n.infect) {
         // The pack bit together: whoever was in it (and not locked in the panic room) that night.
         const by = pack(s).filter((p) => p.id !== n.panic).map((p) => p.name).join(", ") || null;
@@ -360,12 +393,12 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
       if (!a.player) return { ...s, log: log("Exil : personne.") };
       const p = s.players.find((x) => x.id === a.player);
       if (!p || p.status !== "alive") return s;
-      return { ...s, players: setPlayer(a.player, { status: "exiled" }), log: log(`Exil : ${p.name} (${p.infected ? "contaminé" : "sain"}).`) };
+      return { ...s, players: setPlayer(a.player, { status: "exiled", diedAt: at }), log: log(`Exil : ${p.name} (${p.infected ? "contaminé" : "sain"}).`) };
     }
     case "kill":
-      return { ...s, players: setPlayer(a.player, { status: "dead" }), log: log(`Correction : ${nameOf(s, a.player)} est mort.`) };
+      return { ...s, players: setPlayer(a.player, { status: "dead", diedAt: at }), log: log(`Correction : ${nameOf(s, a.player)} est mort.`) };
     case "revive":
-      return { ...s, players: setPlayer(a.player, { status: "alive" }), log: log(`Correction : ${nameOf(s, a.player)} est en vie.`) };
+      return { ...s, players: setPlayer(a.player, { status: "alive", diedAt: null }), log: log(`Correction : ${nameOf(s, a.player)} est en vie.`) };
     case "setInfected":
       return {
         ...s,
@@ -386,7 +419,8 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
         phase: "bus",
         loop: s.loop + 1,
         round: 0,
-        players: s.players.map((p) => ({ ...p, status: "alive", infected: false, infectedAt: null, infectedBy: null })),
+        players: s.players.map((p) => ({ ...p, status: "alive", infected: false, infectedAt: null, infectedBy: null, diedAt: null })),
+        past: [...s.past, { loop: s.loop, players: s.players.map((p) => ({ id: p.id, status: p.status, at: p.diedAt })) }],
         patientZero: null,
         sealed,
         light: setup.params.hallLitLoop2,
@@ -424,4 +458,33 @@ export function missedClues(def: ScenarioDef, setup: Setup, s: State): { at: str
 /** Who contaminated whom, loop by loop: the end-of-evening recap. */
 export function recap(s: State): { name: string; room: number; status: PlayerState["status"]; infected: boolean; infectedAt: string | null; by: string | null }[] {
   return s.players.map((p) => ({ name: p.name, room: p.room, status: p.status, infected: p.infected, infectedAt: p.infectedAt, by: p.infectedBy }));
+}
+
+const session = (loop: number) => `SESSION ${String(loop).padStart(2, "0")}`;
+
+/** « Boucle 1 · Nuit 2 » → « SESSION 01, NUIT 2 ». */
+function when(at: string | null): string {
+  const m = at?.match(/Boucle (\d+) · (Nuit|Jour) (\d+)/);
+  return m ? `${session(Number(m[1]))}, ${m[2]!.toUpperCase()} ${m[3]}` : (at ?? "").toUpperCase();
+}
+
+const statusLine = (status: PlayerState["status"], at: string | null) =>
+  status === "alive" ? "ACTIF" : `${status === "dead" ? "DÉCÉDÉ" : "EXCLU "} (${when(at)})`;
+
+/**
+ * SUJETS.DAT, built from the players: each one's status in this loop, and what became of them in the
+ * loops before (that's where they understand they've been watched from the start). Never a side.
+ */
+export function registry(s: { loop: number; players: { id: string; name: string; room: number; status: PlayerState["status"]; diedAt: string | null }[]; past: State["past"] }): string[] {
+  const width = Math.max(8, ...s.players.map((p) => p.name.length)) + 2;
+  const lines = [`PROTOCOLE ALPHA — REGISTRE DES SUJETS — ${session(s.loop)}`, ""];
+  for (const p of [...s.players].sort((a, b) => a.room - b.room)) {
+    const n = String(p.room).padStart(2, "0");
+    lines.push(`SUJET ${n}  CH.${n}  ${p.name.toUpperCase().padEnd(width)}STATUT : ${statusLine(p.status, p.diedAt)}`);
+    for (const loop of s.past) {
+      const then = loop.players.find((x) => x.id === p.id);
+      if (then && then.status !== "alive") lines.push(`${" ".repeat(18 + width)}${session(loop.loop)} : ${statusLine(then.status, then.at)}`);
+    }
+  }
+  return lines;
 }

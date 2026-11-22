@@ -123,6 +123,14 @@ export function Prep({
         </button>
       </Section>
 
+      <Section title="FICHIERS ET DATES">
+        <p className="text-xs text-[var(--scn-muted)]">Ce que les terminaux affichent : nom et date de chaque fichier, le texte des fichiers texte, les sous-titres (une réplique par ligne, avec son temps : « 0:03 Je… ça marche ? »).</p>
+        <Dates setup={setup} busy={busy} save={save} />
+        {def.terminals.flatMap((t) =>
+          t.files.map((f) => <FileRow key={f.id} file={f} terminal={t.label} value={setup.files?.[f.id] ?? {}} busy={busy} onSave={(v) => save({ files: { ...setup.files, [f.id]: v } })} />),
+        )}
+      </Section>
+
       <Section title="FAILLES AJOUTÉES" chip={<span className="scn-chip">{def.faults.length} + {setup.extraFaults.length}</span>}>
         <p className="text-xs text-[var(--scn-muted)]">Les failles du scénario sont prêtes. Ajoute les tiennes : un texte, ou une image (un fichier de ton dossier de médias).</p>
         {setup.extraFaults.map((f, i) => (
@@ -168,6 +176,58 @@ export function Prep({
         </button>
       )}
     </div>
+  );
+}
+
+function Dates({ setup, busy, save }: { setup: Setup; busy: boolean; save: (next: Partial<Setup>) => Promise<string | null> }) {
+  const [world, setWorld] = useState(setup.dates?.world ?? "");
+  const [real, setReal] = useState(setup.dates?.real ?? "");
+  const dirty = world !== (setup.dates?.world ?? "") || real !== (setup.dates?.real ?? "");
+  return (
+    <div className="grid grid-cols-2 gap-2 text-xs">
+      <label className="flex flex-col gap-1">
+        Date de l&apos;en-tête
+        <input value={world} onChange={(e) => setWorld(e.target.value)} maxLength={20} placeholder="21.12.1988" className="scn-field" />
+      </label>
+      <label className="flex flex-col gap-1">
+        Date montrée par la faille
+        <input value={real} onChange={(e) => setReal(e.target.value)} maxLength={20} placeholder="06.02.2027" className="scn-field" />
+      </label>
+      <button type="button" className="scn-btn col-span-2" disabled={busy || !dirty} onClick={() => void save({ dates: { world: world.trim() || undefined, real: real.trim() || undefined } })}>
+        {dirty ? "Enregistrer les dates" : "Dates enregistrées ✓"}
+      </button>
+    </div>
+  );
+}
+
+type FileValue = { name?: string; date?: string; text?: string; subs?: string };
+
+function FileRow({ file, terminal, value, busy, onSave }: { file: PublicScenario["terminals"][number]["files"][number]; terminal: string; value: FileValue; busy: boolean; onSave: (v: FileValue) => Promise<string | null> }) {
+  const [v, setV] = useState<FileValue>(value);
+  const dirty = JSON.stringify(v) !== JSON.stringify(value);
+  const set = (k: keyof FileValue, x: string) => setV({ ...v, [k]: x || undefined });
+  return (
+    <details className="rounded-lg border border-[var(--scn-line)] p-2 text-sm">
+      <summary className="cursor-pointer">
+        <span className="scn-vt text-lg text-[var(--scn-amber)]">{v.name || file.name}</span> <span className="text-xs text-[var(--scn-muted)]">· {terminal}</span>
+      </summary>
+      <div className="mt-2 flex flex-col gap-1.5">
+        <div className="grid grid-cols-2 gap-2">
+          <input value={v.name ?? ""} onChange={(e) => set("name", e.target.value)} maxLength={40} placeholder={file.name} aria-label="Nom affiché" className="scn-field" />
+          <input value={v.date ?? ""} onChange={(e) => set("date", e.target.value)} maxLength={20} placeholder={file.date} aria-label="Date affichée" className="scn-field" />
+        </div>
+        {file.kind === "text" && (
+          <textarea value={v.text ?? ""} onChange={(e) => set("text", e.target.value)} rows={8} maxLength={8000} placeholder="[Rapport du protocole Alpha — à écrire]" aria-label="Texte du fichier" className="scn-field py-2" />
+        )}
+        {(file.kind === "video" || file.kind === "audio" || file.kind === "recording") && (
+          <textarea value={v.subs ?? ""} onChange={(e) => set("subs", e.target.value)} rows={4} maxLength={8000} placeholder={"0:03 Je… ça marche ? Cool !\n0:07 On vient d'arriver avec les autres."} aria-label="Sous-titres" className="scn-field py-2 text-xs" />
+        )}
+        {file.kind === "registry" && <p className="text-xs text-[var(--scn-muted)]">Construit à partir des joueurs : rien à écrire.</p>}
+        <button type="button" className="scn-btn" disabled={busy || !dirty} onClick={() => void onSave(v)}>
+          {dirty ? "Enregistrer le fichier" : "Enregistré ✓"}
+        </button>
+      </div>
+    </details>
   );
 }
 

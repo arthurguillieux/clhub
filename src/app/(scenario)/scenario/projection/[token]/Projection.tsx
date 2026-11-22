@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLongPoll } from "@/app/(killer)/killer/useLongPoll";
 import type { ProjectionView } from "@/modules/loups/scenarios/data";
-import type { Action } from "@/modules/loups/scenarios/engine";
+import { registry, type Action } from "@/modules/loups/scenarios/engine";
+import { parseCues, type Cue } from "@/modules/loups/scenarios/subtitles";
 import type { Fault, PublicScenario, Terminal } from "@/modules/loups/scenarios/types";
 import { projectionReportAction } from "../../actions";
 import { forgetFiles, keepFiles, keyOf, loadFiles } from "./media";
@@ -24,6 +25,9 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   const [panel, setPanel] = useState(true);
   const recording = useRef<string | null>(null);
   const wanted = useMemo(() => [...def.media.map((m) => m.file), ...view.extraFaults.filter((f) => f.kind === "image" && f.media).map((f) => f.media!)], [def.media, view.extraFaults]);
+  // Subtitles, optional: a .vtt of the same name next to a video or an audio file.
+  const subtitleFiles = useMemo(() => def.media.filter((m) => m.kind !== "image").map((m) => m.file.replace(/\.[^.]+$/, ".vtt")), [def.media]);
+  const [subtitles, setSubtitles] = useState<Map<string, string>>(new Map());
   const urlOf = useCallback(
     (slotOrFile: string | undefined) => {
       if (!slotOrFile) return null;
@@ -37,8 +41,10 @@ export function Projection({ token, def, initial }: { token: string; def: Public
       const blobs = await loadFiles();
       setFiles((old) => {
         for (const url of old.values()) URL.revokeObjectURL(url);
-        return new Map([...blobs].map(([k, b]) => [k, URL.createObjectURL(b)]));
+        return new Map([...blobs].filter(([k]) => !k.endsWith(".vtt")).map(([k, b]) => [k, URL.createObjectURL(b)]));
       });
+      const texts = await Promise.all([...blobs].filter(([k]) => k.endsWith(".vtt")).map(async ([k, b]) => [k, await b.text()] as const));
+      setSubtitles(new Map(texts));
     } catch {
       // No IndexedDB (private window): the files must be picked again each time.
     }
@@ -298,7 +304,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
               <div className="pj-hud">
                 <span className={glitch ? "alt" : ""}>{glitch ? `SIMULATION ALPHA — SESSION 0${s.loop} — SUJETS ACTIFS : ${aliveCount}` : def.header}</span>
                 <span className="flex gap-[2.4em] opacity-85">
-                  <Clock date={glitch ? def.realDate : def.worldDate} />
+                  <Clock date={glitch ? (view.dates.real ?? def.realDate) : (view.dates.world ?? def.worldDate)} />
                   <Temperature />
                   <span className="pj-rec">● REC</span>
                 </span>
@@ -314,7 +320,23 @@ export function Projection({ token, def, initial }: { token: string; def: Public
             {s.aurora && !night && <div className="pj-aurora" />}
             {s.blizzard && !night && <Snow />}
             {night && <div className="pj-full" style={{ background: "radial-gradient(ellipse at 50% 60%, rgba(10,18,28,.6), #000 70%)", zIndex: 6 }} />}
-            {term && !night && <Crt term={term} playing={s.playing} faults={s.faults.map((f) => f.id)} bootKey={bootKey} urlOf={urlOf} recording={recording} />}
+            {term && !night && (
+              <Crt
+                term={term}
+                playing={s.playing}
+                faults={s.faults.map((f) => f.id)}
+                bootKey={bootKey}
+                urlOf={urlOf}
+                recording={recording}
+                files={view.files}
+                registryLines={registry({ loop: s.loop, players: view.players, past: s.past })}
+                subtitlesOf={(slot) => {
+                  const file = def.media.find((m) => m.id === slot)?.file;
+                  return file ? (subtitles.get(keyOf(file.replace(/\.[^.]+$/, ".vtt"))) ?? null) : null;
+                }}
+                simulated={view.simulated}
+              />
+            )}
             {s.circuitShown && !term && !night && <CircuitBox switches={s.switches} ready={s.panicReady} sparks={sparks} />}
             {!night && (
               <div className="pj-ticker">
@@ -331,9 +353,10 @@ export function Projection({ token, def, initial }: { token: string; def: Public
               </div>
             )}
             {event && s.phase === "day" && !announce && (
-              <div className={`absolute left-1/2 z-[9] -translate-x-1/2 border border-[var(--scn-ice-dim)] bg-[rgba(5,8,12,.88)] text-center transition-all ${eventBig ? "top-[35%] px-[3%] py-[2%]" : "top-[8.5%] px-[1.5%] py-[0.4%]"}`}>
-                <p className={`tracking-[0.2em] ${eventBig ? "text-[5cqw]" : "text-[1.6cqw]"}`}>{event.name.toUpperCase()}</p>
-                <p className={eventBig ? "text-[2.2cqw] text-[var(--scn-txt)]" : "text-[1.2cqw] text-[var(--scn-muted)]"}>{event.rule}</p>
+              // Big for a moment after dawn, then a small reminder at the top; never over a terminal or the box.
+              <div className={`absolute left-1/2 z-[9] -translate-x-1/2 border border-[var(--scn-ice-dim)] bg-[rgba(5,8,12,.88)] text-center transition-all ${eventBig && !term && !s.circuitShown ? "top-[35%] px-[3%] py-[2%]" : "top-[8.5%] px-[1.5%] py-[0.4%]"}`}>
+                <p className={`tracking-[0.2em] ${eventBig && !term && !s.circuitShown ? "text-[5cqw]" : "text-[1.6cqw]"}`}>{event.name.toUpperCase()}</p>
+                <p className={eventBig && !term && !s.circuitShown ? "text-[2.2cqw] text-[var(--scn-txt)]" : "text-[1.2cqw] text-[var(--scn-muted)]"}>{event.rule}</p>
               </div>
             )}
           </>
@@ -393,6 +416,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
             {overlay.text}
           </div>
         )}
+        {view.simulated && <div className="absolute top-[8%] right-[1%] z-[14] text-[1cqw] tracking-[0.3em] text-[var(--scn-magenta)] opacity-60">SIMULATION</div>}
         <div className="pj-fx pj-scan" />
         <div className="pj-fx pj-vig" />
       </div>
@@ -402,9 +426,10 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           def={def}
           wanted={wanted}
           files={files}
+          subtitles={subtitleFiles.filter((f) => subtitles.has(keyOf(f)))}
           mic={mic}
           onPick={async (list) => {
-            await keepFiles(list, new Set(wanted.map(keyOf)));
+            await keepFiles(list, new Set([...wanted, ...subtitleFiles].map(keyOf)));
             await reload();
           }}
           onForget={async () => {
@@ -575,6 +600,10 @@ function Crt({
   bootKey,
   urlOf,
   recording,
+  files: shown,
+  registryLines,
+  subtitlesOf,
+  simulated,
 }: {
   term: Terminal;
   playing: string | null;
@@ -582,9 +611,14 @@ function Crt({
   bootKey: number;
   urlOf: (slot: string | undefined) => string | null;
   recording: React.RefObject<string | null>;
+  files: ProjectionView["files"];
+  registryLines: string[];
+  subtitlesOf: (slot: string | undefined) => string | null;
+  simulated: boolean;
 }) {
-  const files = term.files.filter((f) => !f.fault || faults.includes(f.fault));
-  const list = files.map((f) => `${f.id === playing ? "> " : "  "}${f.name.padEnd(18)} ${f.meta}`).join("\n");
+  // What the preparation says the files are called and dated (the lore isn't fixed yet).
+  const files = term.files.filter((f) => !f.fault || faults.includes(f.fault)).map((f) => ({ ...f, name: shown[f.id]?.name || f.name, date: shown[f.id]?.date || f.date }));
+  const list = files.map((f) => `${f.id === playing ? "> " : "  "}${f.name.padEnd(18)} ${shown[f.id]?.date ? shown[f.id]?.date : f.meta}`).join("\n");
   const [typed, setTyped] = useState(bootKey ? 0 : term.boot.length);
   useEffect(() => {
     if (!bootKey) return;
@@ -610,7 +644,19 @@ function Crt({
               )}
             </div>
           )}
-          {file && <Tape key={`${term.id}-${file.id}`} file={file} url={file.kind === "recording" ? (recording.current ?? urlOf(file.media)) : urlOf(file.media)} cassetteFilter={file.kind === "recording" && !!recording.current} />}
+          {file && (file.kind === "text" || file.kind === "registry") && (
+            <TypedFile key={`${term.id}-${file.id}`} lines={file.kind === "registry" ? registryLines : (shown[file.id]?.text || "[Rapport du protocole Alpha — à écrire]").split("\n")} byLine={file.kind === "registry"} />
+          )}
+          {file && file.kind !== "text" && file.kind !== "registry" && (
+            <Tape
+              key={`${term.id}-${file.id}`}
+              file={file}
+              url={file.kind === "recording" ? (recording.current ?? urlOf(file.media) ?? (simulated ? silence() : null)) : urlOf(file.media)}
+              cassetteFilter={file.kind === "recording" && !!recording.current}
+              cues={parseCues(shown[file.id]?.subs ?? subtitlesOf(file.media) ?? "")}
+              simulated={simulated}
+            />
+          )}
         </div>
         <div className="pj-brand">A.P.E. SYSTEMS · MODÈLE 286</div>
         <div className="pj-led" />
@@ -619,9 +665,14 @@ function Crt({
   );
 }
 
-function Tape({ file, url, cassetteFilter }: { file: Terminal["files"][number]; url: string | null; cassetteFilter: boolean }) {
+function Tape({ file, url, cassetteFilter, cues, simulated }: { file: Terminal["files"][number]; url: string | null; cassetteFilter: boolean; cues: Cue[]; simulated: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const audioEl = useRef<HTMLAudioElement>(null);
+  const [line, setLine] = useState("");
+  const follow = (e: React.SyntheticEvent<HTMLMediaElement>) => {
+    const t = e.currentTarget.currentTime;
+    setLine(cues.find((c) => t >= c.start && t < c.end)?.text ?? "");
+  };
   useEffect(() => {
     if (!url || (file.kind !== "audio" && file.kind !== "recording")) return;
     const el = audioEl.current;
@@ -663,10 +714,15 @@ function Tape({ file, url, cassetteFilter }: { file: Terminal["files"][number]; 
     };
   }, [url, file.kind, cassetteFilter]);
 
-  if (!url) return <div className="pj-txt">{`${file.name}\n\nERREUR DE LECTURE\nBANDE ENDOMMAGÉE`}</div>;
+  if (!url)
+    return simulated ? (
+      <div className="pj-txt">{`${file.name}\n${file.date}  ${file.time}\n\n[ MÉDIA ABSENT ]\nSimulation : le fichier n'est pas sur cet ordinateur.`}</div>
+    ) : (
+      <div className="pj-txt">{`${file.name}\n\nERREUR DE LECTURE\nBANDE ENDOMMAGÉE`}</div>
+    );
   return (
     <>
-      {file.kind === "video" && <video src={url} autoPlay playsInline />}
+      {file.kind === "video" && <video src={url} autoPlay playsInline onTimeUpdate={follow} />}
       {file.kind === "image" && (
         // eslint-disable-next-line @next/next/no-img-element -- a local file of the projection computer
         <img src={url} alt="" />
@@ -674,7 +730,7 @@ function Tape({ file, url, cassetteFilter }: { file: Terminal["files"][number]; 
       {(file.kind === "audio" || file.kind === "recording") && (
         <>
           <canvas ref={canvas} />
-          <audio ref={audioEl} src={url} />
+          <audio ref={audioEl} src={url} onTimeUpdate={follow} />
         </>
       )}
       {file.kind !== "image" && (
@@ -682,7 +738,7 @@ function Tape({ file, url, cassetteFilter }: { file: Terminal["files"][number]; 
           <div className="tl">{file.kind === "video" ? "▶ PLAY" : "▶ LECTURE AUDIO"}</div>
           <div className="tr">{file.date}</div>
           <div className="bl">{file.time}</div>
-          {file.subs[0] && <div className="sub">{file.subs[0]}</div>}
+          {(line || (!cues.length && file.subs[0])) && <div className="sub">{line || file.subs[0]}</div>}
           <div className="track" />
         </div>
       )}
@@ -793,6 +849,7 @@ function OperatorPanel({
   def,
   wanted,
   files,
+  subtitles,
   mic,
   onPick,
   onForget,
@@ -802,6 +859,7 @@ function OperatorPanel({
   def: PublicScenario;
   wanted: string[];
   files: Map<string, string>;
+  subtitles: string[];
   mic: boolean;
   onPick: (files: File[]) => Promise<void>;
   onForget: () => Promise<void>;
@@ -810,6 +868,13 @@ function OperatorPanel({
 }) {
   const [busy, setBusy] = useState(false);
   const ready = wanted.filter((f) => files.has(keyOf(f))).length;
+  // Whether this browser can pick a folder; the server assumes it can, so nothing flashes.
+  const folders = useSyncExternalStore(
+    () => () => undefined,
+    () => "webkitdirectory" in document.createElement("input"),
+    () => true,
+  );
+  const required = (f: string) => def.media.find((m) => m.file === f)?.required ?? true;
   return (
     <div className="scn-veil fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="scn-sec max-h-[92dvh] w-full max-w-xl overflow-y-auto p-5">
@@ -820,6 +885,7 @@ function OperatorPanel({
         <p className="scn-head mt-4">
           MÉDIAS · {ready} / {wanted.length}
         </p>
+        {!folders && <p className="mt-2 rounded-lg border border-[var(--scn-bad)] p-2 text-sm text-[var(--scn-bad)]">Ce navigateur ne peut pas lire le dossier des médias : utilisez Chrome ou Edge.</p>}
         <label className="scn-btn scn-btn-primary mt-2 flex cursor-pointer items-center justify-center">
           {busy ? "Lecture du dossier…" : "Choisir le dossier des médias"}
           <input
@@ -839,11 +905,12 @@ function OperatorPanel({
         </label>
         <ul className="mt-2 grid grid-cols-1 gap-0.5 text-xs sm:grid-cols-2">
           {wanted.map((f) => (
-            <li key={f} className={files.has(keyOf(f)) ? "text-[var(--scn-ok)]" : "text-[var(--scn-muted)]"}>
-              {files.has(keyOf(f)) ? "✓" : "·"} {f}
+            <li key={f} className={files.has(keyOf(f)) ? "text-[var(--scn-ok)]" : required(f) ? "text-[var(--scn-amber)]" : "text-[var(--scn-muted)]"}>
+              {files.has(keyOf(f)) ? "✓" : "·"} {f} <span className="opacity-60">{required(f) ? "obligatoire" : "facultatif"}</span>
             </li>
           ))}
         </ul>
+        {subtitles.length > 0 && <p className="mt-1 text-xs text-[var(--scn-ok)]">Sous-titres : {subtitles.join(", ")}</p>}
         {files.size > 0 && (
           <button type="button" className="mt-1 py-1 text-xs text-[var(--scn-muted)] underline" onClick={() => void onForget()}>
             Oublier les médias de cet ordinateur
@@ -859,6 +926,61 @@ function OperatorPanel({
           <small>plein écran et son ; ⚙ en bas à droite pour revenir ici</small>
         </button>
       </div>
+    </div>
+  );
+}
+
+let silent: string | null = null;
+/** For a simulation with no microphone: 30 seconds of silence stand in for the room's recording. */
+function silence(): string {
+  if (silent) return silent;
+  const rate = 8000;
+  const samples = rate * 30;
+  const buffer = new ArrayBuffer(44 + samples);
+  const v = new DataView(buffer);
+  const w = (o: number, t: string) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF");
+  v.setUint32(4, 36 + samples, true);
+  w(8, "WAVEfmt ");
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true);
+  v.setUint32(28, rate, true);
+  v.setUint16(32, 1, true);
+  v.setUint16(34, 8, true);
+  w(36, "data");
+  v.setUint32(40, samples, true);
+  new Uint8Array(buffer, 44).fill(128);
+  silent = URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
+  return silent;
+}
+
+/** A text file or the subjects' registry, typed on the tube (letter by letter, or line by line), scrolling. */
+function TypedFile({ lines, byLine }: { lines: string[]; byLine: boolean }) {
+  const all = lines.join("\n");
+  const [n, setN] = useState(0);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const timer = setInterval(
+      () =>
+        setN((x) => {
+          if (x >= all.length) return x;
+          if (!byLine) return x + 2;
+          const next = all.indexOf("\n", x + 1);
+          return next === -1 ? all.length : next + 1;
+        }),
+      byLine ? 220 : 28,
+    );
+    return () => clearInterval(timer);
+  }, [all, byLine]);
+  useEffect(() => {
+    box.current?.scrollTo({ top: box.current.scrollHeight });
+  }, [n]);
+  return (
+    <div ref={box} className="pj-txt overflow-hidden" style={{ fontSize: byLine ? "1.05cqw" : undefined }}>
+      {all.slice(0, n)}
+      <span className="pj-cursor" style={{ background: "var(--scn-amber)" }} />
     </div>
   );
 }

@@ -8,6 +8,8 @@ import {
   checkConsole,
   createEvening,
   deleteEvening,
+  deleteSimulations,
+  simulateEvening,
   finish,
   getByToken,
   getConsoleView,
@@ -34,6 +36,26 @@ export async function unlockAction(_prev: FormState, formData: FormData): Promis
   if (!def) return { status: "error", message: "Ce scénario n'existe pas." };
   const result = await unlock(session.member.id, def, String(formData.get("password") ?? ""));
   if (!result.ok) return { status: "error", message: result.error };
+  redirect("/jeux/loups/scenarios");
+}
+
+/** « Simuler une partie »: a fictive evening, ready at the chosen moment, and straight to its console. */
+export async function simulateAction(scenarioId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const session = await getSession();
+  if (!session) redirect("/sign-in");
+  const def = scenarioOf(scenarioId);
+  if (!def || !(await unlockedScenarios(session.member.id)).includes(def.id)) return { status: "error", message: "Ce scénario n'est pas ouvert." };
+  const start = z.enum(["b1-arrival", "b1-day3", "reboot", "b2-arrival", "b2-day3"]).safeParse(formData.get("start"));
+  if (!start.success) return { status: "error", message: "Choisis un moment de départ." };
+  const result = await simulateEvening(session.member.id, def, start.data);
+  if (!result.ok) return { status: "error", message: result.error };
+  redirect(`/scenario/${result.game.code}/console`);
+}
+
+export async function deleteSimulationsAction(): Promise<void> {
+  const session = await getSession();
+  if (!session) redirect("/sign-in");
+  await deleteSimulations(session.member.id);
   redirect("/jeux/loups/scenarios");
 }
 
@@ -77,6 +99,13 @@ const setupSchema = z.object({
   }),
   events: z.array(eventSchema).max(20),
   extraFaults: z.array(faultSchema).max(20),
+  files: z
+    .record(
+      id,
+      z.object({ name: text(40).optional(), date: text(20).optional(), text: z.string().max(8000).optional(), subs: z.string().max(8000).optional() }),
+    )
+    .optional(),
+  dates: z.object({ world: text(20).optional(), real: text(20).optional() }).optional(),
 });
 
 const actionSchema = z.discriminatedUnion("t", [
@@ -102,6 +131,7 @@ const actionSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("fault"), id }),
   z.object({ t: z.literal("night") }),
   z.object({ t: z.literal("panic"), player: player.nullable() }),
+  z.object({ t: z.literal("tapes"), target: player.nullable() }),
   z.object({ t: z.literal("infect"), player: player.nullable() }),
   z.object({ t: z.literal("victim"), player: player.nullable() }),
   z.object({ t: z.literal("useItem"), item: id, target: player.nullable() }),

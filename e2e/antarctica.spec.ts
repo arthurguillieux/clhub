@@ -11,11 +11,14 @@ const NAMES = Array.from({ length: 20 }, (_, i) => `Joueur${String(i + 1).padSta
 test("antarctica: preparation, base, terminal, circuit, a night, reboot, good ending", async ({ page, browser, baseURL }) => {
   test.setTimeout(120_000);
   await page.goto("/jeux/loups/scenarios");
-  await page.getByLabel("Mot de passe du scénario").fill("pas le bon");
-  await page.getByRole("button", { name: "Ouvrir le scénario" }).click();
-  await expect(page.getByText("Ce n'est pas le bon mot de passe.")).toBeVisible();
-  await page.getByLabel("Mot de passe du scénario").fill("ape26");
-  await page.getByRole("button", { name: "Ouvrir le scénario" }).click();
+  // Opened once, it stays open for this member (a run before may already have done it).
+  if (await page.getByLabel("Mot de passe du scénario").count()) {
+    await page.getByLabel("Mot de passe du scénario").fill("pas le bon");
+    await page.getByRole("button", { name: "Ouvrir le scénario" }).click();
+    await expect(page.getByText("Ce n'est pas le bon mot de passe.")).toBeVisible();
+    await page.getByLabel("Mot de passe du scénario").fill("ape26");
+    await page.getByRole("button", { name: "Ouvrir le scénario" }).click();
+  }
   await page.getByRole("button", { name: "❄️ Préparer une soirée" }).click();
   await expect(page).toHaveURL(/\/scenario\/[A-Z0-9]{6}\/console$/);
 
@@ -66,18 +69,37 @@ test("antarctica: preparation, base, terminal, circuit, a night, reboot, good en
   await expect(screen.getByText("PANIC ROOM OPÉRATIONNELLE").first()).toBeVisible();
   await tap("Ranger le boîtier");
 
+  // V1.1: the items handed out — the tapes and the life syringe.
+  await open("JOUEURS");
+  for (const [item, who] of [
+    ["Bandes de surveillance", "Joueur05 · ch. 5"],
+    ["Seringue de vie", "Joueur06 · ch. 6"],
+  ] as const) {
+    await page.getByLabel("Objet", { exact: true }).selectOption({ label: item });
+    await page.getByLabel("Joueur qui reçoit l'objet").selectOption({ label: who });
+    await tap("Confier");
+    await expect(page.getByText(item).first()).toBeVisible();
+  }
+
   await page.getByLabel("Patient zéro").selectOption({ label: "Joueur01 · ch. 1" });
   await tap("Noter le patient zéro");
   await expect(page.getByText("Patient zéro : Joueur01", { exact: true })).toBeVisible();
   await tap("🌙 La nuit tombe");
   await tap("Passer : personne");
+  await page.getByLabel("Joueur regardé sur les bandes").selectOption({ label: "Joueur01 · ch. 1" });
+  await tap("Voir son camp");
+  await expect(page.getByText("JOUEUR01 : CONTAMINÉ")).toBeVisible();
   await page.getByLabel("Personne contaminée").selectOption({ label: "Joueur03 · ch. 3" });
   await tap("Contaminer");
-  await page.getByLabel("Victime").selectOption({ label: "Joueur02 · ch. 2" });
+  await page.getByLabel("Victime").selectOption({ label: "Joueur04 · ch. 4" });
   await tap("Noter la victime");
+  await expect(page.getByText("Victime de la nuit : Joueur04")).toBeVisible();
+  await tap(/sauver Joueur04/);
   await tap(/Les morts choisissent : Blizzard/);
   await tap("☀️ Le jour se lève");
-  await expect(screen.getByText("JOUEUR02")).toBeVisible();
+  await expect(screen.getByText("CETTE NUIT, AUCUN SIGNAL PERDU")).toBeVisible();
+  await open("JOURNAL");
+  await expect(page.getByText(/Contamination : Joueur03\. Victime : Joueur04 \(sauvée\)/)).toBeVisible();
 
   await page.getByLabel("Exilé par le vote").selectOption({ label: "Joueur01 · ch. 1" });
   await tap("Exiler");
@@ -86,8 +108,14 @@ test("antarctica: preparation, base, terminal, circuit, a night, reboot, good en
   await tap(/Reboot : boucle 2/);
   await tap("Arriver à la base");
   await tap(/Allumer le hall/);
-  await expect(screen.getByText("JOUEUR02").last()).toBeVisible(); // the room sealed with the name
+  await expect(screen.getByText("JOUEUR01").last()).toBeVisible(); // the exiled one's room, sealed with the name
   await expect(screen.getByText("SCELLÉE").first()).toBeVisible();
+
+  // SUJETS.DAT, built from the players: last loop's exile is written down, no side ever.
+  await open("FAILLES");
+  await tap(/Les dossiers sujets/);
+  await expect(screen.getByText(/REGISTRE DES SUJETS — SESSION 02/)).toBeVisible({ timeout: 10_000 });
+  await expect(screen.getByText(/SESSION 01 : EXCLU/)).toBeVisible({ timeout: 15_000 });
 
   await tap("Le village vote contre le meneur");
   await tap("Déclencher la bonne fin");
@@ -95,4 +123,25 @@ test("antarctica: preparation, base, terminal, circuit, a night, reboot, good en
   await tap("Terminer la soirée");
   await expect(page.getByText("SOIRÉE TERMINÉE")).toBeVisible();
   await ctx.close();
+});
+
+test("antarctica: « Simuler une partie » opens at loop 2 with loop 1's dead sealed, and goes away in one click", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("/jeux/loups/scenarios");
+  if (await page.getByLabel("Mot de passe du scénario").count()) {
+    await page.getByLabel("Mot de passe du scénario").fill("APE26");
+    await page.getByRole("button", { name: "Ouvrir le scénario" }).click();
+  }
+  await page.locator('select[name="start"]').selectOption("b2-arrival");
+  await page.getByRole("button", { name: "🧪 Simuler une partie" }).click();
+  await expect(page).toHaveURL(/\/scenario\/[A-Z0-9]{6}\/console$/);
+  await expect(page.getByText("SIMULATION", { exact: true })).toBeVisible();
+  await expect(page.getByText("Boucle 2 · Arrivée").first()).toBeVisible();
+  await page.locator("summary", { hasText: /^JOURNAL/ }).click();
+  await expect(page.getByText(/Reboot de la simulation/)).toBeVisible();
+  await page.goto("/jeux/loups/scenarios");
+  await expect(page.getByRole("heading", { name: "Simulations" })).toBeVisible();
+  await page.getByRole("button", { name: "Supprimer toutes les simulations" }).click();
+  await page.getByRole("button", { name: "Supprimer les simulations" }).click();
+  await expect(page.getByRole("heading", { name: "Simulations" })).toHaveCount(0);
 });

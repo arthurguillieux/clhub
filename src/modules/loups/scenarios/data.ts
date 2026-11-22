@@ -5,6 +5,7 @@ import { db } from "@/core/db/client";
 import { member, scenarioAction, scenarioCohost, scenarioGame, scenarioUnlock, user, type ScenarioGame } from "@/core/db/schema";
 import { notifyGame } from "@/modules/killer/data/notifier";
 import { initialState, missedClues, recap, replay, suggestedWinner, type Action, type Setup, type State } from "./engine";
+import { simulatedJournal, simulatedPlayers, type StartPoint } from "./simulate";
 import { checkPassword, scenarioOf } from "./index";
 import type { ScenarioDef } from "./types";
 
@@ -64,7 +65,7 @@ export async function checkConsole(code: string): Promise<ConsoleCheck> {
 export async function listEvenings(memberId: string) {
   const cohosted = db.select({ id: scenarioCohost.gameId }).from(scenarioCohost).where(eq(scenarioCohost.memberId, memberId));
   return db
-    .select({ code: scenarioGame.code, scenarioId: scenarioGame.scenarioId, status: scenarioGame.status, createdAt: scenarioGame.createdAt, setup: scenarioGame.setup })
+    .select({ code: scenarioGame.code, scenarioId: scenarioGame.scenarioId, status: scenarioGame.status, simulated: scenarioGame.simulated, createdAt: scenarioGame.createdAt, setup: scenarioGame.setup })
     .from(scenarioGame)
     .where(or(eq(scenarioGame.hostMemberId, memberId), inArray(scenarioGame.id, cohosted)))
     .orderBy(desc(scenarioGame.createdAt))
@@ -73,7 +74,7 @@ export async function listEvenings(memberId: string) {
 
 const setupOf = (g: ScenarioGame, def: ScenarioDef): Setup => {
   const s = g.setup as Partial<Setup>;
-  return { players: s.players ?? [], params: { ...def.defaults, ...s.params }, events: s.events ?? def.events, extraFaults: s.extraFaults ?? [] };
+  return { players: s.players ?? [], params: { ...def.defaults, ...s.params }, events: s.events ?? def.events, extraFaults: s.extraFaults ?? [], files: s.files ?? {}, dates: s.dates ?? {} };
 };
 
 async function newCode(): Promise<string> {
@@ -86,7 +87,7 @@ async function newCode(): Promise<string> {
 
 /** A new evening, blank or « Rejouer ce scénario » (same players, parameters, events, faults, team). */
 export async function createEvening(hostId: string, def: ScenarioDef, from: ScenarioGame | null): Promise<ScenarioGame> {
-  const setup: Setup = from ? setupOf(from, def) : { players: [], params: def.defaults, events: def.events, extraFaults: [] };
+  const setup: Setup = from ? setupOf(from, def) : { players: [], params: def.defaults, events: def.events, extraFaults: [], files: {}, dates: {} };
   const [game] = await db
     .insert(scenarioGame)
     .values({ code: await newCode(), token: randomBytes(24).toString("base64url"), scenarioId: def.id, hostMemberId: hostId, setup: setup as unknown as Record<string, unknown>, previousGameId: from?.id ?? null })
@@ -189,6 +190,7 @@ export interface ConsoleView {
   code: string;
   link: string;
   status: "setup" | "live" | "done";
+  simulated: boolean;
   role: "host" | "cohost";
   setup: Setup;
   state: State;
@@ -208,6 +210,7 @@ export async function getConsoleView(g: ScenarioGame, def: ScenarioDef, role: "h
     code: g.code,
     link: projectionLink(g.token),
     status: g.status as ConsoleView["status"],
+    simulated: g.simulated,
     role,
     setup,
     state,
@@ -230,7 +233,8 @@ export interface ProjectionView {
   version: number;
   status: "setup" | "live" | "done";
   scenarioId: string;
-  players: { id: string; name: string; room: number; status: "alive" | "dead" | "exiled" }[];
+  simulated: boolean;
+  players: { id: string; name: string; room: number; status: "alive" | "dead" | "exiled"; diedAt: string | null }[];
   state: Omit<State, "players" | "tonight" | "patientZero" | "log" | "items"> & { lastExiled: string | null; lastEvent: string | null };
   /** The last actions, for effects played once (a glitch, a sound, a refused door…). */
   recent: { seq: number; at: number; action: Action }[];
@@ -238,6 +242,8 @@ export interface ProjectionView {
   /** The day events and the organizer's own faults, to show them. */
   events: Setup["events"];
   extraFaults: Setup["extraFaults"];
+  files: NonNullable<Setup["files"]>;
+  dates: NonNullable<Setup["dates"]>;
   /** Server time, to time the gauge. */
   now: number;
 }
@@ -255,7 +261,8 @@ export async function getProjectionView(g: ScenarioGame, def: ScenarioDef): Prom
     version: g.version,
     status: g.status as ProjectionView["status"],
     scenarioId: def.id,
-    players: players.map((p) => ({ id: p.id, name: p.name, room: p.room, status: p.status })),
+    simulated: g.simulated,
+    players: players.map((p) => ({ id: p.id, name: p.name, room: p.room, status: p.status, diedAt: p.diedAt })),
     state: {
       ...rest,
       lastExiled: exiled ? exiled.text.replace(/^Exil : /, "").replace(/ \(.*$/, "") : null,
@@ -265,6 +272,8 @@ export async function getProjectionView(g: ScenarioGame, def: ScenarioDef): Prom
     clues: full.phase === "bad" ? missedClues(def, setup, full) : [],
     events: setup.events,
     extraFaults: setup.extraFaults,
+    files: setup.files ?? {},
+    dates: setup.dates ?? {},
     now: Date.now(),
   };
 }
@@ -275,4 +284,43 @@ export async function reportProjection(g: ScenarioGame, report: { ready: number;
     .update(scenarioGame)
     .set({ projectionSeenAt: new Date(), mediaReady: report.ready, mediaTotal: report.total, micReady: report.mic })
     .where(eq(scenarioGame.id, g.id));
+}
+
+// ───────── Simulations ─────────
+
+/** A real evening of this member's that's being played: « Simuler » waits until it's over. */
+export async function liveRealEvening(memberId: string): Promise<boolean> {
+  const cohosted = db.select({ id: scenarioCohost.gameId }).from(scenarioCohost).where(eq(scenarioCohost.memberId, memberId));
+  const [row] = await db
+    .select({ id: scenarioGame.id })
+    .from(scenarioGame)
+    .where(and(eq(scenarioGame.status, "live"), eq(scenarioGame.simulated, false), or(eq(scenarioGame.hostMemberId, memberId), inArray(scenarioGame.id, cohosted))))
+    .limit(1);
+  return !!row;
+}
+
+/** « Simuler une partie »: 20 fictive players, launched, the journal written up to `start`. */
+export async function simulateEvening(hostId: string, def: ScenarioDef, start: StartPoint): Promise<{ ok: true; game: ScenarioGame } | { ok: false; error: string }> {
+  if (await liveRealEvening(hostId)) return fail("Une vraie soirée est en cours : la simulation attendra qu'elle soit terminée.");
+  const random = () => randomInt(1_000_000) / 1_000_000;
+  // No first name of a real evening, so a rehearsal can't be mistaken for one.
+  const real = await db.select({ setup: scenarioGame.setup }).from(scenarioGame).where(eq(scenarioGame.simulated, false));
+  const taken = real.flatMap((r) => ((r.setup as Partial<Setup>).players ?? []).map((p) => p.name));
+  const setup: Setup = { players: simulatedPlayers(random, taken), params: def.defaults, events: def.events, extraFaults: [], files: {}, dates: {} };
+  const [game] = await db
+    .insert(scenarioGame)
+    .values({ code: await newCode(), token: randomBytes(24).toString("base64url"), scenarioId: def.id, hostMemberId: hostId, simulated: true, status: "live", startedAt: new Date(), setup: setup as unknown as Record<string, unknown> })
+    .returning();
+  if (!game) return fail("La simulation n'a pas pu être créée.");
+  const journal = simulatedJournal(def, setup, start, random);
+  if (journal.length) await db.insert(scenarioAction).values(journal.map((action) => ({ gameId: game.id, action: action as unknown as Record<string, unknown> })));
+  return { ok: true, game };
+}
+
+export async function deleteSimulations(memberId: string): Promise<number> {
+  const gone = await db
+    .delete(scenarioGame)
+    .where(and(eq(scenarioGame.hostMemberId, memberId), eq(scenarioGame.simulated, true)))
+    .returning({ id: scenarioGame.id });
+  return gone.length;
 }

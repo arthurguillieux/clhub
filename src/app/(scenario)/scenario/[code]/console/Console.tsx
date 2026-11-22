@@ -87,7 +87,8 @@ export function Console({
           </span>
           <span className={`scn-chip ${p.mic ? "scn-chip-ok" : ""}`}>{p.mic ? "Micro prêt" : "Pas de micro"}</span>
         </div>
-        {view.status === "live" && <p className="text-[0.68rem] text-[var(--scn-amber)]">Soirée en cours : aucune mise à jour du CLHUB d&apos;ici la fin.</p>}
+        {view.simulated && <p className="scn-vt rounded-lg border border-[var(--scn-magenta)] py-1 text-center text-xl tracking-[0.3em] text-[var(--scn-magenta)]">SIMULATION</p>}
+        {view.status === "live" && !view.simulated && <p className="text-[0.68rem] text-[var(--scn-amber)]">Soirée en cours : aucune mise à jour du CLHUB d&apos;ici la fin.</p>}
       </header>
       {error && (
         <p role="alert" className="rounded-xl border border-[var(--scn-bad)] p-3 text-sm text-[var(--scn-bad)]">
@@ -149,6 +150,7 @@ function PhaseSection({ def, view, busy, act, send }: Props & { send: Send }) {
   const s = view.state;
   const [choice, setChoice] = useState("");
   const [confirmGood, setConfirmGood] = useState(false);
+  const [confirmBad, setConfirmBad] = useState(false);
   const living = alive(s);
   const pick = (fn: (id: string) => Promise<unknown>) => async () => {
     if (!choice) return;
@@ -233,7 +235,7 @@ function PhaseSection({ def, view, busy, act, send }: Props & { send: Send }) {
       {s.phase === "loopEnd" && (
         <>
           <p className="text-sm">Boucle {s.loop} terminée : victoire {s.winner === "village" ? "du village" : "de la meute"}.</p>
-          <button type="button" className="scn-btn scn-btn-primary" disabled={busy} onClick={() => void act({ t: "reboot" })}>
+          <button type="button" className="scn-btn scn-btn-primary" disabled={busy} onClick={() => (s.loop < view.setup.params.loops ? void act({ t: "reboot" }) : setConfirmBad(true))}>
             {s.loop < view.setup.params.loops ? `⟳ Reboot : boucle ${s.loop + 1}` : "Mauvaise fin"}
             <small>{s.loop < view.setup.params.loops ? "les chambres des morts seront scellées" : "dernière boucle : les indices manqués défilent"}</small>
           </button>
@@ -251,6 +253,29 @@ function PhaseSection({ def, view, busy, act, send }: Props & { send: Send }) {
         <button type="button" className="scn-btn scn-btn-danger mt-1" disabled={busy} onClick={() => setConfirmGood(true)}>
           Le village vote contre le meneur
         </button>
+      )}
+      {confirmBad && (
+        <div role="dialog" aria-modal="true" aria-label="Mauvaise fin" className="scn-veil fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center" onClick={() => setConfirmBad(false)}>
+          <div className="scn-sec w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+            <p className="scn-vt text-2xl text-[var(--scn-bad)]">FIN DE SESSION</p>
+            <p className="mt-1 text-sm text-[var(--scn-muted)]">C&apos;était la dernière boucle : la mauvaise fin s&apos;affiche, puis les indices manqués défilent.</p>
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                className="scn-btn scn-btn-danger"
+                disabled={busy}
+                onClick={async () => {
+                  if (!(await act({ t: "reboot" }))) setConfirmBad(false);
+                }}
+              >
+                Déclencher la mauvaise fin
+              </button>
+              <button type="button" className="scn-btn" onClick={() => setConfirmBad(false)}>
+                Revenir
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {confirmGood && (
         <div role="dialog" aria-modal="true" aria-label="Bonne fin" className="scn-veil fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center" onClick={() => setConfirmGood(false)}>
@@ -297,7 +322,7 @@ function DayEvent({ def, view, busy, act }: Props) {
   );
 }
 
-const STEP_LABELS: Record<NightStepId, string> = { panic: "Panic room", infect: "La meute contamine", victim: "La meute tue", items: "Les objets", dead: "Les morts" };
+const STEP_LABELS: Record<NightStepId, string> = { panic: "Panic room", tapes: "Bandes de surveillance", infect: "La meute contamine", victim: "La meute tue", items: "Seringues", dead: "Les morts" };
 
 /** One step at a time, none forgotten: « Passer » moves on. */
 function NightWizard({ def, view, busy, act }: Props) {
@@ -323,6 +348,11 @@ function NightWizard({ def, view, busy, act }: Props) {
           </li>
         ))}
       </ol>
+      {s.tonight.tapes && (
+        <p className={`scn-vt rounded-xl border-2 py-2 text-center text-4xl tracking-[0.2em] ${s.tonight.tapes.infected ? "border-[var(--scn-bad)] text-[var(--scn-bad)]" : "border-[var(--scn-ok)] text-[var(--scn-ok)]"}`}>
+          {name(s.tonight.tapes.target).toUpperCase()} : {s.tonight.tapes.infected ? "CONTAMINÉ" : "SAIN"}
+        </p>
+      )}
       <p className="text-xs text-[var(--scn-muted)]">
         Meute : {pack(s).map((x) => x.name).join(", ") || "personne"}
         {contagionActive(s, params) ? "" : " · la contagion est finie"}
@@ -334,6 +364,20 @@ function NightWizard({ def, view, busy, act }: Props) {
           <button type="button" className="scn-btn scn-btn-primary" disabled={busy} onClick={() => void go({ t: "panic", player: choice || null })}>
             {choice ? "L'enfermer pour la nuit" : "Passer : personne"}
           </button>
+        </>
+      )}
+      {current === "tapes" && (
+        <>
+          <p className="text-sm">Réveille {name(s.items.bandes?.holder ?? null)} (bandes de surveillance) : qui veut-il regarder ? La console te montre son camp, montre-le d&apos;un geste.</p>
+          <PlayerSelect players={living} value={choice} onChange={setChoice} label="Joueur regardé sur les bandes" none="Il regarde…" />
+          <Row>
+            <button type="button" className="scn-btn scn-btn-primary" disabled={busy || !choice} onClick={() => void go({ t: "tapes", target: choice })}>
+              Voir son camp
+            </button>
+            <button type="button" className="scn-btn" disabled={busy} onClick={() => void go({ t: "tapes", target: null })}>
+              Passer
+            </button>
+          </Row>
         </>
       )}
       {current === "infect" && (
@@ -424,12 +468,27 @@ function ItemsStep({ def, view, busy, act }: Props) {
   const s = view.state;
   const [targets, setTargets] = useState<Record<string, string>>({});
   const held = def.items.filter((i) => (i.effect === "life" || i.effect === "death") && !s.items[i.id]?.used && s.items[i.id]?.holder);
+  const victim = s.tonight.victim && s.tonight.victim !== s.tonight.panic ? s.players.find((p) => p.id === s.tonight.victim) : null;
+  const holderName = (id: string) => s.players.find((x) => x.id === s.items[id]?.holder)?.name;
   return (
     <>
-      {held.map((i) => (
+      <p className="rounded-xl border border-[var(--scn-line)] p-2 text-sm">
+        Victime de la nuit : {victim ? <b className="text-[var(--scn-bad)]">{victim.name}</b> : s.tonight.victim ? "aucune (panic room)" : "aucune"}
+      </p>
+      {held
+        .filter((i) => i.effect === "life")
+        .map((i) => (
+          <button key={i.id} type="button" className="scn-btn scn-btn-on" disabled={busy || !victim} onClick={() => victim && void act({ t: "useItem", item: i.id, target: victim.id })}>
+            {i.name} ({holderName(i.id)}) : {victim ? `sauver ${victim.name}` : "personne à sauver"}
+            <small>annule la mort, pas la contamination</small>
+          </button>
+        ))}
+      {held
+        .filter((i) => i.effect === "death")
+        .map((i) => (
         <div key={i.id} className="flex flex-col gap-1.5">
           <p className="text-sm">
-            {i.name} ({s.players.find((x) => x.id === s.items[i.id]?.holder)?.name}) :
+            {i.name} ({holderName(i.id)}) :
           </p>
           <PlayerSelect players={alive(s)} value={targets[i.id] ?? ""} onChange={(v) => setTargets({ ...targets, [i.id]: v })} label={`Cible de ${i.name}`} none="Cible…" />
           <button type="button" className="scn-btn" disabled={busy || !targets[i.id]} onClick={() => void act({ t: "useItem", item: i.id, target: targets[i.id] ?? null })}>
@@ -573,8 +632,8 @@ function Terminals({ def, view, busy, act }: Props) {
             .filter((f) => !f.fault || done.has(f.fault))
             .map((f) => (
               <button key={f.id} type="button" className={`scn-btn text-left ${s.playing === f.id ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "play", file: f.id })}>
-                ▶ {f.name}
-                <small>{f.meta}</small>
+                ▶ {view.setup.files?.[f.id]?.name || f.name}
+                <small>{view.setup.files?.[f.id]?.date || f.meta}</small>
               </button>
             ))}
           <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "terminal", id: null })}>

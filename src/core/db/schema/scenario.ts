@@ -18,6 +18,8 @@ export const scenarioGame = pgTable("scenario_game", {
     .references(() => member.id, { onDelete: "cascade" }),
   /** setup, live, done. */
   status: text("status").notNull().default("setup"),
+  /** « Simuler une partie »: a fictive evening for a visit or a rehearsal, kept apart from the real ones. */
+  simulated: boolean("simulated").notNull().default(false),
   /** Players, parameters, day events, extra faults (engine Setup). */
   setup: jsonb("setup").$type<Record<string, unknown>>().notNull(),
   version: integer("version").notNull().default(0),
