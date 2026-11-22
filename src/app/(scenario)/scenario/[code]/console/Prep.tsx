@@ -5,27 +5,10 @@ import type { ConsoleView } from "@/modules/loups/scenarios/data";
 import type { Setup } from "@/modules/loups/scenarios/engine";
 import { DEFAULT_TEXTS, importSummary, parseTextFile, resolveTexts, type TextFile } from "@/modules/loups/scenarios/texts";
 import type { DayEvent, Fault, PublicScenario } from "@/modules/loups/scenarios/types";
-import { deleteEveningAction } from "../../actions";
 import { Section, type Send } from "./Console";
 
-/** Before the evening: the players and their rooms, the settings, the events, the faults, the projection. */
-export function Prep({
-  code,
-  def,
-  view,
-  members,
-  qrSvg,
-  busy,
-  send,
-}: {
-  code: string;
-  def: PublicScenario;
-  view: ConsoleView;
-  members: { id: string; name: string }[];
-  qrSvg: string;
-  busy: boolean;
-  send: Send;
-}) {
+/** The scenario's preparation: the players and their rooms, the settings, the events, the faults, the texts, the team. */
+export function Prep({ def, view, members, busy, send }: { def: PublicScenario; view: ConsoleView; members: { id: string; name: string }[]; busy: boolean; send: Send }) {
   const setup = view.setup;
   const [names, setNames] = useState(setup.players.map((p) => p.name).join("\n"));
   const [savedNames, setSavedNames] = useState(names);
@@ -155,35 +138,8 @@ export function Prep({
         </button>
       </Section>
 
-      <Section title="PROJECTION" chip={<span className={`scn-chip ${view.projection.connected ? "scn-chip-ok" : "scn-chip-bad"}`}>{view.projection.connected ? "connectée" : "pas encore ouverte"}</span>} open>
-        <p className="text-xs text-[var(--scn-muted)]">
-          Ouvre ce lien sur l&apos;ordinateur branché au vidéoprojecteur. Il y choisira son dossier de médias, autorisera le micro, et passera en plein écran.
-        </p>
-        <input readOnly value={view.link} onFocus={(e) => e.target.select()} aria-label="Lien de la projection" className="scn-field text-xs" data-projection-link={view.link} />
-        <div className="mx-auto w-48 rounded-xl bg-white p-2" aria-label="QR code de la projection" dangerouslySetInnerHTML={{ __html: qrSvg }} />
-        <details className="text-xs">
-          <summary className="cursor-pointer py-2 text-[var(--scn-muted)]">Les fichiers attendus dans le dossier ({def.media.length})</summary>
-          <ul className="flex flex-col gap-0.5">
-            {def.media.map((m) => (
-              <li key={m.id}>
-                <code className="text-[var(--scn-amber)]">{m.file}</code> — {m.label}
-              </li>
-            ))}
-          </ul>
-        </details>
-      </Section>
-
       {view.role === "host" && <Team view={view} members={members} busy={busy} send={send} />}
 
-      <button type="button" className="scn-btn scn-btn-primary min-h-14 text-base" disabled={busy || setup.players.length < 4} onClick={() => void send({ type: "launch" })}>
-        ❄️ Lancer la soirée
-        <small>{setup.players.length < 4 ? "il faut au moins 4 joueurs" : "l'écran d'accueil s'affiche sur la projection"}</small>
-      </button>
-      {view.role === "host" && (
-        <button type="button" className="py-2 text-sm text-[var(--scn-bad)] underline" onClick={() => void deleteEveningAction(code)}>
-          Supprimer cette soirée
-        </button>
-      )}
     </div>
   );
 }

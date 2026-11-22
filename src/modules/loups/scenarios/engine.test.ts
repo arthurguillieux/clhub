@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ANTARCTICA } from "./antarctica";
-import { actionAvailable, alive, contagionActive, dawnDeaths, doorProposals, missedClues, nightSteps, pack, proposals, recap, registry, replay, suggestedWinner, timeLeft, type Action, type Setup } from "./engine";
+import { LOADING_MS, protocolOf, actionAvailable, alive, contagionActive, dawnDeaths, doorProposals, missedClues, nightSteps, pack, proposals, recap, registry, replay, suggestedWinner, timeLeft, type Action, type Setup } from "./engine";
 import { checkPassword } from "./index";
 
 const NAMES = ["Ana", "Ben", "Cléo", "Dan", "Eli", "Fanny", "Gus", "Hugo", "Inès", "Jade"];
@@ -25,6 +25,28 @@ const night = (infect: string | null, victim: string | null, chosen = "blizzard"
   { t: "voteResult", choice: chosen },
   { t: "dawn" },
 ];
+
+describe("the station before the game", () => {
+  it("is piloted on its own, then loads the scenario, and the game starts in the base the scenario expects", () => {
+    const base: Action[] = [{ t: "screen", mode: "plan" }, { t: "light", on: true }, { t: "door", door: "beta", open: true }, { t: "blizzard", on: true }, { t: "sound", slot: "son-vent" }];
+    const piloted = run(base);
+    expect(piloted).toMatchObject({ phase: "welcome", screen: "plan", light: true, blizzard: true, ambiances: ["son-vent"] });
+    expect(piloted.doors.beta).toBe(true);
+    expect(protocolOf(piloted, 0)).toBe("none");
+
+    const loaded = replay(ANTARCTICA, setup(), [...base, { t: "load" } as Action].map((action, i) => ({ action, at: i * 1000 })));
+    expect(protocolOf(loaded, 5000)).toBe("loading");
+    expect(protocolOf(loaded, 5000 + LOADING_MS)).toBe("ready");
+    expect(run([...base, { t: "load" }, { t: "unload" }]).loadingAt).toBeNull();
+
+    const started = run([...base, { t: "room", player: "p1", room: 2 }, { t: "load" }, { t: "start" }]);
+    expect(started).toMatchObject({ phase: "bus", light: false, blizzard: false, ambiances: [] });
+    expect(started.doors.beta).toBe(false);
+    expect(started.players.find((p) => p.id === "p1")?.room).toBe(2);
+    expect(started.log.at(-1)?.text).toBe("Prologue du bus.");
+    expect(protocolOf(started, 0)).toBe("running");
+  });
+});
 
 describe("the evening's course", () => {
   it("goes from the welcome screen to the bus, the arrival, and the first night only once patient zero is known", () => {

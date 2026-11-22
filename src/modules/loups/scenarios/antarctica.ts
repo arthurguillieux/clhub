@@ -9,6 +9,8 @@ import type { ScenarioDef } from "./types";
 export const ANTARCTICA: ScenarioDef = {
   id: "antarctica",
   title: "Antarctica : Sang-froid",
+  short: "Sang-froid",
+  base: { id: "antarctica", name: "Station Antarctica" },
   subtitle: "Une base polaire, une meute, et une simulation qui fuit",
   // Normalised (trimmed, upper case) before hashing; see scenarios/index.ts.
   passwordSha256: "ca4716a4ceb41934436aff8525edc0ab8e82344228df89d543fd1ee5c4dec34b",

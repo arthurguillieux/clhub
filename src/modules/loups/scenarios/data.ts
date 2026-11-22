@@ -4,7 +4,7 @@ import { getSession } from "@/core/auth/session";
 import { db } from "@/core/db/client";
 import { member, scenarioAction, scenarioCohost, scenarioGame, scenarioUnlock, user, type ScenarioGame } from "@/core/db/schema";
 import { notifyGame } from "@/modules/killer/data/notifier";
-import { apply, initialState, missedClues, momentOf, recap, replay, suggestedWinner, type Action, type Setup, type State } from "./engine";
+import { apply, initialState, missedClues, momentOf, protocolOf, recap, replay, suggestedWinner, type Action, type Setup, type State } from "./engine";
 import { simulatedJournal, simulatedPlayers, type StartPoint } from "./simulate";
 import { checkPassword, scenarioOf } from "./index";
 import { publicRecent, publicState, type PublicState } from "./public";
@@ -112,6 +112,8 @@ const bump = async (g: ScenarioGame) => {
 
 export async function saveSetup(g: ScenarioGame, setup: Setup): Promise<Result> {
   if (g.status !== "setup") return fail("La soirée est lancée : les joueurs et les réglages ne changent plus.");
+  const def = scenarioOf(g.scenarioId);
+  if (def && (await currentState(g, def)).loadingAt !== null) return fail("Le scénario est chargé : retire-le pour changer la préparation.");
   const names = setup.players.map((p) => p.name.trim().toLowerCase());
   if (new Set(names).size !== names.length) return fail("Deux joueurs portent le même prénom : ajoute une initiale.");
   await db
@@ -122,10 +124,13 @@ export async function saveSetup(g: ScenarioGame, setup: Setup): Promise<Result> 
   return { ok: true };
 }
 
+/** « Lancer la partie »: the scenario loaded into the station starts (the prologue of the bus). */
 export async function launch(g: ScenarioGame, def: ScenarioDef): Promise<Result> {
   if (g.status !== "setup") return { ok: true };
   if (setupOf(g, def).players.length < 4) return fail("Il faut au moins 4 joueurs.");
+  if (protocolOf(await currentState(g, def), Date.now()) !== "ready") return fail("Le scénario n'est pas encore chargé.");
   await db.update(scenarioGame).set({ status: "live", startedAt: new Date() }).where(eq(scenarioGame.id, g.id));
+  await db.insert(scenarioAction).values({ gameId: g.id, action: { t: "start" } });
   await bump(g);
   return { ok: true };
 }
@@ -170,8 +175,21 @@ const stateOf = (def: ScenarioDef, setup: Setup, rows: Awaited<ReturnType<typeof
     rows.map((r) => ({ action: r.action as unknown as Action, at: r.createdAt.getTime() })),
   );
 
+/** The station's state now, from its journal. */
+async function currentState(g: ScenarioGame, def: ScenarioDef): Promise<State> {
+  return stateOf(def, setupOf(g, def), await journal(g));
+}
+
+/** The game's own moves wait for « Lancer la partie »; before it, the station is piloted on its own. */
+const GAME_ONLY = new Set<Action["t"]>(["start", "arrive", "patientZero", "night", "panic", "tapes", "infect", "victim", "useItem", "giveItem", "propose", "deadChoose", "skip", "dawn", "exile", "setInfected", "endLoop", "reboot", "goodEnd", "badEnd", "vote", "voteResult", "dayAction", "labForce", "chief", "chiefConfirm", "shoot", "bloodTest", "radio", "quarantine", "confinement", "flag", "jump", "kill", "revive", "fault"]);
+
 export async function act(g: ScenarioGame, action: Action): Promise<Result> {
-  if (g.status !== "live") return fail("La soirée n'est pas lancée.");
+  if (g.status === "done") return fail("La soirée est terminée.");
+  if (g.status === "setup" && GAME_ONLY.has(action.t)) return fail("Lance d'abord la partie.");
+  if (action.t === "load") {
+    const def = scenarioOf(g.scenarioId);
+    if (def && setupOf(g, def).players.length < 4) return fail("Il faut au moins 4 joueurs pour charger le scénario.");
+  }
   await db.insert(scenarioAction).values({ gameId: g.id, action: action as unknown as Record<string, unknown> });
   await bump(g);
   return { ok: true };
@@ -186,6 +204,7 @@ export async function rewind(g: ScenarioGame, seq: number): Promise<Result> {
 }
 
 export async function undo(g: ScenarioGame): Promise<Result> {
+  if (g.status === "done") return fail("La soirée est terminée.");
   const [last] = await db.select({ seq: scenarioAction.seq }).from(scenarioAction).where(eq(scenarioAction.gameId, g.id)).orderBy(desc(scenarioAction.seq)).limit(1);
   if (!last) return fail("Rien à annuler.");
   await db.delete(scenarioAction).where(eq(scenarioAction.seq, last.seq));
@@ -211,6 +230,8 @@ export interface ConsoleView {
   /** Where « Revenir à » can go: each arrival, nightfall and dawn, with its journal position. */
   marks: { seq: number; label: string }[];
   cohosts: { memberId: string; name: string }[];
+  /** Server time, for the scenario's loading bar. */
+  now: number;
 }
 
 export async function getConsoleView(g: ScenarioGame, def: ScenarioDef, role: "host" | "cohost"): Promise<ConsoleView> {
@@ -218,12 +239,11 @@ export async function getConsoleView(g: ScenarioGame, def: ScenarioDef, role: "h
   const rows = await journal(g);
   let state = initialState(def, setup);
   const marks: ConsoleView["marks"] = [];
-  if (g.status !== "setup")
-    for (const r of rows) {
+  for (const r of rows) {
       const action = r.action as unknown as Action;
       state = apply(def, setup, state, action, r.createdAt.getTime());
-      if (["arrive", "night", "dawn", "reboot"].includes(action.t)) marks.push({ seq: r.seq, label: momentOf(state) });
-    }
+    if (["arrive", "night", "dawn", "reboot"].includes(action.t)) marks.push({ seq: r.seq, label: momentOf(state) });
+  }
   return {
     code: g.code,
     link: projectionLink(g.token),
@@ -232,7 +252,7 @@ export async function getConsoleView(g: ScenarioGame, def: ScenarioDef, role: "h
     role,
     setup,
     state,
-    canUndo: rows.length > 0 && g.status === "live",
+    canUndo: rows.length > 0 && g.status !== "done",
     projection: {
       connected: !!g.projectionSeenAt && Date.now() - g.projectionSeenAt.getTime() < PROJECTION_TIMEOUT_MS,
       mediaReady: g.mediaReady,
@@ -244,6 +264,7 @@ export async function getConsoleView(g: ScenarioGame, def: ScenarioDef, role: "h
     recap: recap(state),
     marks,
     cohosts: await cohostsOf(g),
+    now: Date.now(),
   };
 }
 
@@ -271,7 +292,7 @@ export interface ProjectionView {
 export async function getProjectionView(g: ScenarioGame, def: ScenarioDef): Promise<ProjectionView> {
   const setup = setupOf(g, def);
   const rows = await journal(g);
-  const full = g.status === "setup" ? initialState(def, setup) : stateOf(def, setup, rows);
+  const full = stateOf(def, setup, rows);
   return {
     version: g.version,
     status: g.status as ProjectionView["status"],

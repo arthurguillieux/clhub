@@ -38,10 +38,11 @@ export function UnlockForm({ scenarioId }: { scenarioId: string }) {
   );
 }
 
-export function NewEveningButton({ scenarioId }: { scenarioId: string }) {
+/** Opens the scenario's station: piloted on its own first, the scenario loaded into it later. */
+export function NewEveningButton({ scenarioId, baseName }: { scenarioId: string; baseName: string }) {
   return (
     <form action={newEveningAction.bind(null, scenarioId)}>
-      <Submit label="❄️ Préparer une soirée" busy="Création…" />
+      <Submit label={`❄️ Ouvrir la ${baseName.charAt(0).toLowerCase()}${baseName.slice(1)}`} busy="Ouverture…" />
     </form>
   );
 }

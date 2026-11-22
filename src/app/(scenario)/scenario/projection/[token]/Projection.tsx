@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLongPoll } from "@/app/(killer)/killer/useLongPoll";
 import type { ProjectionView } from "@/modules/loups/scenarios/data";
-import { registry, timeLeft, type Action } from "@/modules/loups/scenarios/engine";
+import { LOADING_MS, protocolOf, registry, timeLeft, type Action } from "@/modules/loups/scenarios/engine";
 import { parseCues, type Cue } from "@/modules/loups/scenarios/subtitles";
 import type { Fault, PublicScenario, Terminal } from "@/modules/loups/scenarios/types";
 import { projectionReportAction } from "../../actions";
@@ -372,7 +372,12 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   }, [gaugeLeft, s.gauge, flicker]);
 
   const night = s.phase === "night";
-  const mapPhase = s.phase === "arrival" || s.phase === "day" || s.phase === "loopEnd";
+  // Before the game, the station on its own: its welcome image, or its plan; then the scenario loading.
+  const protocol = protocolOf(s, now + offset);
+  const stationPlan = s.phase === "welcome" && protocol === "none" && s.screen === "plan";
+  const mapPhase = s.phase === "arrival" || s.phase === "day" || s.phase === "loopEnd" || stationPlan;
+  // Délestage: the day's event in the game; any time on the station alone.
+  const shedding = s.dark && (s.phase === "day" || stationPlan);
   const term = def.terminals.find((t) => t.id === s.terminal) ?? null;
   const zoom = term ? term.hot : s.circuitShown ? { x: 1390, y: 500 } : null;
   const event = view.events.find((e) => e.id === s.event) ?? null;
@@ -381,17 +386,18 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   return (
     <div className="pj" onMouseMove={() => document.body.dataset.cursor !== "on" && (document.body.dataset.cursor = "on")}>
       <div className={`pj-screen ${glitch ? "glitch" : ""}`}>
-        {(view.status === "setup" || s.phase === "welcome") && (
+        {s.phase === "welcome" && protocol === "none" && s.screen === "accueil" && (
           <div className="pj-full" style={{ zIndex: 12, background: "#05080c" }}>
             {urlOf("image-accueil") && (
               // eslint-disable-next-line @next/next/no-img-element -- a local file of the projection computer
               <img src={urlOf("image-accueil")!} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />
             )}
-            <p className="scn-vt relative text-[7cqw] tracking-[0.15em] text-[var(--scn-ice)] drop-shadow-[0_0_24px_rgba(127,216,255,.6)]">{def.texts.welcome}</p>
+            <p className="scn-vt relative text-[7cqw] tracking-[0.15em] text-[var(--scn-ice)] drop-shadow-[0_0_24px_rgba(127,216,255,.6)]">{def.base.name.toUpperCase()}</p>
           </div>
         )}
+        {s.phase === "welcome" && protocol !== "none" && <Loading def={def} players={view.players.length} progress={Math.min(1, (now + offset - (s.loadingAt ?? 0)) / LOADING_MS)} ready={protocol === "ready"} />}
 
-        {s.phase === "bus" && view.status !== "setup" && (
+        {s.phase === "bus" && (
           <div className="pj-full" style={{ background: "radial-gradient(ellipse at 50% 120%, #10161f 0, #000 60%)" }}>
             <div className="absolute bottom-[12%] flex gap-[3cqw]">
               {["#ffb23e", "#5fe39a", "#ff4d4d", "#7fd8ff", "#ffb23e"].map((c, i) => (
@@ -401,7 +407,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           </div>
         )}
 
-        {(mapPhase || night) && view.status !== "setup" && (
+        {(mapPhase || night) && (
           <>
             {!night && (
               <div className="pj-hud">
@@ -427,9 +433,9 @@ export function Projection({ token, def, initial }: { token: string; def: Public
                 confinement={s.confinement}
               />
             </div>
-            <div className="pj-dark" style={{ opacity: darkOverride ?? (s.light && !(s.dark && s.phase === "day") ? 0 : 1) }}>
+            <div className="pj-dark" style={{ opacity: darkOverride ?? (s.light && !shedding ? 0 : 1) }}>
               <Torch />
-              <div className="msg">{s.dark && s.phase === "day" ? "— DÉLESTAGE · SEULE LA LAMPE ÉCLAIRE —" : "— SECTEUR NON ÉCLAIRÉ —"}</div>
+              <div className="msg">{shedding ? "— DÉLESTAGE · SEULE LA LAMPE ÉCLAIRE —" : "— SECTEUR NON ÉCLAIRÉ —"}</div>
             </div>
             {s.phase === "day" && <DayNotes view={view} />}
             {s.locked && !night && <div className="absolute top-[8.5%] left-[2.2%] z-[8] border border-[var(--scn-bad)] px-[1%] py-[0.3%] text-[1.2cqw] tracking-[0.25em] text-[var(--scn-bad)]">VERROUILLAGE GÉNÉRAL</div>}
@@ -598,6 +604,50 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           ⚙
         </button>
       )}
+    </div>
+  );
+}
+
+/** « Chargement du scénario : SANG-FROID »: what the room sees while the meneur loads the game into the station. */
+function Loading({ def, players, progress, ready }: { def: PublicScenario; players: number; progress: number; ready: boolean }) {
+  const pct = Math.floor(progress * 100);
+  const checks: [string, string, boolean][] = [
+    ["VÉRIFICATION DES SUJETS", `${players}/${players}`, progress > 0.25],
+    ["CARTOGRAPHIE DE LA BASE", `${def.doors.length + 1} ZONES`, progress > 0.5],
+    ["PROTOCOLE ALPHA", "CHIFFRÉ", progress > 0.72],
+    ["LIAISON SATELLITE", "ÉCHEC", progress > 0.9],
+  ];
+  return (
+    <div className="pj-full scn-vt" style={{ zIndex: 12, background: "radial-gradient(ellipse at 50% 40%, #0c1a24 0%, #05080c 70%)", alignItems: "stretch", justifyContent: "center", gap: "2.2cqw", padding: "0 9cqw", color: "#bfeaff" }}>
+      <div className="absolute top-[3%] right-[2.5%] left-[2.5%] flex justify-between text-[1.7cqw] text-[var(--scn-muted)]">
+        <span>A.P.E. SYSTEMS · BIOS v1.04 · (C) 1986</span>
+        <span>{def.base.name.toUpperCase()}</span>
+      </div>
+      <p className="text-[2.7cqw] text-[var(--scn-ice)]">{ready ? "SCÉNARIO CHARGÉ :" : "CHARGEMENT DU SCÉNARIO :"}</p>
+      <p className="text-[13cqw] leading-[0.8] text-[#e6f2fa]" style={{ textShadow: "0 0 2.6cqw rgba(127,216,255,.5)" }}>
+        {(def.short ?? def.title).toUpperCase()}
+      </p>
+      <div className="flex items-center gap-[2cqw]">
+        <div className="h-[2cqw] flex-1 border-2 border-[var(--scn-ice)] p-[0.25cqw]">
+          <div className="h-full transition-[width] duration-500" style={{ width: `${pct}%`, background: "repeating-linear-gradient(90deg, #7fd8ff 0 1.4cqw, transparent 1.4cqw 1.7cqw)" }} />
+        </div>
+        <span className="w-[8cqw] text-right text-[3.1cqw] text-[#e6f2fa]">{pct} %</span>
+      </div>
+      <div className="flex flex-col gap-[0.3cqw] text-[2cqw] text-[var(--scn-muted)]">
+        {checks.map(([label, value, shown]) => (
+          <span key={label} style={{ visibility: shown ? "visible" : "hidden" }}>
+            {label} {".".repeat(Math.max(3, 34 - label.length))}{" "}
+            {value === "ÉCHEC" || value === "CHIFFRÉ" ? (
+              <span style={{ color: value === "ÉCHEC" ? "#ff6b6b" : "#ffb23e" }}>{value}</span>
+            ) : (
+              <>
+                {value} <span style={{ color: "#5fe39a" }}>OK</span>
+              </>
+            )}
+          </span>
+        ))}
+        {ready && <span className="text-[var(--scn-amber)]">EN ATTENTE DU LANCEMENT<span className="pj-cursor" /></span>}
+      </div>
     </div>
   );
 }

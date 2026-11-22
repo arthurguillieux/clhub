@@ -19,32 +19,58 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
     await page.getByLabel("Mot de passe du scénario").fill("ape26");
     await page.getByRole("button", { name: "Ouvrir le scénario" }).click();
   }
-  await page.getByRole("button", { name: "❄️ Préparer une soirée" }).click();
+  await page.getByRole("button", { name: "❄️ Ouvrir la station Antarctica" }).click();
   await expect(page).toHaveURL(/\/scenario\/[A-Z0-9]{6}\/console$/);
 
+  // The station first, on its own: its projection, its plan, its doors, its light.
+  await expect(page.getByRole("heading", { name: "STATION ANTARCTICA" })).toBeVisible();
+  await expect(page.getByText("Aucun protocole chargé")).toBeVisible();
+  const bar = page.getByRole("navigation", { name: "Commandes" });
+  await bar.getByRole("button", { name: /Écran/ }).click();
+  const link = await page.getByLabel("Lien de la projection").inputValue();
+  const ctx = await browser.newContext({ baseURL, viewport: { width: 1600, height: 900 }, storageState: { cookies: [], origins: [] } });
+  const screen = await ctx.newPage();
+  await screen.goto(link);
+  await screen.getByRole("button", { name: /Lancer la projection/ }).click();
+  await expect(page.getByText(/Projection connectée/).first()).toBeVisible({ timeout: 15_000 });
+  await expect(screen.getByText("STATION ANTARCTICA")).toBeVisible();
+  await page.getByRole("button", { name: /^Plan/ }).click();
+  await expect(screen.getByText("— SECTEUR NON ÉCLAIRÉ —")).toBeVisible();
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
+  await page.getByRole("button", { name: /^HALL, dans le noir/ }).click();
+  await page.getByRole("button", { name: /Allumer le hall/ }).click();
+  await expect(page.getByRole("button", { name: /Éteindre le hall/ })).toBeVisible();
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
+  await page.getByRole("button", { name: /^Porte Α/ }).click();
+  await expect(screen.getByText("ACCÈS REFUSÉ")).toBeVisible();
+  await page.getByRole("button", { name: /^Porte Θ .*Toucher pour ouvrir/ }).click();
+  await expect(page.getByRole("button", { name: /^Porte Θ .*: ouverte/ })).toBeVisible();
+
+  // Then the scenario: prepared, loaded into the station (the room watches), launched.
+  await page.getByRole("button", { name: "PROTOCOLE", exact: true }).click();
   await page.getByLabel("Prénoms des joueurs, un par ligne").fill(NAMES.join("\n"));
   await page.getByRole("button", { name: "Enregistrer les 20 joueurs" }).click();
   await expect(page.getByText("JOUEURS ET CHAMBRES")).toBeVisible();
   // The texts come with the scenario: 70 of them, editable before the evening.
   await page.locator("summary", { hasText: /^TEXTES À LIRE/ }).click();
   await expect(page.getByText(/Fichier du scénario, version 0\.2 · 70 textes/)).toBeVisible();
-  const link = await page.getByLabel("Lien de la projection").inputValue();
-
-  const ctx = await browser.newContext({ baseURL, viewport: { width: 1600, height: 900 }, storageState: { cookies: [], origins: [] } });
-  const screen = await ctx.newPage();
-  await screen.goto(link);
-  await screen.getByRole("button", { name: /Lancer la projection/ }).click();
-  await expect(page.getByText("Projection connectée")).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: /Charger Sang-froid dans la station/ }).click();
+  await expect(screen.getByText("CHARGEMENT DU SCÉNARIO :")).toBeVisible({ timeout: 10_000 });
+  await expect(screen.getByText("SANG-FROID")).toBeVisible();
+  await page.getByRole("button", { name: /▶ Lancer la partie/ }).click({ timeout: 20_000 });
+  await page.getByRole("button", { name: "▶ Lancer la partie", exact: true }).click();
 
   const tap = async (name: string | RegExp) => {
     await page.getByRole("button", { name }).first().click();
   };
   const open = async (title: string) => page.locator("summary", { hasText: new RegExp(`^${title}`) }).click();
-  const bar = page.getByRole("navigation", { name: "Commandes" });
   const reader = page.getByRole("dialog", { name: "Texte à lire" });
-  await tap("❄️ Lancer la soirée");
-  await tap("Commencer : prologue du bus");
   await expect(page.getByText("Prologue du bus", { exact: true }).first()).toBeVisible(); // written down before reading
+  // The game starts in the base the scenario expects: what was tried before doesn't follow.
+  await page.getByRole("button", { name: "BASE", exact: true }).click();
+  await expect(page.getByRole("button", { name: /^Porte Θ .*: fermée/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^HALL, dans le noir/ })).toBeVisible();
+  await page.getByRole("button", { name: /PROTOCOLE · SANG-FROID/ }).click();
   // The text of the moment, full screen on the phone, never on the projection.
   await bar.getByRole("button", { name: /Texte/ }).click();
   await expect(reader.getByText("PRO-01", { exact: false }).first()).toBeVisible();
@@ -70,9 +96,13 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
   await expect(reader.locator("mark", { hasText: "Joueur10" }).first()).toBeVisible();
   await bar.getByRole("button", { name: /Texte/ }).click();
 
-  await open("BASE");
-  await tap("Tenter");
+  // The base stays one gesture away during the game.
+  await page.getByRole("button", { name: "BASE", exact: true }).click();
+  await page.getByRole("button", { name: /^ALPHA/ }).click();
+  await page.getByRole("button", { name: /Tenter d'ouvrir/ }).click();
   await expect(screen.getByText("ACCÈS REFUSÉ")).toBeVisible();
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
+  await page.getByRole("button", { name: /PROTOCOLE · SANG-FROID/ }).click();
 
   await page.getByLabel("Patient zéro").selectOption({ label: "Joueur01 · ch. 1" });
   await tap("Noter le patient zéro");
@@ -201,10 +231,10 @@ test("antarctica: the meneur keeps control — faults off, Stop, black screen, b
   await expect(page).toHaveURL(/repetition$/);
   await page.goto(page.url().replace(/repetition$/, "console"));
   await expect(page.getByText("Boucle 1 · Jour 3").first()).toBeVisible();
-  await page.locator("summary", { hasText: /^PROJECTION/ }).click();
+  const bar = page.getByRole("navigation", { name: "Commandes" });
+  await bar.getByRole("button", { name: /Écran/ }).click();
   await expect(page.getByRole("link", { name: "Ouvrir la projection ↗" })).toBeVisible();
-  const link = await page.getByLabel("Lien de la projection").inputValue().catch(() => null);
-  void link;
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
 
   await page.locator("summary", { hasText: /^FAILLES/ }).click();
   // The switch follows the journal: it flips once the server has written it down.
@@ -213,9 +243,10 @@ test("antarctica: the meneur keeps control — faults off, Stop, black screen, b
   await page.getByLabel("Toutes les failles").click();
   await expect(page.getByRole("button", { name: /Glitch d'en-tête/ })).toBeEnabled();
 
-  const bar = page.getByRole("navigation", { name: "Commandes" });
-  await bar.getByRole("button", { name: /Écran noir/ }).click();
-  await expect(bar.getByRole("button", { name: /Écran noir/ })).toContainText("revenir");
+  await bar.getByRole("button", { name: /Écran/ }).click();
+  await page.getByRole("button", { name: /^Noir/ }).click();
+  await expect(bar.getByRole("button", { name: /Écran/ })).toContainText("noir");
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
   await bar.getByRole("button", { name: /Stop/ }).click();
   await page.locator("summary", { hasText: /^JOURNAL/ }).click();
   await expect(page.getByText(/Stop : tout s'arrête/)).toBeVisible();

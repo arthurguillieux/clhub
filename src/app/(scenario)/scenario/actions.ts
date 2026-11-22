@@ -127,6 +127,9 @@ const setupSchema = z.object({
 });
 
 const actionSchema = z.discriminatedUnion("t", [
+  z.object({ t: z.literal("load") }),
+  z.object({ t: z.literal("unload") }),
+  z.object({ t: z.literal("screen"), mode: z.enum(["accueil", "plan"]) }),
   z.object({ t: z.literal("start") }),
   z.object({ t: z.literal("arrive") }),
   z.object({ t: z.literal("patientZero"), player }),

@@ -130,9 +130,20 @@ export interface Item {
   effect: "life" | "death" | "pistol" | "tapes" | "test" | "radio";
 }
 
+/** The playground: the station a scenario is played in, the same whatever the game. */
+export interface BaseDef {
+  id: string;
+  /** « STATION ANTARCTICA »: the phone's header and the room's welcome screen. */
+  name: string;
+}
+
 export interface ScenarioDef {
   id: string;
   title: string;
+  /** The scenario's own name, as loaded into the station: « Sang-froid ». */
+  short?: string;
+  /** The station it is played in. */
+  base: BaseDef;
   subtitle: string;
   /** SHA-256 of the scenario's password, in hex: the password itself is never in the code. */
   passwordSha256: string;

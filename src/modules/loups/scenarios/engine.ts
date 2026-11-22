@@ -23,6 +23,10 @@ export type NightStepId = "pz" | "handover" | "panic" | "tapes" | "infect" | "vi
 export type VoteKind = "door" | "dead" | "chief";
 
 export type Action =
+  // The station before any game: the scenario is loaded (the room sees it load), or put away; the room's screen.
+  | { t: "load" }
+  | { t: "unload" }
+  | { t: "screen"; mode: "accueil" | "plan" }
   | { t: "start" }
   | { t: "arrive" }
   | { t: "patientZero"; player: string }
@@ -126,8 +130,22 @@ export interface PlayerState {
   diedAt: string | null;
 }
 
+/** How long the room watches the scenario load before « Lancer la partie » (ms). */
+export const LOADING_MS = 9000;
+
+/** The scenario in the station, before the game: none, loading (since when), loaded. */
+export function protocolOf(s: Pick<State, "phase" | "loadingAt">, now: number): "none" | "loading" | "ready" | "running" {
+  if (s.phase !== "welcome") return "running";
+  if (s.loadingAt === null) return "none";
+  return now - s.loadingAt >= LOADING_MS ? "ready" : "loading";
+}
+
 export interface State {
   phase: Phase;
+  /** When the scenario started loading into the station (null: the station runs on its own). */
+  loadingAt: number | null;
+  /** Before the game, what the room's screen shows: the welcome image, or the base's plan. */
+  screen: "accueil" | "plan";
   loop: number;
   /** Nights (and days) of this loop: night n is followed by day n. */
   round: number;
@@ -227,6 +245,8 @@ const noFlags = (): Record<Flag, boolean> => ({ key: false, badge2: false, badge
 export function initialState(def: ScenarioDef, setup: Setup): State {
   return {
     phase: "welcome",
+    loadingAt: null,
+    screen: "accueil",
     loop: 1,
     round: 0,
     players: setup.players.map((p, i) => ({ id: p.id, name: p.name, room: i + 1, status: "alive", infected: false, infectedAt: null, infectedBy: null, diedAt: null })),
@@ -438,8 +458,16 @@ function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: 
   const dropChief = (id: string) => (s.chief === id ? null : s.chief);
   const params = setup.params;
   switch (a.t) {
+    case "load":
+      return s.phase === "welcome" && s.loadingAt === null ? { ...s, loadingAt: when, log: log(`Chargement du scénario : ${def.short ?? def.title}.`) } : s;
+    case "unload":
+      return s.phase === "welcome" && s.loadingAt !== null ? { ...s, loadingAt: null, log: log("Scénario retiré : la station tourne seule.") } : s;
+    case "screen":
+      return { ...s, screen: a.mode, neutral: null };
     case "start":
-      return s.phase === "welcome" ? { ...s, phase: "bus", log: log("Prologue du bus.") } : s;
+      // The game starts in the base the scenario expects (doors shut, hall dark…): what was tried
+      // before, to set up or rehearse, doesn't follow. The players and the journal stay.
+      return s.phase === "welcome" ? { ...initialState(def, setup), players: s.players, loadingAt: s.loadingAt, screen: "plan", phase: "bus", log: log("Prologue du bus.") } : s;
     case "arrive":
       if (s.phase !== "bus") return s;
       return { ...s, phase: "arrival", round: 0, log: log("Arrivée à la base.") };

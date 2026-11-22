@@ -1,16 +1,17 @@
 "use client";
 
 import { callError } from "@/core/ui/callError";
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { actionAvailable, alive, contagionActive, dawnDeaths, doorProposals, flagName, momentOf, nightSteps, pack, proposals, secretFoundToday, type Action, type NightStepId, type VoteKind } from "@/modules/loups/scenarios/engine";
 import type { ConsoleView } from "@/modules/loups/scenarios/data";
 import type { PublicScenario } from "@/modules/loups/scenarios/types";
 import { consoleAction, deleteEveningAction, replayEveningAction } from "../../actions";
+import type { Act } from "./controls";
 import { Prep } from "./Prep";
+import { GlobalSheet, ProtocolStrip, RoomSheet, ScreenSheet, StationFace, ZoneSheet, screenLabel, useProtocol, type Sheet } from "./Station";
 import { FaultHint, Reader } from "./Reader";
 
 export type Send = (input: Record<string, unknown>) => Promise<string | null>;
-type Act = (action: Action) => Promise<string | null>;
 
 /** The meneur's phone: what to do next first, then the base, the faults, the sounds, the journal. */
 export function Console({
@@ -70,29 +71,32 @@ export function Console({
     return () => clearInterval(timer);
   }, [code]);
 
-  const s = view.state;
   const p = view.projection;
+  const { protocol, progress } = useProtocol(view);
+  // Home is the station; once the game runs, its steps come first (the base stays one gesture away).
+  const [face, setFace] = useState<"base" | "proto">(() => (view.status === "setup" ? "base" : "proto"));
+  const [sheet, setSheet] = useState<Sheet>(null);
+  const live = view.status === "live";
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-3 px-3 pt-4 pb-36">
-      <header className="flex flex-col gap-1 border-b border-[var(--scn-line)] pb-3">
+    <div className="mx-auto flex max-w-lg flex-col gap-3 px-3 pt-3 pb-36">
+      <header className="flex flex-col gap-2 border-b border-[var(--scn-line)] pb-2.5">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="scn-vt text-2xl tracking-wider text-[var(--scn-ice)]">CONSOLE · {def.title.toUpperCase()}</h1>
-          {view.status === "live" && (
-            <button type="button" className="scn-btn min-h-10 px-3 text-xs" disabled={busy || !view.canUndo} onClick={() => void send({ type: "undo" })}>
-              ↶ Annuler
-            </button>
-          )}
+          <h1 className="scn-vt text-2xl leading-none tracking-wider text-[var(--scn-ice)]">{def.base.name.toUpperCase()}</h1>
+          <button type="button" className="flex items-center gap-1.5 text-right text-[0.7rem] text-[var(--scn-muted)]" onClick={() => setSheet({ kind: "screen" })}>
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: p.connected ? "var(--scn-ok)" : "var(--scn-bad)" }} />
+            {p.connected ? "Projection connectée" : "Projection déconnectée"} · salle : {screenLabel(view)}
+          </button>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="text-[var(--scn-muted)]">{view.status === "setup" ? "Préparation" : momentOf(s)}</span>
-          <span className={`scn-chip ${p.connected ? "scn-chip-ok" : "scn-chip-bad"}`}>{p.connected ? "Projection connectée" : "Projection déconnectée"}</span>
-          <span className={`scn-chip ${p.mediaTotal > 0 && p.mediaReady === p.mediaTotal ? "scn-chip-ok" : "scn-chip-warn"}`}>
-            Médias {p.mediaReady} / {p.mediaTotal || def.media.length}
-          </span>
-          <span className={`scn-chip ${p.mic ? "scn-chip-ok" : ""}`}>{p.mic ? "Micro prêt" : "Pas de micro"}</span>
+        <div role="group" aria-label="Face de la console" className="grid grid-cols-2 gap-[3px] rounded-xl border border-[#1f3a4b] bg-[#0c141b] p-[3px]">
+          <button type="button" aria-pressed={face === "base"} onClick={() => setFace("base")} className="min-h-10 rounded-[9px] text-sm font-bold tracking-[0.12em]" style={face === "base" ? { background: "var(--scn-ice)", color: "#05080c" } : { color: "#6f8796" }}>
+            BASE
+          </button>
+          <button type="button" aria-pressed={face === "proto"} onClick={() => setFace("proto")} className={`min-h-10 rounded-[9px] font-bold whitespace-nowrap ${protocol === "none" ? "text-sm tracking-[0.12em]" : "text-[0.74rem] tracking-[0.03em]"}`} style={face === "proto" ? { background: "var(--scn-amber)", color: "#05080c" } : { color: "#6f8796" }}>
+            {protocol === "none" ? "PROTOCOLE" : `PROTOCOLE · ${(def.short ?? def.title).toUpperCase()}`}
+          </button>
         </div>
         {view.simulated && <p className="scn-vt rounded-lg border border-[var(--scn-magenta)] py-1 text-center text-xl tracking-[0.3em] text-[var(--scn-magenta)]">SIMULATION</p>}
-        {view.status === "live" && !view.simulated && <p className="text-[0.68rem] text-[var(--scn-amber)]">Soirée en cours : aucune mise à jour du CLHUB d&apos;ici la fin.</p>}
+        {live && !view.simulated && <p className="text-[0.68rem] text-[var(--scn-amber)]">Partie en cours : aucune mise à jour du CLHUB d&apos;ici la fin.</p>}
       </header>
       {error && (
         <p role="alert" className="rounded-xl border border-[var(--scn-bad)] p-3 text-sm text-[var(--scn-bad)]">
@@ -100,98 +104,153 @@ export function Console({
         </p>
       )}
 
-      {view.status === "setup" && <Prep code={code} def={def} view={view} members={members} qrSvg={qrSvg} busy={busy} send={send} />}
-      {view.status === "live" && (
+      {face === "base" && (
         <>
-          <PhaseSection def={def} view={view} busy={busy} act={act} send={send} />
-          <Powers def={def} view={view} busy={busy} act={act} />
-          <Chief def={def} view={view} busy={busy} act={act} />
-          <Players def={def} view={view} busy={busy} act={act} />
-          <Base def={def} view={view} busy={busy} act={act} />
-          <Terminals def={def} view={view} busy={busy} act={act} />
-          <Circuit view={view} busy={busy} act={act} />
-          <Faults def={def} view={view} busy={busy} act={act} />
-          <Sounds def={def} view={view} busy={busy} act={act} />
-          <Effects def={def} view={view} busy={busy} act={act} />
-          <Journal view={view} send={send} />
-          <ProjectionLink view={view} qrSvg={qrSvg} code={code} />
-          {view.role === "host" && <DeleteEvening code={code} live />}
+          <StationFace def={def} view={view} busy={busy} act={act} sheet={sheet} onSheet={setSheet} />
+          <ProtocolStrip def={def} view={view} protocol={protocol} progress={progress} onOpen={() => setFace("proto")} />
         </>
       )}
-      {view.status === "done" && <Done code={code} view={view} />}
-      {view.status === "live" && reading && <Reader def={def} view={view} start={reading.start} variant={reading.variant} onClose={() => setReading(null)} />}
-      {view.status === "live" && !reading && <FaultHint view={view} onRead={(variant) => setReading({ start: "FAILLE-01", variant })} />}
-      {view.status === "live" && <CommandBar view={view} busy={busy} act={act} send={send} reading={!!reading} onText={() => setReading(reading ? null : {})} />}
+      {face === "proto" && (
+        <>
+          {view.status === "setup" && <Protocol code={code} def={def} view={view} members={members} busy={busy} send={send} act={act} protocol={protocol} progress={progress} />}
+          {live && (
+            <>
+              <PhaseSection def={def} view={view} busy={busy} act={act} send={send} />
+              <Powers def={def} view={view} busy={busy} act={act} />
+              <Chief def={def} view={view} busy={busy} act={act} />
+              <Players def={def} view={view} busy={busy} act={act} />
+              <Faults def={def} view={view} busy={busy} act={act} />
+              <Journal view={view} send={send} />
+              {view.role === "host" && <DeleteEvening code={code} live />}
+            </>
+          )}
+          {view.status === "done" && <Done code={code} view={view} />}
+        </>
+      )}
+
+      {sheet?.kind === "zone" && <ZoneSheet def={def} view={view} busy={busy} act={act} id={sheet.id} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "room" && <RoomSheet def={def} view={view} busy={busy} act={act} room={sheet.room} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "global" && <GlobalSheet def={def} view={view} busy={busy} act={act} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "screen" && <ScreenSheet def={def} view={view} busy={busy} act={act} qrSvg={qrSvg} code={code} onClose={() => setSheet(null)} />}
+      {live && reading && <Reader def={def} view={view} start={reading.start} variant={reading.variant} onClose={() => setReading(null)} />}
+      {live && !reading && <FaultHint view={view} onRead={(variant) => setReading({ start: "FAILLE-01", variant })} />}
+      {view.status !== "done" && (
+        <CommandBar
+          view={view}
+          busy={busy}
+          act={act}
+          send={send}
+          reading={!!reading}
+          onScreen={() => setSheet(sheet?.kind === "screen" ? null : { kind: "screen" })}
+          onText={live ? () => setReading(reading ? null : {}) : null}
+        />
+      )}
     </div>
   );
 }
 
 /**
- * Always there, one gesture away, above everything (no dialog ever covers it): Stop, the neutral
- * screen, Annuler. The meneur is never stuck.
+ * Always there, one gesture away, above everything (no sheet ever covers it): Stop, the room's screen,
+ * Annuler, and the text to read once the game runs. The meneur is never stuck.
  */
-function CommandBar({ view, busy, act, send, reading, onText }: { view: ConsoleView; busy: boolean; act: Act; send: Send; reading: boolean; onText: () => void }) {
+function CommandBar({ view, busy, act, send, reading, onScreen, onText }: { view: ConsoleView; busy: boolean; act: Act; send: Send; reading: boolean; onScreen: () => void; onText: (() => void) | null }) {
   const s = view.state;
   return (
-    <nav aria-label="Commandes" className="fixed inset-x-0 bottom-0 z-[70] border-t border-[var(--scn-line)] bg-[rgba(12,18,24,.97)] px-2 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))]">
-      <div className="mx-auto grid max-w-lg grid-cols-5 gap-1.5">
+    <nav aria-label="Commandes" className="fixed inset-x-0 bottom-0 z-[70] border-t border-[var(--scn-line)] bg-[rgba(10,17,23,.97)] px-2 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))]">
+      <div className={`mx-auto grid max-w-lg gap-1.5 ${onText ? "grid-cols-4" : "grid-cols-3"}`}>
         <button type="button" className="scn-btn scn-btn-danger min-h-12 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "stop" })}>
           ■ Stop<small>tout ce qui joue</small>
         </button>
-        <button type="button" className={`scn-btn min-h-12 px-1 text-xs ${s.neutral === "plan" ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "neutral", mode: s.neutral === "plan" ? null : "plan" })}>
-          Écran neutre<small>{s.neutral === "plan" ? "revenir" : "le plan"}</small>
-        </button>
-        <button type="button" className={`scn-btn min-h-12 px-1 text-xs ${s.neutral === "black" ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "neutral", mode: s.neutral === "black" ? null : "black" })}>
-          Écran noir<small>{s.neutral === "black" ? "revenir" : "secours"}</small>
+        <button type="button" className={`scn-btn min-h-12 px-1 text-xs ${s.neutral ? "scn-btn-on" : ""}`} onClick={onScreen}>
+          Écran<small>{s.neutral === "black" ? "noir" : s.neutral === "plan" ? "plan seul" : "de la salle"}</small>
         </button>
         <button type="button" className="scn-btn min-h-12 px-1 text-xs" disabled={busy || !view.canUndo} onClick={() => void send({ type: "undo" })}>
           ↶ Annuler<small>dernière action</small>
         </button>
-        <button type="button" className={`scn-btn min-h-12 px-1 text-xs ${reading ? "scn-btn-on" : "scn-btn-amber"}`} onClick={onText}>
-          Texte<small>{reading ? "masquer" : "à lire"}</small>
-        </button>
+        {onText && (
+          <button type="button" className={`scn-btn min-h-12 px-1 text-xs ${reading ? "scn-btn-on" : "scn-btn-amber"}`} onClick={onText}>
+            Texte<small>{reading ? "masquer" : "à lire"}</small>
+          </button>
+        )}
       </div>
     </nav>
   );
 }
 
-/** Play, pause, back to the start, ±10 s: for the tape on the terminal, or the last sound played. */
-function MediaControls({ busy, act }: { busy: boolean; act: Act }) {
-  return (
-    <div className="grid grid-cols-5 gap-1">
-      {(
-        [
-          ["restart", "⏮", "Au début"],
-          ["back", "−10 s", "Reculer de 10 s"],
-          ["pause", "⏸", "Pause"],
-          ["play", "▶", "Lecture"],
-          ["forward", "+10 s", "Avancer de 10 s"],
-        ] as const
-      ).map(([cmd, label, aria]) => (
-        <button key={cmd} type="button" aria-label={aria} className="scn-btn min-h-10 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "media", cmd })}>
-          {label}
+/**
+ * The scenario before the game: prepared (players, settings, texts), loaded into the station (the room
+ * watches it load), then launched. Until then, the station is piloted on its own.
+ */
+function Protocol({
+  code,
+  def,
+  view,
+  members,
+  busy,
+  send,
+  act,
+  protocol,
+  progress,
+}: {
+  code: string;
+  def: PublicScenario;
+  view: ConsoleView;
+  members: { id: string; name: string }[];
+  busy: boolean;
+  send: Send;
+  act: Act;
+  protocol: ReturnType<typeof useProtocol>["protocol"];
+  progress: number;
+}) {
+  const [asking, setAsking] = useState(false);
+  const name = (def.short ?? def.title).toUpperCase();
+  const players = view.setup.players.length;
+  if (protocol === "none")
+    return (
+      <>
+        <div className="scn-sec flex flex-col gap-1 p-4">
+          <p className="text-[0.66rem] font-bold tracking-[0.16em] text-[var(--scn-amber)]">AUCUN PROTOCOLE CHARGÉ</p>
+          <p className="scn-vt text-4xl leading-none text-[var(--scn-txt)]">{name}</p>
+          <p className="text-sm text-[var(--scn-muted)]">{def.subtitle}. Prépare les sujets et les réglages, puis charge le scénario dans la station : la salle le voit se charger.</p>
+        </div>
+        <Prep def={def} view={view} members={members} busy={busy} send={send} />
+        <button type="button" className="scn-btn scn-btn-amber min-h-14 text-base" disabled={busy || players < 4} onClick={() => void act({ t: "load" })}>
+          Charger {def.short ?? def.title} dans la station
+          <small>{players < 4 ? "il faut au moins 4 joueurs" : `${players} sujets · « Chargement du scénario » sur la projection`}</small>
         </button>
-      ))}
-    </div>
-  );
-}
-
-/** A timer's controls: pause or resume, one minute more or less, stop. */
-function TimerControls({ which, timer, busy, act }: { which: "gauge" | "main"; timer: { endsAt: number | null } | null; busy: boolean; act: Act }) {
-  if (!timer) return null;
+        {view.role === "host" && <DeleteEvening code={code} />}
+      </>
+    );
   return (
-    <div className="grid grid-cols-4 gap-1">
-      <button type="button" className="scn-btn min-h-10 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "timer", which, cmd: timer.endsAt === null ? "resume" : "pause" })}>
-        {timer.endsAt === null ? "▶ Reprendre" : "⏸ Pause"}
-      </button>
-      <button type="button" className="scn-btn min-h-10 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "timer", which, cmd: "minus" })}>
-        −1 min
-      </button>
-      <button type="button" className="scn-btn min-h-10 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "timer", which, cmd: "plus" })}>
-        +1 min
-      </button>
-      <button type="button" className="scn-btn scn-btn-danger min-h-10 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "timer", which, cmd: "stop" })}>
-        ■ Arrêter
+    <div className="flex flex-col gap-3">
+      <div className="scn-sec flex flex-col gap-2 p-4">
+        <p className="text-[0.66rem] font-bold tracking-[0.16em] text-[var(--scn-amber)]">{protocol === "ready" ? "SCÉNARIO CHARGÉ" : "CHARGEMENT DU SCÉNARIO"}</p>
+        <p className="scn-vt text-5xl leading-none">{name}</p>
+        <div className="h-2 rounded bg-[#2a210d]">
+          <div className="h-2 rounded bg-[var(--scn-amber)] transition-[width] duration-500" style={{ width: `${progress * 100}%` }} />
+        </div>
+        <p className="text-sm text-[var(--scn-muted)]">{protocol === "ready" ? `${players} sujets. La salle attend le lancement.` : `${Math.floor(progress * 100)} % : la salle voit le scénario se charger.`}</p>
+      </div>
+      {protocol === "ready" &&
+        (asking ? (
+          <div className="rounded-xl border border-[var(--scn-amber)] p-3 text-sm">
+            <p>Lancer la partie ? Le prologue du bus commence, la base reprend son état de départ, et la préparation ne change plus.</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button type="button" className="scn-btn scn-btn-amber" disabled={busy} onClick={() => void send({ type: "launch" })}>
+                ▶ Lancer la partie
+              </button>
+              <button type="button" className="scn-btn" onClick={() => setAsking(false)}>
+                Pas encore
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" className="scn-btn scn-btn-amber min-h-16 text-lg font-bold" disabled={busy} onClick={() => setAsking(true)}>
+            ▶ Lancer la partie<small>le prologue du bus</small>
+          </button>
+        ))}
+      <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "unload" })}>
+        Retirer le scénario<small>la station tourne seule, la préparation redevient modifiable</small>
       </button>
     </div>
   );
@@ -1097,115 +1156,6 @@ function Players({ def, view, busy, act }: Props) {
 
 // ───────── The base ─────────
 
-function Base({ def, view, busy, act }: Props) {
-  const s = view.state;
-  const open = def.doors.filter((d) => !d.locked && s.doors[d.id]).length;
-  return (
-    <Section title="BASE" chip={<span className={`scn-chip ${s.light ? "scn-chip-ok" : "scn-chip-bad"}`}>{s.light ? "HALL ÉCLAIRÉ" : "HALL DANS LE NOIR"}</span>}>
-      <Row>
-        <button type="button" className={`scn-btn ${s.light ? "" : "scn-btn-primary"}`} disabled={busy} onClick={() => void act({ t: "light", on: !s.light })}>
-          {s.light ? "Éteindre le hall" : "Allumer le hall"}
-          <small>{s.light ? "retour au noir" : "néons qui démarrent"}</small>
-        </button>
-        <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "cut" })}>
-          Coupure 4 s<small>générateur qui lâche</small>
-        </button>
-      </Row>
-      <p className="scn-head mt-1">
-        PORTES · {open} / {def.doors.filter((d) => !d.locked).length} OUVERTES
-      </p>
-      {def.doors.map((d) => (
-        <div key={d.id} className="flex items-center gap-2">
-          <span className="flex-1 text-sm">
-            <b className="scn-vt mr-1 text-xl text-[var(--scn-ice)]">{d.letter}</b>
-            {d.label}
-            <small className="block text-[0.66rem] text-[var(--scn-muted)]">{d.hint}</small>
-          </span>
-          <button
-            type="button"
-            className={`scn-btn w-28 ${d.locked ? "scn-btn-danger" : s.doors[d.id] ? "scn-btn-on" : ""}`}
-            disabled={busy}
-            onClick={() => void act({ t: "door", door: d.id, open: d.locked ? false : !s.doors[d.id] })}
-          >
-            {d.locked ? "Tenter" : s.doors[d.id] ? "Fermer" : "Ouvrir"}
-          </button>
-          {d.locked && (
-            <button type="button" className="scn-btn w-20 px-1 text-[0.66rem]" disabled={busy} onClick={() => void act({ t: "door", door: d.id, open: !s.doors[d.id], force: true })}>
-              {s.doors[d.id] ? "Refermer" : "Forcer"}
-            </button>
-          )}
-        </div>
-      ))}
-    </Section>
-  );
-}
-
-function Terminals({ def, view, busy, act }: Props) {
-  const s = view.state;
-  const term = def.terminals.find((t) => t.id === s.terminal);
-  const done = new Set(s.faults.map((f) => f.id));
-  const reachable = (room: string) => (room === "hall" ? s.light : !!s.doors[room]);
-  return (
-    <Section title="TERMINAUX" chip={<span className={`scn-chip ${term ? "scn-chip-warn" : ""}`}>{term ? term.label.toUpperCase() : "—"}</span>}>
-      <Row>
-        {def.terminals.map((t) => (
-          <button key={t.id} type="button" className="scn-btn scn-btn-amber" disabled={busy} onClick={() => void act({ t: "terminal", id: t.id })}>
-            {t.label}
-            <small>{reachable(t.room) ? t.hint : `${t.hint} · pas encore atteint`}</small>
-          </button>
-        ))}
-      </Row>
-      {term && (
-        <>
-          {term.files
-            .filter((f) => !f.fault || done.has(f.fault))
-            .map((f) => (
-              <button key={f.id} type="button" className={`scn-btn text-left ${s.playing === f.id ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "play", file: f.id })}>
-                ▶ {view.setup.files?.[f.id]?.name || f.name}
-                <small>{view.setup.files?.[f.id]?.date || f.meta}</small>
-              </button>
-            ))}
-          {s.playing && <MediaControls busy={busy} act={act} />}
-          <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "terminal", id: null })}>
-            Retour au plan
-          </button>
-        </>
-      )}
-    </Section>
-  );
-}
-
-function Circuit({ view, busy, act }: { view: ConsoleView; busy: boolean; act: Act }) {
-  const s = view.state;
-  const want = view.setup.params.circuit;
-  return (
-    <Section title="CIRCUIT · PANIC ROOM" chip={<span className={`scn-chip ${s.panicReady ? "scn-chip-ok" : "scn-chip-bad"}`}>{s.panicReady ? "OPÉRATIONNELLE" : "HORS SERVICE"}</span>}>
-      <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "circuit", show: !s.circuitShown })}>
-        {s.circuitShown ? "Ranger le boîtier" : "Afficher le boîtier"}
-      </button>
-      <div className="grid grid-cols-4 gap-2">
-        {s.switches.map((up, i) => (
-          <button key={i} type="button" className={`scn-btn scn-vt text-2xl ${up ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "switch", index: i, up: !up })}>
-            {"ABCD"[i]} {up ? "▲" : "▼"}
-          </button>
-        ))}
-      </div>
-      <button type="button" className="scn-btn scn-btn-primary" disabled={busy} onClick={() => void act({ t: "power" })}>
-        Mettre sous tension
-      </button>
-      <p className="text-[0.68rem] text-[var(--scn-muted)]">
-        Les joueurs dictent, tu bascules : l&apos;écran suit en direct. Solution (pour toi) :{" "}
-        <b className="text-[var(--scn-ok)]">
-          {want
-            .map((up, i) => `${"ABCD"[i]} ${up ? "levé" : "baissé"}`)
-            .join(" · ")}
-        </b>
-        .
-      </p>
-    </Section>
-  );
-}
-
 function Faults({ def, view, busy, act }: Props) {
   const s = view.state;
   const all = [...def.faults, ...view.setup.extraFaults];
@@ -1242,102 +1192,6 @@ function Faults({ def, view, busy, act }: Props) {
       <button type="button" className="scn-btn scn-btn-danger" disabled={busy} onClick={() => void act({ t: "stop" })}>
         Arrêter la faille en cours
       </button>
-    </Section>
-  );
-}
-
-function Sounds({ def, view, busy, act }: Props) {
-  const s = view.state;
-  const categories = [...new Set(def.media.filter((m) => m.category).map((m) => m.category!))];
-  return (
-    <Section title="SONS" chip={<span className="scn-chip">{s.ambiances.length ? `${s.ambiances.length} en boucle` : "—"}</span>}>
-      {categories.map((c) => (
-        <div key={c}>
-          <p className="scn-head mb-1">{c.toUpperCase()}</p>
-          <Row>
-            {def.media
-              .filter((m) => m.category === c)
-              .map((m) => {
-                const on = s.ambiances.includes(m.id);
-                return (
-                  <button key={m.id} type="button" className={`scn-btn ${on ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act(on ? { t: "stopSound", slot: m.id } : { t: "sound", slot: m.id })}>
-                    {on ? "■ " : "▶ "}
-                    {m.label}
-                    {m.loop && <small>{on ? "en boucle : toucher pour couper" : "en boucle"}</small>}
-                  </button>
-                );
-              })}
-          </Row>
-        </div>
-      ))}
-      <p className="scn-head mt-1">LECTURE</p>
-      <MediaControls busy={busy} act={act} />
-      <button type="button" className="scn-btn scn-btn-danger" disabled={busy} onClick={() => void act({ t: "stopSound", slot: null })}>
-        Couper tous les sons
-      </button>
-    </Section>
-  );
-}
-
-function Effects({ view, busy, act }: Props) {
-  const s = view.state;
-  const [text, setText] = useState("");
-  return (
-    <Section title="EFFETS">
-      <Row>
-        <button type="button" className="scn-btn scn-btn-fault" disabled={busy} onClick={() => void act({ t: "glitch" })}>
-          Faille<small>la simulation fuit</small>
-        </button>
-        <button type="button" className={`scn-btn ${s.blizzard ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "blizzard", on: !s.blizzard })}>
-          Blizzard<small>{s.blizzard ? "en cours" : "bascule"}</small>
-        </button>
-        <button type="button" className={`scn-btn ${s.dark ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "dark", on: !s.dark })}>
-          {s.dark ? "Lever le délestage" : "Délestage"}
-          <small>{s.dark ? "retour à l'éclairage normal" : "presque noir, une lampe"}</small>
-        </button>
-        <button type="button" className={`scn-btn ${s.gauge ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "gauge", seconds: s.gauge ? null : view.setup.params.gaugeSeconds })}>
-          Jauge des générateurs<small>{s.gauge ? "arrêter" : `${Math.round(view.setup.params.gaugeSeconds / 60)} min`}</small>
-        </button>
-      </Row>
-      <TimerControls which="gauge" timer={s.gauge} busy={busy} act={act} />
-      <p className="scn-head mt-1">MINUTEUR</p>
-      {s.timer ? (
-        <TimerControls which="main" timer={s.timer} busy={busy} act={act} />
-      ) : (
-        <Row>
-          {[
-            ["Débat", 300],
-            ["Chrono", 60],
-          ].map(([label, seconds]) => (
-            <button key={label} type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "timer", which: "main", cmd: "start", seconds: Number(seconds), label: String(label) })}>
-              {label} · {Number(seconds) / 60} min
-            </button>
-          ))}
-        </Row>
-      )}
-      <p className="scn-head mt-1">INTRUSION</p>
-      {s.intrusion ? (
-        <>
-          <p className="rounded-lg border border-[var(--scn-magenta)] p-2 text-sm text-[var(--scn-magenta)]">{s.intrusion}</p>
-          <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "intrusion", text: null })}>
-            Fermer l&apos;intrusion
-          </button>
-        </>
-      ) : (
-        <>
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={600} placeholder="Ce qu'elle écrit s'affiche lettre par lettre…" aria-label="Texte de l'intrusion" className="scn-field py-2" />
-          <button
-            type="button"
-            className="scn-btn scn-btn-fault"
-            disabled={busy || !text.trim()}
-            onClick={async () => {
-              if (!(await act({ t: "intrusion", text: text.trim() }))) setText("");
-            }}
-          >
-            Intrusion
-          </button>
-        </>
-      )}
     </Section>
   );
 }
@@ -1386,32 +1240,6 @@ function Journal({ view, send }: { view: ConsoleView; send?: Send }) {
           </li>
         ))}
       </ul>
-    </Section>
-  );
-}
-
-/** The projection's link and QR code, during the evening too: a closed window opens again in one gesture. */
-function ProjectionLink({ view, qrSvg, code }: { view: ConsoleView; qrSvg: string; code: string }) {
-  // Inside the side-by-side rehearsal, the link to it is pointless.
-  const inFrame = useSyncExternalStore(
-    () => () => undefined,
-    () => window.self !== window.top,
-    () => false,
-  );
-  return (
-    <Section title="PROJECTION" chip={<span className={`scn-chip ${view.projection.connected ? "scn-chip-ok" : "scn-chip-bad"}`}>{view.projection.connected ? "connectée" : "déconnectée"}</span>}>
-      <input readOnly value={view.link} onFocus={(e) => e.target.select()} aria-label="Lien de la projection" className="scn-field text-xs" />
-      <div className="grid grid-cols-2 gap-2">
-        <a href={view.link} target="_blank" rel="noopener noreferrer" className="scn-btn flex items-center justify-center">
-          Ouvrir la projection ↗
-        </a>
-        {!inFrame && (
-          <a href={`/scenario/${code}/repetition`} className="scn-btn flex items-center justify-center">
-            Vue côte à côte<small>téléphone + écran</small>
-          </a>
-        )}
-      </div>
-      <div className="mx-auto w-48 rounded-xl bg-white p-2" aria-label="QR code de la projection" dangerouslySetInnerHTML={{ __html: qrSvg }} />
     </Section>
   );
 }

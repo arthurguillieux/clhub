@@ -11,7 +11,7 @@ import { DeleteSimulationsButton, NewEveningButton, SimulateForm, UnlockForm } f
 
 export const metadata: Metadata = { title: "Loups-garous — scénarios spéciaux" };
 
-const STATUS: Record<string, string> = { setup: "en préparation", live: "en cours", done: "terminée" };
+const STATUS: Record<string, string> = { setup: "station ouverte", live: "partie en cours", done: "terminée" };
 const day = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Paris" });
 
 /** Scenarised evenings: each opens with its own password, then stays open for the member who typed it. */
@@ -45,7 +45,7 @@ export default async function ScenariosPage() {
         <PageTitle>Scénarios spéciaux</PageTitle>
       </div>
       <p className="mt-2 text-sm text-muted">
-        Des soirées de Loups-garous mises en scène : le meneur pilote depuis son téléphone, un écran projeté montre le décor. Chaque scénario s&apos;ouvre avec son mot de passe.
+        Des soirées de Loups-garous mises en scène. Le meneur ouvre d&apos;abord la station (le décor : ses portes, ses lumières, ses écrans) et la pilote depuis son téléphone, puis y charge le scénario. Un écran projeté montre tout à la salle. Chaque scénario s&apos;ouvre avec son mot de passe.
       </p>
       <div className="mt-6 flex flex-col gap-3">
         {SCENARIOS.map((s) => (
@@ -55,7 +55,7 @@ export default async function ScenariosPage() {
             <div className="mt-4 flex flex-col gap-4">
               {open.includes(s.id) ? (
                 <>
-                  <NewEveningButton scenarioId={s.id} />
+                  <NewEveningButton scenarioId={s.id} baseName={s.base.name} />
                   <SimulateForm scenarioId={s.id} starts={[...START_POINTS]} blocked={busyReal} />
                 </>
               ) : (
