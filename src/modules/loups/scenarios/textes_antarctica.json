@@ -1,6 +1,6 @@
 {
  "scenario": "antarctica-sang-froid",
- "version": "0.1",
+ "version": "0.2",
  "date": "2026-11-22",
  "conventions": {
   "variables_console": [
@@ -481,8 +481,8 @@
    "id": "FAILLE-01",
    "partie": "6. La boucle 2",
    "titre": "Le meneur face aux failles",
-   "quand": "quand une faille se déclenche. À piocher, jamais deux fois la même.",
-   "texte": "Ça, ce n'est rien. Un défaut d'affichage.\n\nOù est-ce qu'on en était… Ah oui. Le sujet… le collègue, pardon, [un vivant].\n\n*Regard vers Rémi, qui ne répond pas.*\n\nOn reprend. On reprend."
+   "quand": "quand une faille se déclenche. La console fait tourner les variantes : jamais deux fois la même dans la soirée. Les variantes e et f sont plutôt pour la boucle 2.",
+   "texte": "*Variante a :* Ça, ce n'est rien. Un défaut d'affichage.\n\n*Variante b :* Où est-ce qu'on en était… Ah oui. Le sujet… le collègue, pardon, [un vivant].\n\n*Variante c :* *Regard vers Rémi, qui ne répond pas.* On reprend. On reprend.\n\n*Variante d :* Rémi, tu peux… Non, laisse, ça va passer. C'est le froid, ça fait ça aux générateurs.\n\n*Variante e :* Ne regardez pas l'écran. Regardez-moi. Voilà. Qu'est-ce que vous faites ?\n\n*Variante f :* *Arthur note quelque chose dans son carnet, sans un mot, puis relève la tête avec un sourire un peu trop large.* Ce n'était pas prévu dans la session… dans la soirée. Dans la soirée, pardon. Continuez, je vous écoute."
   },
   {
    "id": "B2-J4",

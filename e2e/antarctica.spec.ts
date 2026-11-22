@@ -27,7 +27,7 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
   await expect(page.getByText("JOUEURS ET CHAMBRES")).toBeVisible();
   // The texts come with the scenario: 70 of them, editable before the evening.
   await page.locator("summary", { hasText: /^TEXTES À LIRE/ }).click();
-  await expect(page.getByText(/Fichier du scénario, version 0\.1 · 70 textes/)).toBeVisible();
+  await expect(page.getByText(/Fichier du scénario, version 0\.2 · 70 textes/)).toBeVisible();
   const link = await page.getByLabel("Lien de la projection").inputValue();
 
   const ctx = await browser.newContext({ baseURL, viewport: { width: 1600, height: 900 }, storageState: { cookies: [], origins: [] } });

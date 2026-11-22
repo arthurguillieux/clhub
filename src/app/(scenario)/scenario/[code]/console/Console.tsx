@@ -29,7 +29,7 @@ export function Console({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   // The text being read: the console stays mounted underneath, exactly where it was.
-  const [reading, setReading] = useState<{ start?: string } | null>(null);
+  const [reading, setReading] = useState<{ start?: string; variant?: string | null } | null>(null);
   const moves = useRef(0);
 
   const send: Send = async (input) => {
@@ -118,8 +118,8 @@ export function Console({
         </>
       )}
       {view.status === "done" && <Done code={code} view={view} />}
-      {view.status === "live" && reading && <Reader def={def} view={view} start={reading.start} onClose={() => setReading(null)} />}
-      {view.status === "live" && !reading && <FaultHint view={view} onRead={() => setReading({ start: "FAILLE-01" })} />}
+      {view.status === "live" && reading && <Reader def={def} view={view} start={reading.start} variant={reading.variant} onClose={() => setReading(null)} />}
+      {view.status === "live" && !reading && <FaultHint view={view} onRead={(variant) => setReading({ start: "FAILLE-01", variant })} />}
       {view.status === "live" && <CommandBar view={view} busy={busy} act={act} send={send} reading={!!reading} onText={() => setReading(reading ? null : {})} />}
     </div>
   );
@@ -685,6 +685,11 @@ function DayEvent({ view, busy, act }: Props) {
             </button>
           </div>
         ))}
+      {event.effect === "dark" && s.dark && (
+        <button type="button" className="scn-btn mt-2 w-full" disabled={busy} onClick={() => void act({ t: "dark", on: false })}>
+          Lever le délestage<small>la projection revient à l&apos;éclairage normal</small>
+        </button>
+      )}
       {event.effect === "confinement" && (
         <button type="button" className={`scn-btn mt-2 w-full ${s.confinement ? "scn-btn-on" : "scn-btn-danger"}`} disabled={busy} onClick={() => void act({ t: "confinement", on: !s.confinement })}>
           {s.confinement ? "Porte rouverte" : `Fermer la porte coupe-feu · ${Math.round((view.setup.params.confinementSeconds ?? 360) / 60)} min`}
@@ -1284,6 +1289,10 @@ function Effects({ view, busy, act }: Props) {
         </button>
         <button type="button" className={`scn-btn ${s.blizzard ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "blizzard", on: !s.blizzard })}>
           Blizzard<small>{s.blizzard ? "en cours" : "bascule"}</small>
+        </button>
+        <button type="button" className={`scn-btn ${s.dark ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "dark", on: !s.dark })}>
+          {s.dark ? "Lever le délestage" : "Délestage"}
+          <small>{s.dark ? "retour à l'éclairage normal" : "presque noir, une lampe"}</small>
         </button>
         <button type="button" className={`scn-btn ${s.gauge ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "gauge", seconds: s.gauge ? null : view.setup.params.gaugeSeconds })}>
           Jauge des générateurs<small>{s.gauge ? "arrêter" : `${Math.round(view.setup.params.gaugeSeconds / 60)} min`}</small>

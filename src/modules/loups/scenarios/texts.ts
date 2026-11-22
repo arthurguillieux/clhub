@@ -122,7 +122,7 @@ export function textVars(s: State, id?: string): Record<string, string | null> {
   const night = s.phase === "night";
   const holderOf = (item: string) => name(s.items[item]?.holder);
   // A holder who died at this moment: OBJ-03 calls them {victime}.
-  const deadHolder = Object.values(s.items).find((i) => i.holder && s.players.find((p) => p.id === i.holder && p.status !== "alive" && p.diedAt === momentOf(s)));
+  const deadHolder = deadHolders(s)[0];
   const porteur = id === "NUIT-12" ? holderOf("bandes") : id === "NUIT-16" ? holderOf("vie") : id === "OBJ-02" ? holderOf("pistolet") : (holderOf("bandes") ?? holderOf("vie") ?? holderOf("pistolet"));
   const past = s.past[0];
   return {
@@ -139,6 +139,14 @@ export function textVars(s: State, id?: string): Record<string, string | null> {
     quarantaine2: name(s.quarantine[1]),
     morts_b1: past ? past.players.filter((p) => p.status !== "alive").map((p) => name(p.id)).filter(Boolean).join(", ") || null : null,
   };
+}
+
+/** Who died just now: at this moment, or last night when it's the morning after. */
+const diedNow = (s: State, at: string | null) => !!at && (at === momentOf(s) || (s.phase === "day" && at === `Boucle ${s.loop} · Nuit ${s.round}`));
+
+/** Items still in use whose holder just died: they hand them over, in front of everyone (OBJ-03). */
+function deadHolders(s: State) {
+  return Object.values(s.items).filter((i) => !i.used && i.holder && s.players.some((p) => p.id === i.holder && p.status !== "alive" && diedNow(s, p.diedAt)));
 }
 
 /** Whether something was written in the journal at this very moment (« Boucle 1 · Jour 2 »). */
@@ -202,7 +210,7 @@ export function suggestTexts(def: Pick<ScenarioDef, "items" | "dayActions" | "da
     const secret = new Set(def.items.filter((i) => i.family === "secret").map((i) => i.id).concat("seringues"));
     const exiled = happened(s, "Exil :");
     const chiefDied = happened(s, "Le chef est mort") || (exiled && !!s.lastExile?.chief);
-    const holderDied = Object.values(s.items).some((i) => i.holder && s.players.some((p) => p.id === i.holder && p.status !== "alive" && p.diedAt === momentOf(s)));
+    const holderDied = deadHolders(s).length > 0;
     const final = s.loop >= 2 && s.round >= 4;
     // The doors as they were offered this morning, before today's choice opened anything.
     const beforeDoor = last ? { ...s, actionsDone: s.actionsDone.filter((x) => x !== last.id), flags: { ...s.flags, ...Object.fromEntries((last.gives ?? []).map((f) => [f, false])) } } : s;
@@ -247,4 +255,25 @@ export function suggestTexts(def: Pick<ScenarioDef, "items" | "dayActions" | "da
 export function fromPhrase(texte: string, phrase: string): string {
   const i = texte.indexOf(phrase);
   return i < 0 ? texte : texte.slice(texte.lastIndexOf("\n\n", i) + (texte.lastIndexOf("\n\n", i) < 0 ? 0 : 2));
+}
+
+/**
+ * FAILLE-01's variant for the latest fault: never the same twice in the evening, all of them used
+ * before starting again; a to d first in loop 1, e and f first in loop 2. Replayed from the faults
+ * already triggered, so it never depends on the phone.
+ */
+export function faultVariant(labels: string[], faults: { at: string }[]): string | null {
+  if (labels.length === 0 || faults.length === 0) return null;
+  const late = (l: string) => /variante [ef]\b/i.test(l);
+  let used: string[] = [];
+  let pick: string | null = null;
+  for (const f of faults) {
+    if (used.length >= labels.length) used = [];
+    const loop = Number(f.at.match(/Boucle (\d+)/)?.[1] ?? 1);
+    const free = labels.filter((l) => !used.includes(l));
+    const preferred = free.filter((l) => (loop >= 2 ? late(l) : !late(l)));
+    pick = (preferred[0] ?? free[0])!;
+    used.push(pick);
+  }
+  return pick;
 }

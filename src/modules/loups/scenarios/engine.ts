@@ -36,6 +36,7 @@ export type Action =
   | { t: "power" }
   | { t: "glitch" }
   | { t: "blizzard"; on: boolean }
+  | { t: "dark"; on: boolean }
   | { t: "aurora"; on: boolean }
   | { t: "gauge"; seconds: number | null }
   | { t: "timer"; which: "gauge" | "main"; cmd: "start" | "pause" | "resume" | "plus" | "minus" | "stop"; seconds?: number; label?: string }
@@ -346,9 +347,8 @@ function shielded(s: State, id: string | null, resisted: boolean): "panic" | "qu
 export function dawnDeaths(s: State): string[] {
   const n = s.tonight;
   const out: string[] = [];
-  // The chief's resistance is used first by a contamination aimed at them, the same night.
-  const resisted = s.chiefResisted || (!!n.infect && n.infect === s.chief);
-  if (n.victim && !shielded(s, n.victim, resisted) && n.victim !== n.life) out.push(n.victim);
+  // Two attacks on the chief the same night count as one: the resistance holds against both (V1.3).
+  if (n.victim && !shielded(s, n.victim, s.chiefResisted) && n.victim !== n.life) out.push(n.victim);
   if (n.death && !out.includes(n.death)) out.push(n.death);
   return out.filter((id) => s.players.find((p) => p.id === id)?.status === "alive");
 }
@@ -487,6 +487,8 @@ function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: 
       return { ...s, log: log("Effet : faille.") };
     case "blizzard":
       return { ...s, blizzard: a.on };
+    case "dark":
+      return { ...s, dark: a.on, log: log(a.on ? "Délestage : la base tombe dans le noir." : "Délestage levé : l'éclairage revient.") };
     case "aurora":
       return { ...s, aurora: a.on };
     case "gauge":
@@ -633,24 +635,26 @@ function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: 
       if (s.phase !== "night") return s;
       const n = s.tonight;
       const deaths = dawnDeaths(s);
-      let resisted = s.chiefResisted;
+      // Whatever the pack aims at the chief tonight, contamination or death or both, fails once a loop.
+      // (The panic room or the quarantine protect first: then the resistance isn't spent.)
+      const chiefHit = !s.chiefResisted && [n.infect, n.victim].some((id) => !!id && shielded(s, id, false) === "chief");
+      const resisted = s.chiefResisted || chiefHit;
       const notes: string[] = [];
+      if (chiefHit) {
+        const both = n.infect === s.chief && n.victim === s.chief;
+        notes.push(`Le chef ${nameOf(s, s.chief)} résiste ${both ? "à la double attaque de la meute (contamination et mise à mort)" : n.infect === s.chief ? "à la contamination" : "à l'attaque"} : il perd sa résistance.`);
+      }
       let players = s.players.map((p) => (deaths.includes(p.id) ? { ...p, status: "dead" as const, diedAt: at } : p));
       if (n.infect) {
-        const shield = shielded(s, n.infect, resisted);
+        const shield = shielded(s, n.infect, s.chiefResisted);
         if (shield === "chief") {
-          resisted = true;
-          notes.push(`Le chef ${nameOf(s, n.infect)} résiste à la contamination.`);
+          // Noted above.
         } else if (shield) notes.push(`${nameOf(s, n.infect)} est protégé : la contamination échoue.`);
         else {
           // The pack bit together: whoever was in it (and not locked in the panic room) that night.
           const by = pack(s).filter((p) => p.id !== n.panic).map((p) => p.name).join(", ") || null;
           players = players.map((p) => (p.id === n.infect && p.status === "alive" ? { ...p, infected: true, infectedAt: momentOf(s), infectedBy: by } : p));
         }
-      }
-      if (n.victim && !deaths.includes(n.victim) && shielded(s, n.victim, resisted) === "chief") {
-        resisted = true;
-        notes.push(`Le chef ${nameOf(s, n.victim)} résiste à l'attaque.`);
       }
       const event = setup.events.find((e) => e.id === n.chosen) ?? null;
       const others = n.proposed.filter((id) => id !== n.chosen).map((id) => setup.events.find((e) => e.id === id)?.name).filter(Boolean);

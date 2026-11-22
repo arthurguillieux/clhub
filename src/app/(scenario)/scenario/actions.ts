@@ -153,6 +153,7 @@ const actionSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("power") }),
   z.object({ t: z.literal("glitch") }),
   z.object({ t: z.literal("blizzard"), on: z.boolean() }),
+  z.object({ t: z.literal("dark"), on: z.boolean() }),
   z.object({ t: z.literal("aurora"), on: z.boolean() }),
   z.object({ t: z.literal("gauge"), seconds: z.number().int().min(10).max(1200).nullable() }),
   z.object({ t: z.literal("intrusion"), text: z.string().max(600).nullable() }),

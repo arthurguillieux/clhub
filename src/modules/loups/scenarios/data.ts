@@ -7,6 +7,7 @@ import { notifyGame } from "@/modules/killer/data/notifier";
 import { apply, initialState, missedClues, momentOf, recap, replay, suggestedWinner, type Action, type Setup, type State } from "./engine";
 import { simulatedJournal, simulatedPlayers, type StartPoint } from "./simulate";
 import { checkPassword, scenarioOf } from "./index";
+import { publicRecent, publicState, type PublicState } from "./public";
 import type { ScenarioDef } from "./types";
 
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -246,8 +247,6 @@ export async function getConsoleView(g: ScenarioGame, def: ScenarioDef, role: "h
   };
 }
 
-const NIGHT_SECRETS = new Set<Action["t"]>(["patientZero", "infect", "victim", "tapes", "useItem", "giveItem", "setInfected", "panic", "propose", "deadChoose", "skip"]);
-
 /** What the room may see: no camp, no night secret. The faults read a little more, on purpose. */
 export interface ProjectionView {
   version: number;
@@ -256,12 +255,7 @@ export interface ProjectionView {
   simulated: boolean;
   players: { id: string; name: string; room: number; status: "alive" | "dead" | "exiled"; diedAt: string | null }[];
   /** Never a side, never a secret item (nor that it was found), never the chief's resistance. */
-  state: Omit<State, "players" | "tonight" | "patientZero" | "log" | "items" | "chiefResisted" | "lastExile" | "trusted"> & {
-    lastExiled: string | null;
-    lastEvent: string | null;
-    /** The pistol's holder: handed out in front of everyone. */
-    pistol: string | null;
-  };
+  state: PublicState;
   /** The last actions, for effects played once (a glitch, a sound, a refused door…). */
   recent: { seq: number; at: number; action: Action }[];
   clues: { at: string; text: string }[];
@@ -278,29 +272,15 @@ export async function getProjectionView(g: ScenarioGame, def: ScenarioDef): Prom
   const setup = setupOf(g, def);
   const rows = await journal(g);
   const full = g.status === "setup" ? initialState(def, setup) : stateOf(def, setup, rows);
-  const { players, tonight, patientZero, log, items, chiefResisted, lastExile, trusted, ...rest } = full;
-  void [tonight, patientZero, chiefResisted, lastExile, trusted];
-  const secret = new Set(def.items.filter((i) => i.family === "secret").map((i) => i.id).concat("seringues"));
-  const exiled = [...log].reverse().find((l) => l.text.startsWith("Exil :") && !l.text.includes("personne"));
   return {
     version: g.version,
     status: g.status as ProjectionView["status"],
     scenarioId: def.id,
     simulated: g.simulated,
-    players: players.map((p) => ({ id: p.id, name: p.name, room: p.room, status: p.status, diedAt: p.diedAt })),
-    state: {
-      ...rest,
-      found: rest.found.filter((id) => !secret.has(id)),
-      foundToday: rest.foundToday.filter((id) => !secret.has(id)),
-      pistol: items.pistolet && !items.pistolet.used ? items.pistolet.holder : null,
-      lastExiled: exiled ? exiled.text.replace(/^Exil : /, "").replace(/ \(.*$/, "") : null,
-      lastEvent: setup.events.find((e) => e.id === full.event)?.name ?? null,
-    },
+    players: full.players.map((p) => ({ id: p.id, name: p.name, room: p.room, status: p.status, diedAt: p.diedAt })),
+    state: publicState(def, setup, full),
     // The night's secrets never reach the room's screen, not even in the data.
-    recent: rows
-      .slice(-12)
-      .filter((r) => !NIGHT_SECRETS.has((r.action as unknown as Action).t))
-      .map((r) => ({ seq: r.seq, at: r.createdAt.getTime(), action: r.action as unknown as Action })),
+    recent: publicRecent(rows.map((r) => ({ seq: r.seq, at: r.createdAt.getTime(), action: r.action as unknown as Action }))),
     clues: full.phase === "bad" ? missedClues(def, setup, full) : [],
     events: setup.events,
     extraFaults: setup.extraFaults,

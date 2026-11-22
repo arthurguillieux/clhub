@@ -264,12 +264,17 @@ describe("V1.2: the chief", () => {
     let s = run([...lit, ...quiet("p10")]);
     expect(s.players.find((p) => p.id === "p10")?.status).toBe("alive");
     expect(s.chiefResisted).toBe(true);
-    expect(s.log.at(-1)?.text).toContain("Le chef Jade résiste à l'attaque.");
+    expect(s.log.at(-1)?.text).toContain("Le chef Jade résiste à l'attaque : il perd sa résistance.");
     s = run([...lit, ...quiet("p10"), { t: "exile", player: null }, ...quiet("p10")]);
     expect(s.players.find((p) => p.id === "p10")?.status).toBe("dead");
     expect(s.chief).toBeNull(); // the title waits for a successor
+    // V1.3: contaminated and killed the same night, the two attacks count as one.
     s = run([...lit, { t: "night" }, { t: "infect", player: "p10" }, { t: "victim", player: "p10" }, { t: "dawn" }]);
-    expect(s.players.find((p) => p.id === "p10")).toMatchObject({ status: "dead", infected: false }); // the contamination used the resistance
+    expect(s.players.find((p) => p.id === "p10")).toMatchObject({ status: "alive", infected: false });
+    expect(s.chiefResisted).toBe(true);
+    expect(s.log.at(-1)?.text).toContain("résiste à la double attaque de la meute (contamination et mise à mort)");
+    s = run([...lit, { t: "night" }, { t: "infect", player: "p10" }, { t: "victim", player: "p10" }, { t: "dawn" }, { t: "exile", player: null }, ...quiet("p10")]);
+    expect(s.players.find((p) => p.id === "p10")?.status).toBe("dead"); // the next night, the first attack works
   });
 
   it("exiled while healthy, locks every power of the village until the end of the loop; contaminated, nothing happens", () => {
@@ -384,5 +389,31 @@ describe("V1.2: the reboot", () => {
     expect(s.items.vie).toEqual({ holder: null, used: false });
     expect(s.roomUsed).toEqual({ test: false, radio: false });
     expect(s.chiefToConfirm).toBe(true);
+  });
+});
+
+describe("V1.3", () => {
+  it("a chief in the panic room keeps the resistance: the room protected them first", () => {
+    const repaired: Action[] = [{ t: "switch", index: 0, up: true }, { t: "switch", index: 2, up: true }, { t: "switch", index: 3, up: true }, { t: "power" }];
+    const s = run([...lit, ...repaired, ...quiet(), { t: "panic", player: "p10" }, { t: "exile", player: null }, { t: "night" }, { t: "victim", player: "p10" }, { t: "dawn" }]);
+    expect(s.players.find((p) => p.id === "p10")?.status).toBe("alive");
+    expect(s.chiefResisted).toBe(false);
+  });
+
+  it("« Lever le délestage » brings the light back", () => {
+    const dark = run([...lit, ...night(null, "p5", "delestage")]);
+    expect(dark.dark).toBe(true);
+    const lifted = run([...lit, ...night(null, "p5", "delestage"), { t: "dark", on: false }]);
+    expect(lifted.dark).toBe(false);
+    expect(lifted.log.at(-1)?.text).toBe("Délestage levé : l'éclairage revient.");
+  });
+
+  it("the quarantine, the blood test and the radio stay all day, through Stop and the neutral screen, until the night is over", () => {
+    const day: Action[] = [...lit, { t: "dayAction", id: "infirmerie" }, { t: "dayAction", id: "securite" }, ...quiet(), { t: "quarantine", players: ["p4", "p5"] }, { t: "bloodTest", target: "p1" }, { t: "radio" }];
+    const s = run([...day, { t: "stop" }, { t: "neutral", mode: "plan" }, { t: "neutral", mode: null }]);
+    expect(s).toMatchObject({ quarantine: ["p4", "p5"], lastTest: { target: "p1", positive: true }, lastRadio: 1 });
+    const next = run([...day, { t: "exile", player: null }, ...quiet()]);
+    expect(next).toMatchObject({ quarantine: [], lastTest: null, lastRadio: null });
+    expect(run([...day, { t: "exile", player: null }, { t: "night" }]).quarantine).toEqual(["p4", "p5"]); // they're protected tonight
   });
 });

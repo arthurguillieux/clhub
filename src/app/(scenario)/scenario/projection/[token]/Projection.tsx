@@ -431,6 +431,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
               <Torch />
               <div className="msg">{s.dark && s.phase === "day" ? "— DÉLESTAGE · SEULE LA LAMPE ÉCLAIRE —" : "— SECTEUR NON ÉCLAIRÉ —"}</div>
             </div>
+            {s.phase === "day" && <DayNotes view={view} />}
             {s.locked && !night && <div className="absolute top-[8.5%] left-[2.2%] z-[8] border border-[var(--scn-bad)] px-[1%] py-[0.3%] text-[1.2cqw] tracking-[0.25em] text-[var(--scn-bad)]">VERROUILLAGE GÉNÉRAL</div>}
             {s.chiefToConfirm && s.phase === "arrival" && s.chiefB1 && !term && (
               <div className="pj-intrusion" style={{ top: "30%", fontSize: "2.4cqw", textAlign: "center" }}>
@@ -657,6 +658,30 @@ function Clock({ date }: { date: string }) {
     <span>
       {date} {d.toLocaleTimeString("fr-FR")}
     </span>
+  );
+}
+
+/**
+ * The day's public facts, in a corner until nightfall: the quarantine, the blood test, the radio. Stop
+ * and the neutral screen leave them (they come back with the plan); only the night or Annuler clears them.
+ */
+function DayNotes({ view }: { view: ProjectionView }) {
+  const s = view.state;
+  const name = (id: string) => view.players.find((p) => p.id === id)?.name.toUpperCase() ?? "?";
+  const notes = [
+    s.quarantine.length ? { key: "q", text: `QUARANTAINE : ${s.quarantine.map(name).join(", ")}`, tone: "var(--scn-ice)" } : null,
+    s.lastTest ? { key: "t", text: `TEST SANGUIN · ${name(s.lastTest.target)} : ${s.lastTest.positive ? "POSITIF" : "NÉGATIF"}`, tone: s.lastTest.positive ? "var(--scn-bad)" : "var(--scn-ok)" } : null,
+    s.lastRadio !== null ? { key: "r", text: `CONTAMINÉS EN VIE : ${s.lastRadio}`, tone: "var(--scn-amber)" } : null,
+  ].filter((n): n is { key: string; text: string; tone: string } => !!n);
+  if (!notes.length) return null;
+  return (
+    <div className="absolute top-[64%] left-[2.2%] z-[8] flex max-w-[30%] flex-col items-start gap-[0.4cqw]" aria-label="Le jour">
+      {notes.map((n) => (
+        <p key={n.key} className="border bg-[rgba(5,8,12,.88)] px-[0.7cqw] py-[0.2cqw] text-[1.05cqw] tracking-[0.15em]" style={{ color: n.tone, borderColor: n.tone }}>
+          {n.text}
+        </p>
+      ))}
+    </div>
   );
 }
 

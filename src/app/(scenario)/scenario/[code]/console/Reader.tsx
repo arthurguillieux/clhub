@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ConsoleView } from "@/modules/loups/scenarios/data";
 import type { PublicScenario } from "@/modules/loups/scenarios/types";
-import { blocks, fromPhrase, inline, pickVariant, resolveTexts, suggestTexts, textVars, type ReadText } from "@/modules/loups/scenarios/texts";
+import { blocks, faultVariant, fromPhrase, inline, pickVariant, resolveTexts, suggestTexts, textVars, type ReadText } from "@/modules/loups/scenarios/texts";
 
 const SIZE_KEY = "scn-reader-size";
 const SIZES = [17, 19, 21, 24, 28, 32, 38];
@@ -27,7 +27,7 @@ export function useTexts(view: ConsoleView): ReadText[] {
  * in the evening and writes nothing in the journal; the projection never sees it. The command bar
  * stays above it.
  */
-export function Reader({ def, view, start, onClose }: { def: PublicScenario; view: ConsoleView; start?: string; onClose: () => void }) {
+export function Reader({ def, view, start, variant, onClose }: { def: PublicScenario; view: ConsoleView; start?: string; variant?: string | null; onClose: () => void }) {
   const texts = useTexts(view);
   const s = view.state;
   const suggestion = useMemo(() => suggestTexts(def, view.setup, s), [def, view.setup, s]);
@@ -35,6 +35,8 @@ export function Reader({ def, view, start, onClose }: { def: PublicScenario; vie
   const [index, setIndex] = useState(start ? 0 : suggestion.at);
   const [browsing, setBrowsing] = useState(!start && suggestion.ids.length === 0);
   const [query, setQuery] = useState("");
+  // The fault's variant, until the meneur goes elsewhere: « Tous les textes » shows all six.
+  const [forced, setForced] = useState(variant ?? null);
   const [size, setSize] = useState(readSize);
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -70,6 +72,7 @@ export function Reader({ def, view, start, onClose }: { def: PublicScenario; vie
     }
   };
   const open = (ids: string[], at: number) => {
+    setForced(null);
     setList(ids);
     setIndex(at);
     setBrowsing(false);
@@ -125,7 +128,7 @@ export function Reader({ def, view, start, onClose }: { def: PublicScenario; vie
         ) : !text ? (
           <p className="scn-vt text-2xl text-[var(--scn-amber)]">Texte à écrire : {id}</p>
         ) : (
-          <Text text={text} view={view} size={size} />
+          <Text text={text} view={view} size={size} force={forced} />
         )}
       </div>
 
@@ -146,7 +149,7 @@ export function Reader({ def, view, start, onClose }: { def: PublicScenario; vie
   );
 }
 
-function Text({ text, view, size }: { text: ReadText; view: ConsoleView; size: number }) {
+function Text({ text, view, size, force }: { text: ReadText; view: ConsoleView; size: number; force?: string | null }) {
   const s = view.state;
   const vars = textVars(s, text.id);
   // Night 1: NUIT-13 is read from « La bête a besoin d'une meute » on.
@@ -154,7 +157,7 @@ function Text({ text, view, size }: { text: ReadText; view: ConsoleView; size: n
   const parts = blocks(body);
   const labels = parts.filter((b) => b.kind === "variant").map((b) => b.label!);
   const shot = s.lastShot;
-  const chosen = pickVariant(text.id, labels, { night: s.round, targetInfected: text.id === "JOUR-15" && shot ? shot.infected : null, volunteers: null });
+  const chosen = force ?? pickVariant(text.id, labels, { night: s.round, targetInfected: text.id === "JOUR-15" && shot ? shot.infected : null, volunteers: null });
   return (
     <article className="flex flex-col gap-4" style={{ fontSize: size, lineHeight: 1.5 }}>
       <header>
@@ -243,25 +246,34 @@ function AllTexts({ texts, query, setQuery, onPick }: { texts: ReadText[]; query
   );
 }
 
-/** When a fault goes off: FAILLE-01, small, above the command bar, without hiding the console. */
-export function FaultHint({ view, onRead }: { view: ConsoleView; onRead: () => void }) {
+/**
+ * When a fault goes off: FAILLE-01, small, above the command bar, without hiding the console. One
+ * variant only, never the same twice in the evening (faultVariant).
+ */
+export function FaultHint({ view, onRead }: { view: ConsoleView; onRead: (variant: string | null) => void }) {
   const texts = useTexts(view);
   const count = view.state.faults.length;
   const [seen, setSeen] = useState(count);
   if (count <= seen) return null;
   const t = texts.find((x) => x.id === "FAILLE-01");
-  const first = t ? blocks(t.texte).find((b) => b.kind === "read")?.text : null;
+  const parts = t ? blocks(t.texte) : [];
+  const variant = faultVariant(
+    parts.filter((b) => b.kind === "variant").map((b) => b.label!),
+    view.state.faults,
+  );
+  const shown = parts.find((b) => b.kind === "variant" && b.label === variant) ?? parts.find((b) => b.kind === "read");
   return (
     <div className="fixed inset-x-2 bottom-[5.25rem] z-[65] mx-auto flex max-w-lg items-start gap-2 rounded-xl border border-[var(--scn-magenta)] bg-[rgba(12,18,24,.97)] p-2 text-xs">
       <p className="min-w-0 flex-1">
-        <span className="text-[var(--scn-magenta)]">FAILLE-01</span> {first ? `« ${first} »` : "Texte à écrire : FAILLE-01"}
+        <span className="text-[var(--scn-magenta)]">FAILLE-01{variant ? ` · ${variant.replace(/^Variante /, "")}` : ""}</span>{" "}
+        {shown ? <Inline text={shown.text} vars={textVars(view.state, "FAILLE-01")} /> : "Texte à écrire : FAILLE-01"}
       </p>
       <button
         type="button"
         className="scn-btn min-h-9 px-2 text-xs"
         onClick={() => {
           setSeen(count);
-          onRead();
+          onRead(variant);
         }}
       >
         Lire

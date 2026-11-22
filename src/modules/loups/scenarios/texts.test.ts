@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ANTARCTICA } from "./antarctica";
 import { replay, type Action, type Setup } from "./engine";
-import { DEFAULT_TEXTS, blocks, fromPhrase, importSummary, inline, parseTextFile, pickVariant, resolveTexts, suggestTexts, textVars } from "./texts";
+import { DEFAULT_TEXTS, blocks, faultVariant, fromPhrase, importSummary, inline, parseTextFile, pickVariant, resolveTexts, suggestTexts, textVars } from "./texts";
 
 const NAMES = ["Camille", "Hugo", "Léa", "Lucas", "Manon", "Thomas", "Chloé", "Nicolas", "Emma", "Maxime"];
 const setup: Setup = { players: NAMES.map((name, i) => ({ id: `p${i + 1}`, name })), params: ANTARCTICA.defaults, events: ANTARCTICA.events, extraFaults: [] };
@@ -147,5 +147,56 @@ describe("Textes à lire: the file", () => {
     expect(resolveTexts(next, { "NEW-01": "Retouché." }).find((t) => t.id === "NEW-01")?.texte).toBe("Retouché.");
     expect(parseTextFile("{").ok).toBe(false);
     expect(parseTextFile(JSON.stringify({ textes: [{ id: "A", texte: "" }, { id: "A", texte: "" }] })).ok).toBe(false);
+  });
+});
+
+describe("V1.3: the rules coded but never checked", () => {
+  it("JOUR-02: two deaths at dawn (the pack's victim and the death syringe), {victime} and {victime2} replaced", () => {
+    const two: Action[] = [...elected, { t: "night" }, { t: "victim", player: "p3" }, { t: "useItem", item: "mort", target: "p5" }, { t: "dawn" }];
+    const { s, first } = at(two);
+    expect(first).toBe("JOUR-02");
+    expect(textVars(s)).toMatchObject({ victime: "Léa", victime2: "Manon" });
+    expect(unresolved(two).filter((x) => x.startsWith("JOUR-02"))).toEqual([]);
+  });
+
+  it("JOUR-06: a single door possible, the search proposed", () => {
+    const one: Action[] = [...day1, { t: "dayAction", id: "sas" }, { t: "exile", player: null }, { t: "night" }, { t: "victim", player: null }, { t: "dawn" }];
+    const { ids } = at(one);
+    expect(ids).toContain("JOUR-06");
+    expect(ids).not.toContain("JOUR-05");
+  });
+
+  it("SALLE-10: the text comes once Alpha has refused", () => {
+    expect(at(day1).ids).not.toContain("SALLE-10");
+    expect(at([...day1, { t: "door", door: "alpha", open: true }]).ids).toContain("SALLE-10");
+  });
+
+  it("OBJ-03: a holder dies, and {victime} is that holder", () => {
+    const gone: Action[] = [...elected, { t: "night" }, { t: "victim", player: "p4" }, { t: "dawn" }];
+    const { s, ids } = at(gone);
+    expect(ids).toContain("OBJ-03");
+    expect(textVars(s, "OBJ-03").victime).toBe("Lucas");
+    expect(at(day1).ids).not.toContain("OBJ-03");
+  });
+});
+
+describe("V1.3: FAILLE-01", () => {
+  const labels = blocks(DEFAULT_TEXTS.textes.find((t) => t.id === "FAILLE-01")!.texte)
+    .filter((b) => b.kind === "variant")
+    .map((b) => b.label!);
+  const picks = (moments: string[]) => moments.map((_, i) => faultVariant(labels, moments.slice(0, i + 1).map((at) => ({ at }))));
+
+  it("the file 0.2 has six variants", () => {
+    expect(DEFAULT_TEXTS.version).toBe("0.2");
+    expect(labels).toEqual(["Variante a", "Variante b", "Variante c", "Variante d", "Variante e", "Variante f"]);
+  });
+
+  it("never the same twice, a to d first in loop 1, e and f first in loop 2, then all over again", () => {
+    expect(picks(["Boucle 1 · Jour 1", "Boucle 1 · Jour 2", "Boucle 2 · Jour 1", "Boucle 2 · Jour 1", "Boucle 2 · Jour 2"])).toEqual(["Variante a", "Variante b", "Variante e", "Variante f", "Variante c"]);
+    const seven = picks(Array.from({ length: 7 }, () => "Boucle 1 · Jour 1"));
+    expect(new Set(seven.slice(0, 6)).size).toBe(6);
+    expect(seven.slice(0, 4)).toEqual(["Variante a", "Variante b", "Variante c", "Variante d"]);
+    expect(seven[6]).toBe("Variante a");
+    expect(faultVariant(labels, [])).toBeNull();
   });
 });

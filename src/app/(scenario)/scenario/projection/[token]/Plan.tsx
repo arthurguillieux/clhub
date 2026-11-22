@@ -107,7 +107,7 @@ export function Plan({
                 const lit = parity && !odd;
                 return (
                   <g key={n}>
-                    <rect x={x} y={y} width={dx} height={h} className="f" fill={lit ? "rgba(127,216,255,.22)" : "none"} />
+                    <rect x={x} y={y} width={dx} height={h} className="f" style={lit ? { fill: "rgba(127,216,255,.30)", stroke: "#bfeaff" } : { fill: "none" }} />
                     <rect x={x + 8} y={odd ? y + 8 : y + h - 22} width={dx * 0.36} height="14" className="f" rx="3" />
                     {!seal && (
                       <text x={x + dx / 2} y={y + h * 0.66} textAnchor="middle" className="sublabel" style={{ fontSize: size, ...(lit ? { fill: "#e8f8ff" } : {}) }}>
@@ -254,9 +254,9 @@ export function Plan({
       <Door open={!!doors.dortoir} x={470} y={214} len={60} letter="Δ" />
       <Door open={!!doors.sas} x={300} y={400} len={56} vertical letter="Θ" />
       <Door open={!!doors.beta} x={915} y={384} len={64} letter="Β" left swing={38} />
-      <Door open={!!doors.gamma} x={915} y={427} len={64} letter="Γ" swing={-38} />
+      <Door open={!!doors.gamma} x={1010} y={427} len={64} letter="Γ" swing={-38} />
       <Door open={!!doors.generateurs} x={1255} y={384} len={64} letter="Ε" left swing={38} />
-      <Door open={!!doors.securite} x={1255} y={427} len={64} letter="Ζ" swing={-38} />
+      <Door open={!!doors.securite} x={1345} y={427} len={64} letter="Ζ" swing={-38} />
       <Door open={!!doors.labo} x={1447} y={664} len={53} letter="Η" below swing={-70} />
       <Door open={false} denied={denied} x={512} y={664} len={56} letter="Α" blood />
     </svg>
