@@ -28,6 +28,14 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
   const bar = page.getByRole("navigation", { name: "Commandes" });
   await bar.getByRole("button", { name: /Écran/ }).click();
   const link = await page.getByLabel("Lien de la projection").inputValue();
+  // Back on the scenarios page (from the projection computer, say): the same station, never a second one.
+  const consoleUrl = page.url();
+  await page.goto("/jeux/loups/scenarios");
+  await expect(page.getByRole("button", { name: "❄️ Ouvrir la station Antarctica" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "📽️ Ouvrir sa projection" })).toHaveAttribute("href", new URL(link).pathname);
+  await page.getByRole("link", { name: "📱 Piloter la station" }).click();
+  await expect(page).toHaveURL(consoleUrl);
+  await bar.getByRole("button", { name: /Écran/ }).click();
   const ctx = await browser.newContext({ baseURL, viewport: { width: 1600, height: 900 }, storageState: { cookies: [], origins: [] } });
   const screen = await ctx.newPage();
   await screen.goto(link);

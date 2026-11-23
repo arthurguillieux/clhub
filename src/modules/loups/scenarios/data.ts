@@ -66,11 +66,33 @@ export async function checkConsole(code: string): Promise<ConsoleCheck> {
 export async function listEvenings(memberId: string) {
   const cohosted = db.select({ id: scenarioCohost.gameId }).from(scenarioCohost).where(eq(scenarioCohost.memberId, memberId));
   return db
-    .select({ code: scenarioGame.code, scenarioId: scenarioGame.scenarioId, status: scenarioGame.status, simulated: scenarioGame.simulated, createdAt: scenarioGame.createdAt, setup: scenarioGame.setup })
+    .select({ code: scenarioGame.code, token: scenarioGame.token, scenarioId: scenarioGame.scenarioId, status: scenarioGame.status, simulated: scenarioGame.simulated, createdAt: scenarioGame.createdAt, setup: scenarioGame.setup })
     .from(scenarioGame)
     .where(or(eq(scenarioGame.hostMemberId, memberId), inArray(scenarioGame.id, cohosted)))
     .orderBy(desc(scenarioGame.createdAt))
     .limit(30);
+}
+
+/**
+ * The station this member already has open for this scenario (the latest real one, not finished):
+ * « Ouvrir la station » goes back to it, so the phone and the projection computer meet on the same one.
+ */
+export async function openStation(memberId: string, scenarioId: string): Promise<ScenarioGame | null> {
+  const cohosted = db.select({ id: scenarioCohost.gameId }).from(scenarioCohost).where(eq(scenarioCohost.memberId, memberId));
+  const [row] = await db
+    .select()
+    .from(scenarioGame)
+    .where(
+      and(
+        eq(scenarioGame.scenarioId, scenarioId),
+        eq(scenarioGame.simulated, false),
+        inArray(scenarioGame.status, ["setup", "live"]),
+        or(eq(scenarioGame.hostMemberId, memberId), inArray(scenarioGame.id, cohosted)),
+      ),
+    )
+    .orderBy(desc(scenarioGame.createdAt))
+    .limit(1);
+  return row ?? null;
 }
 
 const setupOf = (g: ScenarioGame, def: ScenarioDef): Setup => {

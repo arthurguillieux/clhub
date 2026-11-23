@@ -15,6 +15,7 @@ import {
   rewind,
   getConsoleView,
   launch,
+  openStation,
   reportProjection,
   saveSetup,
   setCohost,
@@ -66,7 +67,8 @@ export async function newEveningAction(scenarioId: string): Promise<void> {
   if (!session) redirect("/sign-in");
   const def = scenarioOf(scenarioId);
   if (!def || !(await unlockedScenarios(session.member.id)).includes(def.id)) redirect("/jeux/loups/scenarios");
-  const game = await createEvening(session.member.id, def, null);
+  // One station at a time: opening it again (on the phone, then on the computer) lands on the same one.
+  const game = (await openStation(session.member.id, def.id)) ?? (await createEvening(session.member.id, def, null));
   redirect(`/scenario/${game.code}/console`);
 }
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getSession } from "@/core/auth/session";
+import { LinkButton } from "@/core/ui/components/Button";
 import { Card } from "@/core/ui/components/Card";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
@@ -48,14 +49,35 @@ export default async function ScenariosPage() {
         Des soirées de Loups-garous mises en scène. Le meneur ouvre d&apos;abord la station (le décor : ses portes, ses lumières, ses écrans) et la pilote depuis son téléphone, puis y charge le scénario. Un écran projeté montre tout à la salle. Chaque scénario s&apos;ouvre avec son mot de passe.
       </p>
       <div className="mt-6 flex flex-col gap-3">
-        {SCENARIOS.map((s) => (
+        {SCENARIOS.map((s) => {
+          // The station already open (the latest one): the phone and the projection computer meet on it.
+          const station = real.find((e) => e.scenarioId === s.id && (e.status === "setup" || e.status === "live"));
+          return (
           <Card key={s.id} className="p-5">
             <p className="font-display text-xl font-bold text-ink">{s.title}</p>
             <p className="text-sm text-muted">{s.subtitle}</p>
             <div className="mt-4 flex flex-col gap-4">
               {open.includes(s.id) ? (
                 <>
-                  <NewEveningButton scenarioId={s.id} baseName={s.base.name} />
+                  {station ? (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-sm text-ink">
+                        Ta {s.base.name.charAt(0).toLowerCase()}
+                        {s.base.name.slice(1)} est ouverte ({STATUS[station.status]}, depuis le {day(station.createdAt)}).
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <LinkButton href={`/scenario/${station.code}/console`} variant="accent">
+                          📱 Piloter la station
+                        </LinkButton>
+                        <LinkButton href={`/scenario/projection/${station.token}`} variant="ghost">
+                          📽️ Ouvrir sa projection
+                        </LinkButton>
+                      </div>
+                      <p className="text-xs text-muted">Sur le téléphone : « Piloter la station ». Sur l&apos;ordinateur branché au vidéoprojecteur : « Ouvrir sa projection ». Les deux parlent à la même station.</p>
+                    </div>
+                  ) : (
+                    <NewEveningButton scenarioId={s.id} baseName={s.base.name} />
+                  )}
                   <SimulateForm scenarioId={s.id} starts={[...START_POINTS]} blocked={busyReal} />
                 </>
               ) : (
@@ -63,7 +85,8 @@ export default async function ScenariosPage() {
               )}
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
       {real.length > 0 && (
         <section className="mt-8">
