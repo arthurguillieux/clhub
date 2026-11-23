@@ -485,6 +485,11 @@ function Meals({
               </div>
             </div>
           )}
+          {m.enabled && m.hidden.length === 0 && (
+            <p className="rounded-xl border border-[var(--s-line)] p-3 text-sm text-[var(--s-muted)]" aria-label="Noté sur des repas cachés">
+              <b className="text-[var(--s-ink)]">Noté sur des repas cachés :</b> rien. Aucun repas retiré ni aucun jour hors des dates ne cache de plat ou de réponse : tout ce qui est noté est visible sur la page des repas.
+            </p>
+          )}
           {m.enabled && m.hidden.length > 0 && (
             <div className="rounded-xl border border-[var(--s-line)] p-3" aria-label="Noté sur des repas cachés">
               <p className="text-sm font-semibold">Noté sur des repas cachés</p>
