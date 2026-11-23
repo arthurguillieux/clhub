@@ -46,6 +46,14 @@ describe("the station before the game", () => {
     expect(started.log.at(-1)?.text).toBe("Prologue du bus.");
     expect(protocolOf(started, 0)).toBe("running");
   });
+
+  it("shows the plan to the room as soon as the base is touched, and goes back to the welcome image on demand", () => {
+    expect(run([{ t: "sound", slot: "son-vent" }]).screen).toBe("accueil");
+    expect(run([{ t: "door", door: "sas", open: true }]).screen).toBe("plan");
+    expect(run([{ t: "light", on: true }, { t: "screen", mode: "accueil" }]).screen).toBe("accueil");
+    // Once the scenario loads, the room watches it load: no switch to the plan.
+    expect(run([{ t: "load" }, { t: "light", on: true }]).screen).toBe("accueil");
+  });
 });
 
 describe("the evening's course", () => {

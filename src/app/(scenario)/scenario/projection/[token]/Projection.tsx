@@ -1167,7 +1167,11 @@ function OperatorPanel({
     () => "webkitdirectory" in document.createElement("input"),
     () => true,
   );
-  const required = (f: string) => def.media.find((m) => m.file === f)?.required ?? true;
+  // The scenario's own files say whether they're needed (the sounds aren't); an organizer's fault media always are.
+  const required = (f: string) => {
+    const slot = def.media.find((m) => m.file === f);
+    return slot ? !!slot.required : true;
+  };
   return (
     <div className="scn-veil fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="scn-sec max-h-[92dvh] w-full max-w-xl overflow-y-auto p-5">

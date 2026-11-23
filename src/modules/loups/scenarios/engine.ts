@@ -445,9 +445,13 @@ function doDayAction(def: ScenarioDef, s: State, id: string, at: string): State 
   };
 }
 
+/** Gestures the room has to see: on the station alone, they take the screen off the welcome image. */
+const SHOWN_ON_PLAN = new Set<Action["t"]>(["light", "cut", "door", "terminal", "play", "circuit", "switch", "power", "glitch", "blizzard", "dark", "aurora", "gauge"]);
+
 /** One action applied. Unknown or impossible actions leave the state as it was. */
 export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when = 0): State {
-  const next = applyAction(def, setup, s, a, when);
+  let next = applyAction(def, setup, s, a, when);
+  if (next.phase === "welcome" && next.loadingAt === null && next.screen === "accueil" && SHOWN_ON_PLAN.has(a.t)) next = { ...next, screen: "plan" };
   return s.chief && !next.chief && next !== s ? { ...next, formerChief: s.chief } : next;
 }
 
