@@ -43,13 +43,29 @@ function shownMeals(event: SantaEvent, meals: (typeof santaMeal.$inferSelect)[])
 
 export async function getMealsSettings(event: SantaEvent): Promise<MealsSettingsView> {
   const days = event.mealsFrom && event.mealsTo ? new Set(daysBetween(event.mealsFrom, event.mealsTo)) : new Set<string>();
-  const meals = (await loadMeals(event.id)).filter((m) => days.has(m.day));
+  const all = await loadMeals(event.id);
+  const ids = all.map((m) => m.id);
+  // What's written on each meal: a meal taken off, or a day left out, hides it from everyone (nothing is erased).
+  const dishes = ids.length
+    ? await db
+        .select({ mealId: santaDish.mealId, what: santaDish.what, who: santaParticipant.name })
+        .from(santaDish)
+        .innerJoin(santaParticipant, eq(santaParticipant.id, santaDish.participantId))
+        .where(inArray(santaDish.mealId, ids))
+        .orderBy(asc(santaDish.createdAt))
+    : [];
+  const answers = ids.length ? await db.select({ mealId: santaPresence.mealId }).from(santaPresence).where(inArray(santaPresence.mealId, ids)) : [];
+  const count = (mealId: string) => ({ dishes: dishes.filter((d) => d.mealId === mealId).length, answers: answers.filter((a) => a.mealId === mealId).length });
   return {
     enabled: event.mealsEnabled,
     from: event.mealsFrom,
     to: event.mealsTo,
     note: event.mealsNote,
-    slots: meals.map((m) => ({ id: m.id, day: m.day, meal: m.meal as MealKind, off: m.off })),
+    slots: all.filter((m) => days.has(m.day)).map((m) => ({ id: m.id, day: m.day, meal: m.meal as MealKind, off: m.off, ...count(m.id) })),
+    hidden: all
+      .filter((m) => m.off || !days.has(m.day))
+      .map((m) => ({ id: m.id, day: m.day, meal: m.meal as MealKind, off: m.off, outOfRange: !days.has(m.day), answers: count(m.id).answers, dishes: dishes.filter((d) => d.mealId === m.id).map((d) => ({ who: d.who, what: d.what })) }))
+      .filter((m) => m.dishes.length > 0 || m.answers > 0),
   };
 }
 
@@ -84,6 +100,17 @@ export async function getMealsView(event: SantaEvent, actor: MealsActor): Promis
   const dishes = await db.select().from(santaDish).where(eq(santaDish.eventId, event.id)).orderBy(asc(santaDish.createdAt));
   const drinks = await db.select().from(santaDrink).where(eq(santaDrink.eventId, event.id)).orderBy(asc(santaDrink.createdAt));
   const shown = new Set(mealIds);
+  // « Ce que j'ai noté »: every dish of the viewer's, even on a meal that's hidden for now.
+  const allMeals = new Map((await loadMeals(event.id)).map((m) => [m.id, m]));
+  const mine = actor.me
+    ? dishes
+        .filter((d) => d.participantId === actor.me || d.withId === actor.me)
+        .flatMap((d) => {
+          const m = allMeals.get(d.mealId);
+          return m ? [{ id: d.id, day: m.day, meal: m.meal as MealKind, what: d.what, idea: d.idea, hidden: !shown.has(m.id) }] : [];
+        })
+        .sort((a, b) => sortMeals(a, b))
+    : [];
   const days: MealsView["days"] = [];
   for (const m of meals) {
     const last = days.at(-1);
@@ -107,6 +134,7 @@ export async function getMealsView(event: SantaEvent, actor: MealsActor): Promis
       .filter((d) => shown.has(d.mealId))
       .map((d) => ({ id: d.id, mealId: d.mealId, who: d.participantId, withId: d.withId, what: d.what, category: d.category, parts: d.parts, veg: d.veg, note: d.note, idea: d.idea })),
     drinks: drinks.map((d) => ({ id: d.id, who: d.participantId, type: d.type, quantity: d.quantity, unit: d.unit, what: d.what })),
+    mine,
     me: actor.me,
     organizer: actor.organizer,
   };

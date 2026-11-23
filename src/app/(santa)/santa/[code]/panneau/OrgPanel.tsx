@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useState } from "react";
+import { daysBetween } from "@/modules/santa/domain/meals";
 import { SANTA_THEMES, type SantaTheme } from "@/modules/santa/themes";
 import type { OrgParticipant, OrgView } from "@/modules/santa/views";
 import { de } from "@/modules/santa/words";
@@ -361,8 +362,32 @@ function Meals({
   const [from, setFrom] = useState(m.from ?? "");
   const [to, setTo] = useState(m.to ?? "");
   const [note, setNote] = useState(m.note);
+  // Before hiding what someone already wrote: asked once, with what's on it.
+  const [ask, setAsk] = useState<{ kind: "toggle"; id: string; text: string } | { kind: "range"; text: string } | null>(null);
   const changed = from !== (m.from ?? "") || to !== (m.to ?? "") || note !== m.note;
   const days = [...new Set(m.slots.map((s) => s.day))];
+  const label = (s: { day: string; meal: string }) => `${mealDay.format(new Date(`${s.day}T00:00:00Z`))} ${s.meal}`;
+  const written = (s: { dishes: number; answers: number }) =>
+    [s.dishes ? `${s.dishes} plat${s.dishes > 1 ? "s" : ""}` : "", s.answers ? `${s.answers} réponse${s.answers > 1 ? "s" : ""} (qui est là)` : ""].filter(Boolean).join(" et ");
+  const save = () => onMeals({ enabled: m.enabled || !m.from, from: from || null, to: to || null, note }).then(() => setAsk(null));
+  const trySave = () => {
+    const kept = new Set(from && to ? daysBetween(from, to) : []);
+    const dropped = m.slots.filter((s) => !s.off && (s.dishes || s.answers) && !kept.has(s.day));
+    if (dropped.length) setAsk({ kind: "range", text: `Avec ces dates, ${dropped.map((s) => `${label(s)} (${written(s)})`).join(", ")} ne ser${dropped.length > 1 ? "ont" : "a"} plus visible${dropped.length > 1 ? "s" : ""}. Rien n'est effacé : en remettant les dates, tout revient.` });
+    else void save();
+  };
+  const tryToggle = (s: (typeof m.slots)[number]) => {
+    if (!s.off && (s.dishes || s.answers)) setAsk({ kind: "toggle", id: s.id, text: `Sur ${label(s)}, il y a déjà ${written(s)}. En retirant ce repas, tout le monde ne le verra plus. Rien n'est effacé : en le remettant, tout revient.` });
+    else onToggleMeal(s.id);
+  };
+  // A hidden day comes back by widening the dates around it.
+  const widen = (day: string) => {
+    const f = !m.from || day < m.from ? day : m.from;
+    const t = !m.to || day > m.to ? day : m.to;
+    setFrom(f);
+    setTo(t);
+    void onMeals({ enabled: true, from: f, to: t, note: m.note });
+  };
   return (
     <div className="border-t border-[var(--s-line)] pt-3">
       <div className="flex items-start justify-between gap-3">
@@ -407,9 +432,32 @@ function Meals({
             />
           </label>
           {changed && (
-            <button type="button" className="santa-btn min-h-11 self-start px-4 text-sm" disabled={busy || !from || !to} onClick={() => void onMeals({ enabled: m.enabled || !m.from, from: from || null, to: to || null, note })}>
+            <button type="button" className="santa-btn min-h-11 self-start px-4 text-sm" disabled={busy || !from || !to} onClick={trySave}>
               {m.from ? "Enregistrer les repas" : "Activer les repas sur ces dates"}
             </button>
+          )}
+          {ask && (
+            <div role="alertdialog" aria-label="Des choses sont déjà notées" className="rounded-xl border border-[var(--s-gold)] bg-[color-mix(in_srgb,var(--s-gold)_10%,var(--s-surface))] p-3 text-sm">
+              <p>{ask.text}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="santa-btn min-h-10 px-3 text-sm"
+                  disabled={busy}
+                  onClick={() => {
+                    if (ask.kind === "toggle") {
+                      onToggleMeal(ask.id);
+                      setAsk(null);
+                    } else void save();
+                  }}
+                >
+                  {ask.kind === "toggle" ? "Retirer ce repas quand même" : "Enregistrer ces dates quand même"}
+                </button>
+                <button type="button" className="santa-btn-ghost min-h-10 px-3 text-sm" onClick={() => setAsk(null)}>
+                  {ask.kind === "toggle" ? "Garder ce repas" : "Revoir les dates"}
+                </button>
+              </div>
+            </div>
           )}
           {m.enabled && days.length > 0 && (
             <div>
@@ -426,7 +474,7 @@ function Meals({
                           type="button"
                           aria-pressed={!s.off}
                           disabled={busy}
-                          onClick={() => onToggleMeal(s.id)}
+                          onClick={() => tryToggle(s)}
                           className={`min-h-9 rounded-full border px-3 text-xs capitalize ${s.off ? "border-[var(--s-line)] text-[var(--s-muted)] line-through" : "border-[var(--s-green)] bg-[var(--s-green)] text-[var(--s-surface)]"}`}
                         >
                           {s.meal}
@@ -435,6 +483,36 @@ function Meals({
                   </Fragment>
                 ))}
               </div>
+            </div>
+          )}
+          {m.enabled && m.hidden.length > 0 && (
+            <div className="rounded-xl border border-[var(--s-line)] p-3" aria-label="Noté sur des repas cachés">
+              <p className="text-sm font-semibold">Noté sur des repas cachés</p>
+              <p className="text-xs text-[var(--s-muted)]">Personne ne les voit en ce moment. Rien n&apos;est effacé : remets le repas pour que tout revienne.</p>
+              <ul className="mt-2 flex flex-col gap-2 text-sm">
+                {m.hidden.map((h) => (
+                  <li key={h.id} className="flex flex-col gap-1.5">
+                    <span>
+                      <b className="first-letter:uppercase">{label(h)}</b>
+                      <span className="text-[var(--s-muted)]"> · {h.outOfRange ? "hors des dates" : "repas retiré"}</span>
+                    </span>
+                    {h.dishes.length > 0 && (
+                      <span className="text-[var(--s-muted)]">
+                        {h.dishes.map((d) => `${d.who} : ${d.what}`).join(" · ")}
+                      </span>
+                    )}
+                    {h.answers > 0 && <span className="text-[var(--s-muted)]">{h.answers} réponse{h.answers > 1 ? "s" : ""} à « qui est là »</span>}
+                    <button
+                      type="button"
+                      className="santa-btn-ghost min-h-10 self-start px-3 text-sm"
+                      disabled={busy || view.archived}
+                      onClick={() => (h.outOfRange ? widen(h.day) : onToggleMeal(h.id))}
+                    >
+                      {h.outOfRange ? "Ajouter ce jour aux dates" : "Remettre ce repas"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
           {m.enabled && (

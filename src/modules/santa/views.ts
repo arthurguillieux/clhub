@@ -45,7 +45,10 @@ export interface MealsSettingsView {
   from: string | null;
   to: string | null;
   note: string;
-  slots: { id: string; day: string; meal: MealKind; off: boolean }[];
+  /** Each meal of the range, with what's already written on it (dishes, answers). */
+  slots: { id: string; day: string; meal: MealKind; off: boolean; dishes: number; answers: number }[];
+  /** Meals taken off or left out of the range that still hold something: hidden from everyone, not erased. */
+  hidden: { id: string; day: string; meal: MealKind; off: boolean; outOfRange: boolean; answers: number; dishes: { who: string; what: string }[] }[];
 }
 
 /** The meals page, the same for everyone; `me` is who the viewer is among the participants, if anyone. */
@@ -58,6 +61,8 @@ export interface MealsView {
   people: { id: string; name: string; diet: string; guests: number; presence: Record<string, Presence> }[];
   dishes: { id: string; mealId: string; who: string; withId: string | null; what: string; category: string; parts: number | null; veg: boolean; note: string; idea: boolean }[];
   drinks: { id: string; who: string; type: string; quantity: number; unit: string; what: string }[];
+  /** The viewer's own dishes, on every meal, including one hidden for now (so nothing seems lost). */
+  mine: { id: string; day: string; meal: MealKind; what: string; idea: boolean; hidden: boolean }[];
   me: string | null;
   organizer: boolean;
 }

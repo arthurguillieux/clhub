@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/core/db/client";
 import { member, santaEvent, user, type SantaEvent } from "@/core/db/schema";
 import { addGuestParticipant, createEvent, getEventByCode, loadParticipants } from "./events";
-import { addDish, addDrink, getMealsView, removeDish, removeDrink, setPresence, setProfile, takeIdea, toggleMeal, updateMealsSettings } from "./meals";
+import { addDish, addDrink, getMealsSettings, getMealsView, removeDish, removeDrink, setPresence, setProfile, takeIdea, toggleMeal, updateMealsSettings } from "./meals";
 
 describe("Secret Santa meals", () => {
   let userId: string;
@@ -97,8 +97,23 @@ describe("Secret Santa meals", () => {
     const hidden = await getMealsView(await fresh(), asAlice());
     expect(hidden.days[0]!.meals.map((m) => m.meal)).toEqual(["soir"]);
     expect(hidden.dishes).toHaveLength(0);
+    // Nothing seems lost: the organizers see what's on it, its author still finds their dish.
+    const settings = await getMealsSettings(await fresh());
+    expect(settings.hidden).toEqual([expect.objectContaining({ id: lunch, off: true, outOfRange: false, dishes: [{ who: "Bob", what: "Une bûche ?" }] })]);
+    expect((await getMealsView(await fresh(), asBob())).mine).toEqual([expect.objectContaining({ what: "Une bûche ?", day: "2026-12-23", meal: "midi", hidden: true })]);
     await toggleMeal(await fresh(), lunch);
     expect((await getMealsView(await fresh(), asAlice())).dishes).toHaveLength(1);
+    expect((await getMealsSettings(await fresh())).hidden).toEqual([]);
+    expect((await getMealsSettings(await fresh())).slots.find((s) => s.id === lunch)).toMatchObject({ dishes: 1, answers: 2 });
+  });
+
+  it("hides a day left out of the dates, and lists what's on it for the organizers", async () => {
+    await updateMealsSettings(await fresh(), { enabled: true, from: "2026-12-24", to: "2026-12-25", note: "" });
+    const settings = await getMealsSettings(await fresh());
+    expect(settings.hidden.map((h) => [h.day, h.meal, h.outOfRange])).toEqual([["2026-12-23", "midi", true]]);
+    expect((await getMealsView(await fresh(), asBob())).mine[0]?.hidden).toBe(true);
+    await updateMealsSettings(await fresh(), { enabled: true, from: "2026-12-23", to: "2026-12-25", note: "" });
+    expect((await getMealsView(await fresh(), asBob())).mine[0]?.hidden).toBe(false);
   });
 
   it("keeps drinks to whoever brings them", async () => {

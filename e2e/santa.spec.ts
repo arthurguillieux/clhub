@@ -72,7 +72,9 @@ test("secret santa: setup, exclusion, launch, gift, unmask, archive, next year",
   await guest.getByLabel("Le plat").fill("Bûche aux marrons");
   await guest.getByLabel("Nombre de parts").fill("8");
   await guest.getByRole("button", { name: "Ajouter le plat" }).click();
-  await expect(guest.getByText("Bûche aux marrons")).toBeVisible();
+  await expect(guest.getByText("Bûche aux marrons").first()).toBeVisible();
+  // It's also in « Ce que j'ai noté », at the top of the page.
+  await expect(guest.getByRole("region", { name: "Ce que j'ai noté" })).toContainText("Bûche aux marrons");
   await guest.getByRole("tab", { name: "Qui est là" }).click();
   await guest.locator("td button").first().click();
   await expect(guest.locator("td button").first()).toHaveText("✓");

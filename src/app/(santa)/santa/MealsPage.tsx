@@ -81,6 +81,24 @@ export function MealsPage({ initialView, act, back }: { initialView: MealsView; 
         {view.archived && <p className="santa-panel mt-3 p-3 text-center text-sm text-[var(--s-gold)]">Ce Secret Santa est terminé : les repas sont gardés en souvenir.</p>}
       </header>
 
+      {view.mine.length > 0 && (
+        <section className="santa-panel p-3" aria-label="Ce que j'ai noté">
+          <p className="santa-label">Ce que j&apos;ai noté</p>
+          <ul className="mt-1.5 flex flex-col gap-1 text-sm">
+            {view.mine.map((d) => (
+              <li key={d.id}>
+                <span className="first-letter:uppercase">
+                  {dayName.format(new Date(`${d.day}T00:00:00Z`))} {d.meal}
+                </span>{" "}
+                : <b>{d.what}</b>
+                {d.idea && <span className="text-[var(--s-muted)]"> (idée)</span>}
+                {d.hidden && <span className="block text-xs text-[var(--s-gold)]">Ce repas est caché pour l&apos;instant : rien n&apos;est perdu, l&apos;organisation peut le remettre.</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {view.organizer && !view.archived && (
         <label className="santa-panel flex flex-wrap items-center gap-2 p-3 text-sm">
           <span className="text-[var(--s-muted)]">Tu remplis pour</span>
