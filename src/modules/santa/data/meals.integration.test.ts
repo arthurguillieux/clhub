@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/core/db/client";
 import { member, santaEvent, user, type SantaEvent } from "@/core/db/schema";
 import { addGuestParticipant, createEvent, getEventByCode, loadParticipants } from "./events";
-import { addDish, addDrink, getMealsSettings, getMealsView, removeDish, removeDrink, setPresence, setProfile, takeIdea, toggleMeal, updateMealsSettings } from "./meals";
+import { addDish, addDrink, getMealsSettings, getMealsView, removeDish, removeDrink, setPresence, setProfile, takeIdea, toggleMeal, updateDish, updateMealsSettings } from "./meals";
 
 describe("Secret Santa meals", () => {
   let userId: string;
@@ -89,6 +89,27 @@ describe("Secret Santa meals", () => {
     const taken = (await getMealsView(await fresh(), asAlice())).dishes.find((d) => d.id === idea.id)!;
     expect(taken).toMatchObject({ idea: false, who: bob });
     expect((await takeIdea(await fresh(), asAlice(), { id: idea.id })).ok).toBe(false);
+  });
+
+  it("lets whoever brings a dish change it, or move it to another meal, and nobody else", async () => {
+    const view = await getMealsView(await fresh(), asAlice());
+    const [lunch, dinner] = [view.days[0]!.meals[0]!.id, view.days[0]!.meals[1]!.id];
+    await addDish(await fresh(), asAlice(), { mealId: lunch, what: "Quiche", category: "Plat", parts: 6, veg: false, note: "", withId: null, idea: false });
+    const quiche = (await getMealsView(await fresh(), asAlice())).dishes.find((d) => d.what === "Quiche")!;
+    const change = { id: quiche.id, mealId: dinner, what: "Quiche aux poireaux", category: "Plat", parts: 8, veg: true, note: "sans lardons", withId: bob };
+    expect((await updateDish(await fresh(), asBob(), change)).ok).toBe(false);
+    expect((await updateDish(await fresh(), asAlice(), change)).ok).toBe(true);
+    expect((await getMealsView(await fresh(), asAlice())).dishes.find((d) => d.id === quiche.id)).toMatchObject({ mealId: dinner, what: "Quiche aux poireaux", parts: 8, veg: true, note: "sans lardons", withId: bob });
+    // Now Bob makes it too: he may change it as well.
+    expect((await updateDish(await fresh(), asBob(), { ...change, parts: 10 })).ok).toBe(true);
+    await removeDish(await fresh(), asAlice(), quiche.id);
+  });
+
+  it("records a « non » apart from no answer", async () => {
+    const dinner = (await getMealsView(await fresh(), asAlice())).days[0]!.meals[1]!.id;
+    expect((await setPresence(await fresh(), asAlice(), { mealId: dinner, value: "-" })).ok).toBe(true);
+    expect((await getMealsView(await fresh(), asAlice())).people.find((p) => p.id === alice)!.presence[dinner]).toBe("-");
+    await setPresence(await fresh(), asAlice(), { mealId: dinner, value: null });
   });
 
   it("hides a meal turned off, with what was planned for it, and brings both back", async () => {

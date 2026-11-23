@@ -83,6 +83,7 @@ test("repas: a raclette, the calculator, a guest without an account takes her pa
   await lea.getByRole("button", { name: "Ajouter à la liste" }).click();
   await lea.getByRole("button", { name: "Modifier ou retirer « Tiramisu »" }).click();
   await lea.getByRole("button", { name: "Retirer cette ligne" }).click();
+  await lea.getByRole("alertdialog", { name: "Retirer « Tiramisu » ?" }).getByRole("button", { name: "Retirer la ligne" }).click();
   await expect(lea.locator('[id^="ligne-"]').filter({ hasText: "Tiramisu" })).toHaveCount(0);
   // She takes the rest of the potatoes for good.
   await lea.locator('[id^="ligne-"]').filter({ hasText: "Pommes de terre" }).getByRole("button", { name: "Je ramène tout" }).click();

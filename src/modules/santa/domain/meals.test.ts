@@ -26,6 +26,9 @@ describe("headcount", () => {
     expect(headcount(people, "a")).toEqual({ sure: 3, maybe: 0, unanswered: 1 });
     expect(headcount(people, "b")).toEqual({ sure: 0, maybe: 2, unanswered: 2 });
   });
+  it("leaves out a « non »: not there, and not silent either", () => {
+    expect(headcount([...people, { guests: 2, presence: { a: "-" } }], "a")).toEqual({ sure: 3, maybe: 0, unanswered: 1 });
+  });
 });
 
 describe("portions", () => {

@@ -3,7 +3,7 @@
 import { z } from "zod";
 import type { SantaEvent } from "@/core/db/schema";
 import { findByToken } from "@/modules/santa/data/events";
-import { MEAL_LIMITS, addDish, addDrink, getMealsView, organizerMealsActor, removeDish, removeDrink, setPresence, setProfile, takeIdea, type MealsActor } from "@/modules/santa/data/meals";
+import { MEAL_LIMITS, addDish, addDrink, getMealsView, organizerMealsActor, removeDish, removeDrink, setPresence, setProfile, takeIdea, updateDish, type MealsActor } from "@/modules/santa/data/meals";
 import { DISH_CATEGORIES, DRINK_TYPES, DRINK_UNITS } from "@/modules/santa/domain/meals";
 import { checkOrganizer } from "@/modules/santa/host";
 import type { MealsView } from "@/modules/santa/views";
@@ -12,7 +12,7 @@ const id = z.string().uuid();
 const forWhom = id.optional();
 
 const mealsActionSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("presence"), participantId: forWhom, mealId: id, value: z.enum(["x", "?"]).nullable() }),
+  z.object({ type: z.literal("presence"), participantId: forWhom, mealId: id, value: z.enum(["x", "?", "-"]).nullable() }),
   z.object({ type: z.literal("profile"), participantId: forWhom, diet: z.string().max(MEAL_LIMITS.diet, "C'est un peu long."), guests: z.number().int().min(0).max(MEAL_LIMITS.guests) }),
   z.object({
     type: z.literal("addDish"),
@@ -27,6 +27,17 @@ const mealsActionSchema = z.discriminatedUnion("type", [
     idea: z.boolean(),
   }),
   z.object({ type: z.literal("removeDish"), id }),
+  z.object({
+    type: z.literal("updateDish"),
+    id,
+    mealId: id,
+    what: z.string().trim().min(1, "Dis ce que c'est.").max(MEAL_LIMITS.what, "Nom de plat trop long."),
+    category: z.enum(DISH_CATEGORIES),
+    parts: z.number().int().min(1).max(MEAL_LIMITS.parts).nullable(),
+    veg: z.boolean(),
+    note: z.string().max(MEAL_LIMITS.note, "Précision trop longue."),
+    withId: id.nullable(),
+  }),
   z.object({ type: z.literal("takeIdea"), id, participantId: forWhom }),
   z.object({
     type: z.literal("addDrink"),
@@ -55,6 +66,8 @@ async function run(event: SantaEvent, actor: MealsActor, action: unknown): Promi
         return addDish(event, actor, a);
       case "removeDish":
         return removeDish(event, actor, a.id);
+      case "updateDish":
+        return updateDish(event, actor, a);
       case "takeIdea":
         return takeIdea(event, actor, a);
       case "addDrink":

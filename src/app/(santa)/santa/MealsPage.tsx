@@ -5,6 +5,20 @@ import { useState } from "react";
 import { DISH_CATEGORIES, DRINK_TYPES, DRINK_UNITS, drinkTotals, headcount, portions, type Presence } from "@/modules/santa/domain/meals";
 import type { MealsView } from "@/modules/santa/views";
 import type { MealsResult } from "./mealsActions";
+import { SantaDialog } from "./SantaDialog";
+
+/** « Retirer », asked once: what goes, and two buttons that say what they do. */
+function RemoveButton({ className, busy, title, detail, confirmLabel, keepLabel, onConfirm }: { className: string; busy: boolean; title: string; detail: string; confirmLabel: string; keepLabel: string; onConfirm: () => void }) {
+  const [asking, setAsking] = useState(false);
+  return (
+    <>
+      <button type="button" className={className} disabled={busy} onClick={() => setAsking(true)}>
+        Retirer
+      </button>
+      {asking && <SantaDialog title={title} detail={detail} confirmLabel={confirmLabel} cancelLabel={keepLabel} danger onConfirm={onConfirm} onClose={() => setAsking(false)} />}
+    </>
+  );
+}
 
 type Tab = "repas" | "qui" | "boissons";
 type Dish = MealsView["dishes"][number];
@@ -15,7 +29,8 @@ const dayLabel = (day: string) => {
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 const shortDay = (day: string) => new Date(`${day}T00:00:00Z`).getUTCDate();
-const NEXT: Record<string, Presence | null> = { none: "x", x: "?", "?": null };
+// One tap after another: oui, peut-être, non, then back to « pas répondu ».
+const NEXT: Record<string, Presence | null> = { none: "x", x: "?", "?": "-", "-": null };
 /** Today in France, as the days are written: YYYY-MM-DD. */
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date());
 
@@ -232,8 +247,13 @@ function MealCard({
   const ideas = all.filter((d) => d.idea);
   const { parts, unknown } = portions(dishes);
   const veg = dishes.filter((d) => d.veg && d.category === "Plat").length;
-  const diets = view.people.filter((p) => p.diet && p.presence[meal.id]);
+  const diets = view.people.filter((p) => p.diet && (p.presence[meal.id] === "x" || p.presence[meal.id] === "?"));
   const mine = (d: Dish) => !!view.me && (d.who === view.me || d.withId === view.me);
+  // « Modifier »: one dish at a time, its form in place of it.
+  const [editing, setEditing] = useState<string | null>(null);
+  const save = async (id: string, dish: { what: string; category: string; parts: number | null; veg: boolean; note: string; withId: string | null; mealId?: string }) => {
+    if (await send({ type: "updateDish", id, mealId: dish.mealId ?? meal.id, what: dish.what, category: dish.category, parts: dish.parts, veg: dish.veg, note: dish.note, withId: dish.withId })) setEditing(null);
+  };
   const subjectBrings = dishes.some((d) => d.who === subject || d.withId === subject);
 
   return (
@@ -258,7 +278,12 @@ function MealCard({
       )}
       {dishes.length > 0 ? (
         <ul className="mt-3 flex flex-col divide-y divide-[var(--s-line)]">
-          {dishes.map((d) => (
+          {dishes.map((d) =>
+            editing === d.id ? (
+              <li key={d.id}>
+                <DishForm idea={false} view={view} subject={d.who} busy={busy} initial={d} onCancel={() => setEditing(null)} onSubmit={(dish) => void save(d.id, dish)} />
+              </li>
+            ) : (
             <li key={d.id} className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 py-2.5">
               <span className="font-semibold">
                 <span className="mr-1.5 text-[11px] font-bold tracking-wider text-[var(--s-red)] uppercase">{d.category}</span>
@@ -277,15 +302,26 @@ function MealCard({
                 {!readOnly && (mine(d) || view.organizer) && (
                   <>
                     {" · "}
-                    <button type="button" className="-my-2 py-2 underline" disabled={busy} onClick={() => void send({ type: "removeDish", id: d.id })}>
-                      Retirer
+                    <button type="button" className="-my-2 py-2 underline" disabled={busy} onClick={() => setEditing(d.id)}>
+                      Modifier
                     </button>
+                    {" · "}
+                    <RemoveButton
+                      className="-my-2 py-2 underline"
+                      busy={busy}
+                      title={`Retirer « ${d.what} » ?`}
+                      detail={`Le plat disparaît du repas pour tout le monde${d.withId ? ", aussi pour la personne qui le prépare avec toi" : ""}.`}
+                      confirmLabel="Retirer le plat"
+                      keepLabel="Garder le plat"
+                      onConfirm={() => void send({ type: "removeDish", id: d.id })}
+                    />
                   </>
                 )}
               </span>
               {d.note && <span className="col-span-2 text-sm text-[var(--s-muted)] italic">{d.note}</span>}
             </li>
-          ))}
+            ),
+          )}
         </ul>
       ) : (
         <p className="mt-3 text-sm text-[var(--s-muted)]">Rien de prévu pour l&apos;instant.</p>
@@ -301,7 +337,10 @@ function MealCard({
           </span>
         </div>
       )}
-      {ideas.map((d) => (
+      {ideas.map((d) =>
+        editing === d.id ? (
+          <DishForm key={d.id} idea view={view} subject={d.who} busy={busy} initial={d} onCancel={() => setEditing(null)} onSubmit={(dish) => void save(d.id, dish)} />
+        ) : (
         <div key={d.id} className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-[var(--s-raised)] px-3 py-2">
           <span className="text-sm">
             💡 <b>{d.what}</b> <span className="text-[var(--s-muted)]">· idée de {nameOf.get(d.who)}</span>
@@ -312,14 +351,26 @@ function MealCard({
                 Je m&apos;en charge
               </button>
               {(mine(d) || view.organizer) && (
-                <button type="button" className="text-xs text-[var(--s-muted)] underline" disabled={busy} onClick={() => void send({ type: "removeDish", id: d.id })}>
-                  Retirer
+                <button type="button" className="text-xs text-[var(--s-muted)] underline" disabled={busy} onClick={() => setEditing(d.id)}>
+                  Modifier
                 </button>
+              )}
+              {(mine(d) || view.organizer) && (
+                <RemoveButton
+                  className="text-xs text-[var(--s-muted)] underline"
+                  busy={busy}
+                  title={`Retirer l'idée « ${d.what} » ?`}
+                  detail="Elle disparaît des idées du repas pour tout le monde."
+                  confirmLabel="Retirer l'idée"
+                  keepLabel="Garder l'idée"
+                  onConfirm={() => void send({ type: "removeDish", id: d.id })}
+                />
               )}
             </span>
           )}
         </div>
-      ))}
+        ),
+      )}
       {!readOnly &&
         (adding ? (
           <DishForm key={`${meal.id}-${adding.idea}`} idea={adding.idea} view={view} subject={subject} busy={busy} onCancel={() => onAdding(null)} onSubmit={async (dish) => {
@@ -344,6 +395,7 @@ function DishForm({
   view,
   subject,
   busy,
+  initial,
   onCancel,
   onSubmit,
 }: {
@@ -351,25 +403,38 @@ function DishForm({
   view: MealsView;
   subject: string | null;
   busy: boolean;
+  /** Editing: the dish as it is, and its meal (which can change). */
+  initial?: Dish;
   onCancel: () => void;
-  onSubmit: (dish: { what: string; category: string; parts: number | null; veg: boolean; note: string; withId: string | null; idea: boolean }) => void;
+  onSubmit: (dish: { what: string; category: string; parts: number | null; veg: boolean; note: string; withId: string | null; idea: boolean; mealId?: string }) => void;
 }) {
-  const [what, setWhat] = useState("");
-  const [category, setCategory] = useState("Plat");
-  const [parts, setParts] = useState("");
-  const [veg, setVeg] = useState(false);
-  const [note, setNote] = useState("");
-  const [withId, setWithId] = useState("");
+  const [what, setWhat] = useState(initial?.what ?? "");
+  const [category, setCategory] = useState(initial?.category ?? "Plat");
+  const [parts, setParts] = useState(initial?.parts ? String(initial.parts) : "");
+  const [veg, setVeg] = useState(initial?.veg ?? false);
+  const [note, setNote] = useState(initial?.note ?? "");
+  const [withId, setWithId] = useState(initial?.withId ?? "");
+  const [mealId, setMealId] = useState(initial?.mealId ?? "");
+  const meals = view.days.flatMap((d) => d.meals.map((m) => ({ id: m.id, label: `${dayName.format(new Date(`${d.day}T00:00:00Z`))} ${m.meal}` })));
   return (
     <form
       className="mt-3 flex flex-col gap-2 border-t border-dashed border-[var(--s-line)] pt-3"
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit({ what, category, parts: parts ? Number(parts) : null, veg, note, withId: withId || null, idea });
+        onSubmit({ what, category, parts: parts ? Number(parts) : null, veg, note, withId: withId || null, idea, ...(initial ? { mealId } : {}) });
       }}
     >
-      <p className="text-sm font-semibold">{idea ? "💡 Proposer une idée" : "Ce qui est apporté"}</p>
-      {idea && <p className="-mt-1 text-xs text-[var(--s-muted)]">Une idée n&apos;engage personne : quelqu&apos;un pourra dire « Je m&apos;en charge ».</p>}
+      <p className="text-sm font-semibold">{initial ? (idea ? "💡 Modifier l'idée" : "Modifier le plat") : idea ? "💡 Proposer une idée" : "Ce qui est apporté"}</p>
+      {idea && !initial && <p className="-mt-1 text-xs text-[var(--s-muted)]">Une idée n&apos;engage personne : quelqu&apos;un pourra dire « Je m&apos;en charge ».</p>}
+      {initial && meals.length > 1 && (
+        <select value={mealId} onChange={(e) => setMealId(e.target.value)} aria-label="Le repas" className="santa-field min-h-11 px-3 first-letter:uppercase">
+          {meals.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      )}
       <input value={what} onChange={(e) => setWhat(e.target.value)} required maxLength={120} autoFocus aria-label="Le plat" placeholder={idea ? "Une raclette ?" : "Tarte aux champignons"} className="santa-field min-h-11 px-3" />
       <div className="grid grid-cols-2 gap-2">
         <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Catégorie" className="santa-field min-h-11 px-3">
@@ -397,7 +462,7 @@ function DishForm({
       {!idea && <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} aria-label="Précision" placeholder="Précision (facultatif)" className="santa-field min-h-11 px-3" />}
       <div className="flex flex-wrap gap-2">
         <button type="submit" className="santa-btn min-h-11 px-4 text-sm" disabled={busy || !what.trim()}>
-          {idea ? "Proposer l'idée" : "Ajouter le plat"}
+          {initial ? "Enregistrer" : idea ? "Proposer l'idée" : "Ajouter le plat"}
         </button>
         <button type="button" className="santa-btn-ghost min-h-11 px-4 text-sm" onClick={onCancel}>
           Annuler
@@ -422,7 +487,7 @@ function Who({ view, subject, readOnly, busy, send }: { view: MealsView; subject
       {person && !readOnly && (
         <section className="santa-panel p-4">
           <p className="santa-label">{subject === view.me ? "Quand est-ce que tu es là ?" : `Quand ${person.name} est là`}</p>
-          <p className="mt-1 text-sm text-[var(--s-muted)]">Touche une case : oui, puis peut-être, puis pas là. Les couverts de chaque repas se comptent tout seuls.</p>
+          <p className="mt-1 text-sm text-[var(--s-muted)]">Touche une case : ✓ oui, puis ? peut-être, puis ✗ non, puis vide (pas répondu). Les couverts de chaque repas se comptent tout seuls.</p>
           <div className="mt-3 overflow-x-auto">
             <table className="tabular-nums">
               <thead>
@@ -445,17 +510,19 @@ function Who({ view, subject, readOnly, busy, send }: { view: MealsView; subject
                         <button
                           type="button"
                           disabled={busy}
-                          aria-label={`${dayLabel(m.day)}, ${m.meal} : ${value === "x" ? "là" : value === "?" ? "peut-être" : "pas là"}`}
+                          aria-label={`${dayLabel(m.day)}, ${m.meal} : ${value === "x" ? "là" : value === "?" ? "peut-être" : value === "-" ? "pas là" : "pas répondu"}`}
                           onClick={() => void send({ type: "presence", mealId: m.id, value: NEXT[value ?? "none"] })}
                           className={`min-h-11 w-11 rounded-xl border text-base font-bold ${
                             value === "x"
                               ? "border-[var(--s-green)] bg-[var(--s-green)] text-[var(--s-surface)]"
                               : value === "?"
                                 ? "border-[var(--s-gold)] bg-[color-mix(in_srgb,var(--s-gold)_16%,transparent)] text-[var(--s-gold)]"
-                                : "border-[var(--s-line)] bg-[var(--s-raised)]"
+                                : value === "-"
+                                  ? "border-[var(--s-red)] bg-[color-mix(in_srgb,var(--s-red)_12%,transparent)] text-[var(--s-red)]"
+                                  : "border-[var(--s-line)] bg-[var(--s-raised)]"
                           }`}
                         >
-                          {value === "x" ? "✓" : value === "?" ? "?" : ""}
+                          {value === "x" ? "✓" : value === "?" ? "?" : value === "-" ? "✗" : ""}
                         </button>
                       </td>
                     );
@@ -507,6 +574,7 @@ function Who({ view, subject, readOnly, busy, send }: { view: MealsView; subject
           {view.people.map((p) => {
             const sure = meals.filter((m) => p.presence[m.id] === "x").length;
             const maybe = meals.filter((m) => p.presence[m.id] === "?").length;
+            const answered = meals.filter((m) => p.presence[m.id]).length;
             return (
               <li key={p.id} className="flex items-start justify-between gap-3 py-2 text-sm">
                 <span>
@@ -519,7 +587,7 @@ function Who({ view, subject, readOnly, busy, send }: { view: MealsView; subject
                     </>
                   )}
                 </span>
-                <span className="text-right whitespace-nowrap text-[var(--s-muted)]">{sure + maybe === 0 ? "pas encore répondu" : `${sure} repas${maybe ? ` · ${maybe} ?` : ""}`}</span>
+                <span className="text-right whitespace-nowrap text-[var(--s-muted)]">{answered === 0 ? "pas encore répondu" : `${sure} repas${maybe ? ` · ${maybe} ?` : ""}`}</span>
               </li>
             );
           })}
@@ -587,9 +655,15 @@ function Drinks({
                         {d.what && <span className="text-[var(--s-muted)]"> ({d.what})</span>}
                       </span>
                       {!readOnly && (d.who === view.me || view.organizer) && (
-                        <button type="button" className="-my-2 py-2 text-xs text-[var(--s-muted)] underline" disabled={busy} onClick={() => void send({ type: "removeDrink", id: d.id })}>
-                          Retirer
-                        </button>
+                        <RemoveButton
+                          className="-my-2 py-2 text-xs text-[var(--s-muted)] underline"
+                          busy={busy}
+                          title={`Retirer ${d.quantity} ${d.unit} · ${d.type} ?`}
+                          detail="La boisson disparaît de la liste pour tout le monde."
+                          confirmLabel="Retirer la boisson"
+                          keepLabel="Garder la boisson"
+                          onConfirm={() => void send({ type: "removeDrink", id: d.id })}
+                        />
                       )}
                     </li>
                   ))}

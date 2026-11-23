@@ -446,6 +446,7 @@ export function ItemForm({
   const [qty, setQty] = useState(initial?.quantity !== null && initial?.quantity !== undefined ? String(initial.quantity).replace(".", ",") : "");
   const [unit, setUnit] = useState(initial?.unit ?? "");
   const [category, setCategory] = useState<Category>(initial?.category ?? "manger");
+  const [removing, setRemoving] = useState(false);
   const quantity = qty.trim() ? parseAmount(qty) : null;
   return (
     <form
@@ -481,12 +482,27 @@ export function ItemForm({
         <button type="button" className="repas-ghost" onClick={onCancel}>
           Annuler
         </button>
-        {onRemove && (
-          <button type="button" className="repas-danger ml-auto" disabled={busy} onClick={() => void onRemove()}>
+        {onRemove && !removing && (
+          <button type="button" className="repas-danger ml-auto" disabled={busy} onClick={() => setRemoving(true)}>
             Retirer cette ligne
           </button>
         )}
       </div>
+      {onRemove && removing && (
+        <div role="alertdialog" aria-label={`Retirer « ${initial?.label ?? label} » ?`} className="repas-raised flex flex-col gap-2 p-3 text-sm">
+          <p>
+            Retirer « {initial?.label ?? label} » de la liste ?{initial?.claims.length ? ` ${initial.claims.map((c) => c.name).join(", ")} ne le ramène${initial.claims.length > 1 ? "nt" : ""} plus.` : ""}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="repas-danger" disabled={busy} onClick={() => void onRemove()}>
+              Retirer la ligne
+            </button>
+            <button type="button" className="repas-ghost" onClick={() => setRemoving(false)}>
+              Garder la ligne
+            </button>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

@@ -229,6 +229,45 @@ export async function removeDish(event: SantaEvent, actor: MealsActor, id: strin
   return { ok: true };
 }
 
+/**
+ * « Modifier » : what it is, how many parts, with whom, or another meal (put on the wrong one).
+ * Same rule as removing: whoever brings it (or makes it with someone), and the organizers.
+ */
+export async function updateDish(
+  event: SantaEvent,
+  actor: MealsActor,
+  input: { id: string; mealId: string; what: string; category: string; parts: number | null; veg: boolean; note: string; withId: string | null },
+): Promise<Result> {
+  if (event.archivedAt) return fail("Ce Secret Santa est terminé : les repas ne bougent plus.");
+  const dish = await findDish(event, input.id);
+  if (!dish) return fail("Ce plat n'existe plus.");
+  const theirs = !!actor.me && (dish.participantId === actor.me || dish.withId === actor.me);
+  if (!theirs && !actor.organizer) return fail("Seule la personne qui l'a proposé peut le modifier.");
+  if (!(await shownMeal(event, input.mealId))) return fail("Ce repas n'est plus prévu.");
+  const what = input.what.trim().slice(0, MEAL_LIMITS.what);
+  if (!what) return fail("Dis ce que c'est.");
+  if (!(DISH_CATEGORIES as readonly string[]).includes(input.category)) return fail("Catégorie inconnue.");
+  let withId = dish.idea ? null : input.withId;
+  if (withId === dish.participantId) withId = null;
+  if (withId) {
+    const [partner] = await db.select({ id: santaParticipant.id }).from(santaParticipant).where(and(eq(santaParticipant.id, withId), eq(santaParticipant.eventId, event.id))).limit(1);
+    if (!partner) withId = null;
+  }
+  await db
+    .update(santaDish)
+    .set({
+      mealId: input.mealId,
+      what,
+      category: input.category,
+      parts: dish.idea || !input.parts ? null : Math.max(1, Math.min(MEAL_LIMITS.parts, Math.round(input.parts))),
+      veg: input.veg,
+      note: dish.idea ? "" : input.note.trim().slice(0, MEAL_LIMITS.note),
+      withId,
+    })
+    .where(eq(santaDish.id, dish.id));
+  return { ok: true };
+}
+
 /** « Je m'en charge » : an idea becomes someone's dish. */
 export async function takeIdea(event: SantaEvent, actor: MealsActor, input: { id: string; participantId?: string }): Promise<Result> {
   const who = await subject(event, actor, input.participantId);

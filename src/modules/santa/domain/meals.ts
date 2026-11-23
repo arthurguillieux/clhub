@@ -15,7 +15,8 @@ export const DRINK_UNITS = ["bouteilles", "L", "packs", "canettes", "sachets"] a
 /** A stay is a few days, not a season: beyond this the organizers have mistyped a date. */
 export const MAX_DAYS = 14;
 
-export type Presence = "x" | "?";
+/** There (« x »), maybe (« ? »), not there (« - »); no answer at all is the absence of a row. */
+export type Presence = "x" | "?" | "-";
 
 /** Every day from `from` to `to`, both included, as YYYY-MM-DD; empty when the range is backwards or too long. */
 export function daysBetween(from: string, to: string): string[] {
@@ -36,7 +37,7 @@ export function headcount(people: { guests: number; presence: Record<string, Pre
     const value = p.presence[mealId];
     if (value === "x") sure += 1 + p.guests;
     else if (value === "?") maybe += 1 + p.guests;
-    else unanswered += 1;
+    else if (value !== "-") unanswered += 1;
   }
   return { sure, maybe, unanswered };
 }
