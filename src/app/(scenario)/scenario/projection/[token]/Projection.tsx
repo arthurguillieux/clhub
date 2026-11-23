@@ -1203,10 +1203,11 @@ function OperatorPanel({
         <ul className="mt-2 grid grid-cols-1 gap-0.5 text-xs sm:grid-cols-2">
           {wanted.map((f) => (
             <li key={f} className={files.has(keyOf(f)) ? "text-[var(--scn-ok)]" : required(f) ? "text-[var(--scn-amber)]" : "text-[var(--scn-muted)]"}>
-              {files.has(keyOf(f)) ? "✓" : "·"} {f} <span className="opacity-60">{required(f) ? "obligatoire" : "facultatif"}</span>
+              {files.has(keyOf(f)) ? "✓" : "·"} {keyOf(f)} <span className="opacity-60">{required(f) ? "obligatoire" : "facultatif"}</span>
             </li>
           ))}
         </ul>
+        <p className="mt-1 text-xs text-[var(--scn-muted)]">Seul le nom compte, pas le format : les sons peuvent être en .mp3, .aac, .m4a, .ogg ou .wav, les vidéos en .mp4, .webm ou .mov, les images en .jpg ou .png.</p>
         {subtitles.length > 0 && <p className="mt-1 text-xs text-[var(--scn-ok)]">Sous-titres : {subtitles.join(", ")}</p>}
         {files.size > 0 && (
           <button type="button" className="mt-1 py-1 text-xs text-[var(--scn-muted)] underline" onClick={() => void onForget()}>

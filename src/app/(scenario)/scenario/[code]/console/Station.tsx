@@ -66,6 +66,8 @@ const CORRIDORS: { x: number; y: number; w: number; h: number; label: string; ve
 ];
 
 const DORM = { x: 272, y: 0, w: 86, h: 446 };
+/** The dormitory as a zone (its header opens its sheet); its rooms open their subject. */
+const DORM_ZONE: Zone = { id: "dortoir", name: "DORTOIR", door: "dortoir", ...DORM, extra: "les chambres des sujets" };
 
 /** The server's clock as seen from the phone, ticking: for the scenario's loading bar. */
 function useServerNow(serverNow: number): number {
@@ -162,8 +164,19 @@ export function StationFace({ def, view, busy, act, onSheet, sheet }: Props & { 
           );
         })}
         <div className="absolute rounded border-2 border-[#3f6f88] bg-[#081017]" style={box(DORM.x, DORM.y, DORM.w, DORM.h)}>
-          <span className="block px-1 pt-0.5 text-[0.55rem] font-bold tracking-[0.1em] text-[#8fa6b6]">DORTOIR</span>
-          <div className="grid grid-cols-2 gap-[3px] p-[3px]" style={{ height: "calc(100% - 1.1rem)", gridTemplateRows: `repeat(${Math.ceil(rooms / 2)}, minmax(0, 1fr))` }}>
+          <button
+            type="button"
+            aria-label={`DORTOIR, porte ${s.doors.dortoir ? "ouverte" : "fermée"}. Ouvrir la fiche.`}
+            onClick={() => onSheet({ kind: "zone", id: "dortoir" })}
+            className="flex h-8 w-full items-center justify-between rounded-t-[2px] px-1.5 text-left"
+            style={{ background: sheet?.kind === "zone" && sheet.id === "dortoir" ? "#12364a" : "#0c1a24" }}
+          >
+            <span className="text-[0.6rem] font-bold tracking-[0.1em]" style={{ color: s.doors.dortoir ? "#e6f2fa" : "#8fa6b6" }}>
+              DORTOIR
+            </span>
+            <span className="text-[0.75rem] font-bold text-[var(--scn-ice)]">›</span>
+          </button>
+          <div className="grid grid-cols-2 gap-[3px] p-[3px]" style={{ height: "calc(100% - 2rem)", gridTemplateRows: `repeat(${Math.ceil(rooms / 2)}, minmax(0, 1fr))` }}>
             {Array.from({ length: rooms }, (_, i) => i + 1).map((n) => {
               const p = byRoom.get(n);
               const gone = p && p.status !== "alive";
@@ -277,7 +290,7 @@ export function SheetFrame({ title, sub, color = "var(--scn-ice)", onClose, chil
 
 export function ZoneSheet({ def, view, busy, act, id, onClose }: Props & { id: string; onClose: () => void }) {
   const s = view.state;
-  const z = ZONES.find((x) => x.id === id)!;
+  const z = [...ZONES, DORM_ZONE].find((x) => x.id === id)!;
   const door = z.door ? def.doors.find((d) => d.id === z.door) : null;
   const term = z.terminal ? def.terminals.find((t) => t.id === z.terminal) : null;
   const done = new Set(s.faults.map((f) => f.id));
@@ -386,6 +399,14 @@ export function ZoneSheet({ def, view, busy, act, id, onClose }: Props & { id: s
         </Rows>
       )}
       {z.id === "alpha" && <p className="text-xs text-[var(--scn-muted)]">Dans Sang-froid, seule Marga peut forcer le laboratoire ; Alpha reste fermée.</p>}
+      {z.id === "dortoir" && (
+        <p className="text-sm text-[var(--scn-muted)]">
+          {s.players.length
+            ? `${s.players.length} sujets, ${s.players.filter((p) => p.status === "alive").length} actifs${Object.keys(s.sealed).length ? `, ${Object.keys(s.sealed).length} chambres scellées` : ""}.`
+            : "Pas encore de sujets : ils se préparent dans Protocole."}{" "}
+          Touche une chambre du plan pour la fiche de son sujet.
+        </p>
+      )}
     </SheetFrame>
   );
 }
@@ -597,10 +618,11 @@ export function ScreenSheet({ def, view, busy, act, qrSvg, code, onClose }: Prop
       <div className="mx-auto w-44 rounded-xl bg-white p-2" aria-label="QR code de la projection" dangerouslySetInnerHTML={{ __html: qrSvg }} />
       <details className="text-xs">
         <summary className="cursor-pointer py-2 text-[var(--scn-muted)]">Les fichiers attendus dans le dossier ({def.media.length})</summary>
+        <p className="mb-1 text-[var(--scn-muted)]">Seul le nom compte : sons en .mp3, .aac, .m4a, .ogg ou .wav ; vidéos en .mp4, .webm ou .mov ; images en .jpg ou .png.</p>
         <ul className="flex flex-col gap-0.5">
           {def.media.map((m) => (
             <li key={m.id}>
-              <code className="text-[var(--scn-amber)]">{m.file}</code> — {m.label}
+              <code className="text-[var(--scn-amber)]">{m.file.replace(/\.[^.]+$/, "")}</code> — {m.label}
             </li>
           ))}
         </ul>

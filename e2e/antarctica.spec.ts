@@ -53,6 +53,11 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
   await expect(screen.getByText("ACCÈS REFUSÉ")).toBeVisible();
   await page.getByRole("button", { name: /^Porte Θ .*Toucher pour ouvrir/ }).click();
   await expect(page.getByRole("button", { name: /^Porte Θ .*: ouverte/ })).toBeVisible();
+  // The dormitory too has its sheet (its rooms open their subject).
+  await page.getByRole("button", { name: /^DORTOIR, porte fermée/ }).click();
+  await page.getByRole("dialog", { name: "DORTOIR · Δ" }).getByRole("button", { name: "Ouvrir la porte" }).click();
+  await expect(page.getByRole("button", { name: /^DORTOIR, porte ouverte/ })).toBeVisible();
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
 
   // Then the scenario: prepared, loaded into the station (the room watches), launched.
   await page.getByRole("button", { name: "PROTOCOLE", exact: true }).click();
