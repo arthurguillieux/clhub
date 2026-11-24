@@ -4,7 +4,7 @@
  */
 export default function ClubLoading() {
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6" aria-busy="true" aria-label="Chargement de la page">
+    <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6" aria-busy="true" aria-label="Chargement de la page">
       <div className="animate-pulse motion-reduce:animate-none">
         <div className="flex items-center gap-3">
           <div className="h-11 w-11 rounded-[14px] bg-surface" />
@@ -20,6 +20,6 @@ export default function ClubLoading() {
       <p className="sr-only" role="status">
         Chargement…
       </p>
-    </main>
+    </div>
   );
 }

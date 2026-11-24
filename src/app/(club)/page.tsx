@@ -99,6 +99,8 @@ function describeActivity(a: ActivityEntry): string {
 function notificationHref(n: Notification): string | null {
   const code = (n.payload as { code?: unknown }).code;
   if (n.kind === "bug.report") return "/admin/bugs";
+  const birthdayId = (n.payload as { birthdayId?: unknown }).birthdayId;
+  if (n.kind.startsWith("birthday.") && typeof birthdayId === "string" && /^[0-9a-f-]{36}$/i.test(birthdayId)) return `/celebrer/anniversaires/${birthdayId}`;
   const mealId = (n.payload as { mealId?: unknown }).mealId;
   if (n.kind.startsWith("meal.") && typeof mealId === "string" && /^[0-9a-f-]{36}$/i.test(mealId)) return `/repas/${mealId}`;
   return n.kind.startsWith("lettre.") && typeof code === "string" && /^[A-Z0-9]{6}$/.test(code) ? `/lettre/${code}/panneau` : null;
@@ -182,6 +184,12 @@ function describeNotification(n: Notification): string {
     case "meal.response": {
       const p = n.payload as { name?: string; title?: string };
       return `🍽️ ${p.name ?? "Quelqu'un"} vient à ton potluck « ${p.title ?? "?"} ».`;
+    }
+    case "birthday.invited":
+    case "birthday.chosen":
+    case "birthday.bought": {
+      const p = n.payload as { text?: string; name?: string };
+      return `🎂 ${p.text ?? `Anniversaire de ${p.name ?? "?"}`}`;
     }
     case "meal.invited":
     case "meal.nudge":

@@ -29,6 +29,11 @@ export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
     description: "Un mail quand tu es invité à un potluck, quand l'organisateur relance, et la veille avec ce que tu ramènes.",
   },
   {
+    key: "anniversaire",
+    label: "Les anniversaires",
+    description: "Un mail quand on t'invite à préparer un anniversaire, quand le cadeau est choisi, et quand il est acheté (avec ta part).",
+  },
+  {
     key: "lettre",
     label: "Lettre au Père Noël",
     description: "Un mail quand quelqu'un réserve un cadeau ou promet une part de cagnotte sur une lettre que tu organises, ou se désiste.",

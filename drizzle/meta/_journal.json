@@ -435,6 +435,20 @@
       "when": 1795553487799,
       "tag": "0061_changelog_recherche",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1795555770022,
+      "tag": "0062_anniversaire",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1795556609290,
+      "tag": "0063_changelog_anniversaire",
+      "breakpoints": true
     }
   ]
 }

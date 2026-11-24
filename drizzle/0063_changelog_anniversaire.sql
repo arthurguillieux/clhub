@@ -1,0 +1,3 @@
+-- Custom SQL migration file, put your code below! -- -- "Nouveautés" entry for « Un anniversaire » (see 0029 for why entries go through migrations).
+INSERT INTO "changelog_entry" ("entry_date", "summary") VALUES
+('2026-11-24', 'Nouveau dans Célébrer : « Un anniversaire ». Pour l''anniversaire d''un ami (un membre ou n''importe qui), on met dans la confidence qui on veut ; chacun propose des idées de cadeau et met un 👍 à celles qui lui plaisent, l''organisateur tranche, quelqu''un dit « Je m''en charge » et note le prix payé : le CLHUB le partage à parts égales entre ceux qui participent, et chacun coche « J''ai remboursé ». La personne fêtée ne voit rien, nulle part : ni la page, ni les notifications, ni les mails.');
