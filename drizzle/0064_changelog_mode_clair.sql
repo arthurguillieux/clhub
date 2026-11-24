@@ -1,0 +1,3 @@
+-- Custom SQL migration file, put your code below! -- -- "Nouveautés" entry for the light mode (see 0029 for why entries go through migrations).
+INSERT INTO "changelog_entry" ("entry_date", "summary") VALUES
+('2026-11-24', 'Le CLHUB a un mode clair ! Dans le menu de ton profil, « ☀️ Mode clair » / « 🌙 Mode sombre », ou dans Réglages › Profil › Apparence, avec un troisième choix « Automatique » qui suit ton téléphone. C''est retenu sur chaque appareil. Le sombre reste le réglage de départ, et les jeux et sections qui ont leur propre décor (potlucks, Secret Santa, lettre au Père Noël, Loups-garous, Killer, Antarctica, buzzer) le gardent.');

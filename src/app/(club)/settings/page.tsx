@@ -15,6 +15,9 @@ import { NotificationPrefsForm } from "./NotificationPrefsForm";
 import { DietaryPrefsForm } from "./DietaryPrefsForm";
 import { PhotoInput } from "@/core/ui/components/PhotoInput";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { ThemePicker } from "@/core/ui/components/ThemePicker";
+import { parseTheme, THEME_COOKIE } from "@/core/ui/theme";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Réglages" };
@@ -105,6 +108,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 phone={session.member.phone}
                 householdSize={session.member.householdSize}
               />
+            </Card>
+          </section>
+
+          <section id="apparence" className="mt-8 scroll-mt-20">
+            <SectionTitle>Apparence</SectionTitle>
+            <Card className="mt-3 p-5">
+              <ThemePicker initial={parseTheme((await cookies()).get(THEME_COOKIE)?.value)} />
             </Card>
           </section>
 

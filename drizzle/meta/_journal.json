@@ -449,6 +449,13 @@
       "when": 1795556609290,
       "tag": "0063_changelog_anniversaire",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1795557414519,
+      "tag": "0064_changelog_mode_clair",
+      "breakpoints": true
     }
   ]
 }

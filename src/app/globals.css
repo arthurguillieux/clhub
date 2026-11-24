@@ -1,21 +1,30 @@
 @import "tailwindcss";
 
 /*
- * Le thème est toujours sombre, mais une vingtaine de composants utilisent
- * encore la variante `dark:` de Tailwind (pensée à l'origine pour suivre
- * `prefers-color-scheme`) pour choisir des teintes lisibles sur fond noir
- * (ex. `text-red-600 dark:text-red-400`). Plutôt que de les récrire un par
- * un, on force `dark:` à toujours s'appliquer — voir `className="dark"` sur
- * <html> dans app/layout.tsx.
+ * Trois réglages d'affichage (Réglages › Profil › Apparence, retenu dans le cookie `clhub_theme`
+ * et posé sur <html> par app/layout.tsx) : `dark` (le défaut, le CLHUB historique : noir +
+ * néons), `light` (le même au grand jour) et `theme-auto` (suit le téléphone).
+ *
+ * Les sections qui ont leur propre direction artistique (potlucks, Secret Santa, lettre,
+ * Loups-garous, Killer, Antarctica, buzzer) restent telles quelles quel que soit le réglage : leurs
+ * classes (.repas, .santa…) et `[data-own-theme]` (les mises en page de leurs écrans plein écran)
+ * reprennent les couleurs sombres ci-dessous, et la variante `dark:` de Tailwind y reste active,
+ * comme avant.
  */
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark {
+  &:where(.dark, .dark *, .repas, .repas *, .santa, .santa *, .loups, .loups *, .lettre, .lettre *, .scn, .scn *, .killer, .killer *, [data-own-theme], [data-own-theme] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(.theme-auto, .theme-auto *) {
+      @slot;
+    }
+  }
+}
 
-/*
- * Un seul thème, assumé : noir + néons. Pas de variante claire — voir la
- * discussion du 2026-07-27 (docs/03-roadmap.md n'en fait pas mention, c'est
- * une préférence produit d'Arthur, pas une contrainte technique).
- */
-:root {
+:root,
+.repas, .santa, .loups, .lettre, .scn, .killer, [data-own-theme],
+:root:has([data-own-theme]) {
   color-scheme: dark;
 
   --ink: #f1f1f7;
@@ -42,6 +51,92 @@
   --cat-festif: #c04dff;
   --cat-jeux: #ffcc29;
   --cat-autre: #9a9ab0;
+
+  /* Intensité des halos néon (voir .glow-*) : franche sur le noir. */
+  --glow-text: 65%;
+  --glow-box: 40%;
+  --glow-admin: 45%;
+
+  /* La carte « Nouveau dans le CLHUB » de l'accueil. */
+  --news-ink: #d9a6ff;
+  --news-bg: #1a1424;
+  --news-line: #4a2d6b;
+}
+
+:root.light:not(:has([data-own-theme])) {
+  color-scheme: light;
+
+  /* Le même club au grand jour : un papier légèrement froid, l'encre presque noire, et des néons
+     assombris juste ce qu'il faut pour se lire sur du blanc (contraste AA pour le texte). */
+  --ink: #16151d;
+  --ground: #f5f4f8;
+  --surface: #ffffff;
+  --surface-raised: #efeef4;
+  --line: #d6d5e0;
+  --line-soft: #e6e5ee;
+  --muted: #5d5c70;
+
+  --primary: #00855a;
+  --primary-ink: #ffffff;
+  --accent: #c8128f;
+  --accent-ink: #ffffff;
+  --admin: #8a6c00;
+  --admin-ink: #ffffff;
+
+  --cat-bricolage: #e2600f;
+  --cat-jardinage: #5e9a00;
+  --cat-menage: #0090b0;
+  --cat-festif: #9b2fd6;
+  --cat-jeux: #c48f00;
+  --cat-autre: #6f6f86;
+
+  /* Sur le clair, un halo se voit à peine et salit : juste une trace. */
+  --glow-text: 0%;
+  --glow-box: 14%;
+  --glow-admin: 16%;
+
+  --news-ink: #7a24b8;
+  --news-bg: #f4ecfc;
+  --news-line: #dcc6f2;
+}
+
+@media (prefers-color-scheme: light) {
+  :root.theme-auto:not(:has([data-own-theme])) {
+  color-scheme: light;
+
+  /* Le même club au grand jour : un papier légèrement froid, l'encre presque noire, et des néons
+     assombris juste ce qu'il faut pour se lire sur du blanc (contraste AA pour le texte). */
+  --ink: #16151d;
+  --ground: #f5f4f8;
+  --surface: #ffffff;
+  --surface-raised: #efeef4;
+  --line: #d6d5e0;
+  --line-soft: #e6e5ee;
+  --muted: #5d5c70;
+
+  --primary: #00855a;
+  --primary-ink: #ffffff;
+  --accent: #c8128f;
+  --accent-ink: #ffffff;
+  --admin: #8a6c00;
+  --admin-ink: #ffffff;
+
+  --cat-bricolage: #e2600f;
+  --cat-jardinage: #5e9a00;
+  --cat-menage: #0090b0;
+  --cat-festif: #9b2fd6;
+  --cat-jeux: #c48f00;
+  --cat-autre: #6f6f86;
+
+  /* Sur le clair, un halo se voit à peine et salit : juste une trace. */
+  --glow-text: 0%;
+  --glow-box: 14%;
+  --glow-admin: 16%;
+
+  --news-ink: #7a24b8;
+  --news-bg: #f4ecfc;
+  --news-line: #dcc6f2;
+  }
 }
 
 @theme inline {
@@ -52,6 +147,9 @@
   --color-line: var(--line);
   --color-line-soft: var(--line-soft);
   --color-muted: var(--muted);
+  --color-news-ink: var(--news-ink);
+  --color-news-bg: var(--news-bg);
+  --color-news-line: var(--news-line);
 
   --color-primary: var(--primary);
   --color-primary-ink: var(--primary-ink);
@@ -91,19 +189,19 @@ body {
  * endroit.
  */
 .glow-text-primary {
-  text-shadow: 0 0 12px color-mix(in srgb, var(--primary) 65%, transparent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--primary) var(--glow-text), transparent);
 }
 .glow-text-accent {
-  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 65%, transparent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) var(--glow-text), transparent);
 }
 .glow-box-primary {
-  box-shadow: 0 0 18px color-mix(in srgb, var(--primary) 40%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--primary) var(--glow-box), transparent);
 }
 .glow-box-accent {
-  box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--accent) var(--glow-box), transparent);
 }
 .glow-box-admin {
-  box-shadow: 0 0 18px color-mix(in srgb, var(--admin) 45%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--admin) var(--glow-admin), transparent);
 }
 
 /*

@@ -4,6 +4,8 @@ import "./globals.css";
 import { ServiceWorkerRegister } from "./ServiceWorkerRegister";
 import { KonamiListener } from "@/core/ui/components/KonamiListener";
 import { ConsoleEasterEgg } from "@/core/ui/components/ConsoleEasterEgg";
+import { cookies } from "next/headers";
+import { parseTheme, THEME_COOKIE, themeClass } from "@/core/ui/theme";
 
 const bricolage = localFont({
   src: [
@@ -25,13 +27,24 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = {
-  themeColor: "#08080d",
-};
+/** The phone's browser bar takes the page's ground colour, for the chosen display setting. */
+export async function generateViewport(): Promise<Viewport> {
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+  if (theme === "light") return { themeColor: "#f5f4f8" };
+  if (theme === "auto")
+    return {
+      themeColor: [
+        { media: "(prefers-color-scheme: light)", color: "#f5f4f8" },
+        { media: "(prefers-color-scheme: dark)", color: "#08080d" },
+      ],
+    };
+  return { themeColor: "#08080d" };
+}
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   return (
-    <html lang="fr" className={`${bricolage.variable} dark h-full antialiased`}>
+    <html lang="fr" className={`${bricolage.variable} ${themeClass(theme)} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-ground text-ink">
         {children}
         <ServiceWorkerRegister />

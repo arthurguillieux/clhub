@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { authClient } from "@/core/auth/client";
+import { applyTheme } from "./ThemePicker";
 
 interface HeaderUser {
   name: string;
@@ -12,6 +13,8 @@ interface HeaderUser {
 
 export function ProfileMenu({ user }: { user: HeaderUser }) {
   const [open, setOpen] = useState(false);
+  /** Whether the page is light right now (set when the menu opens: the class lives on <html>). */
+  const [isLight, setIsLight] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -35,7 +38,11 @@ export function ProfileMenu({ user }: { user: HeaderUser }) {
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          const html = document.documentElement;
+          setIsLight(html.classList.contains("light") || (html.classList.contains("theme-auto") && window.matchMedia("(prefers-color-scheme: light)").matches));
+          setOpen((v) => !v);
+        }}
         aria-expanded={open}
         aria-haspopup="true"
         className="relative flex items-center gap-2 rounded-full border border-line-soft py-1 pr-3 pl-1 text-sm text-ink transition-colors after:absolute after:-inset-y-1.5 after:inset-x-0 after:content-[''] hover:border-primary/50 hover:bg-surface-raised"
@@ -88,6 +95,16 @@ export function ProfileMenu({ user }: { user: HeaderUser }) {
           >
             🐞 Signaler un bug
           </Link>
+          <button
+            type="button"
+            onClick={() => {
+              applyTheme(isLight ? "dark" : "light");
+              setOpen(false);
+            }}
+            className="block w-full rounded-md px-3 py-2.5 text-left text-sm text-ink hover:bg-surface"
+          >
+            {isLight ? "🌙 Mode sombre" : "☀️ Mode clair"}
+          </button>
           <hr className="my-1.5 border-line-soft" />
           <button
             type="button"

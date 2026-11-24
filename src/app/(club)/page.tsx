@@ -327,10 +327,10 @@ export default async function HomePage() {
       <section aria-label="Dans le club" className="mt-8 flex flex-col gap-2.5">
         <GroupLabel>Dans le club</GroupLabel>
         {latestChangelogDay && (
-          <Link href="/nouveautes" className="group flex flex-col gap-1.5 rounded-card border border-[#4a2d6b] bg-[#1a1424] p-4">
-            <span className="text-[11px] font-semibold tracking-[0.14em] text-[#d9a6ff] uppercase">Nouveau dans le CLHUB · {formatFrench(latestChangelogDay.date as CalendarDate)}</span>
+          <Link href="/nouveautes" className="group flex flex-col gap-1.5 rounded-card border border-news-line bg-news-bg p-4">
+            <span className="text-[11px] font-semibold tracking-[0.14em] text-news-ink uppercase">Nouveau dans le CLHUB · {formatFrench(latestChangelogDay.date as CalendarDate)}</span>
             <span className="line-clamp-4 text-sm leading-relaxed text-ink">{latestChangelogDay.entries[0]}</span>
-            <span className="text-sm font-semibold text-[#d9a6ff] group-hover:underline">
+            <span className="text-sm font-semibold text-news-ink group-hover:underline">
               {latestChangelogDay.entries.length > 1 ? `Lire les ${latestChangelogDay.entries.length} nouveautés` : "Toutes les nouveautés"} ›
             </span>
           </Link>

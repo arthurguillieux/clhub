@@ -6,7 +6,8 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { LinkButton } from "@/core/ui/components/Button";
-import { CATEGORY_BG, categoryLabel } from "@/core/ui/categories";
+import { categoryLabel } from "@/core/ui/categories";
+import { Glyph } from "@/core/ui/components/SectionIcon";
 import { euros } from "@/core/money";
 import type { Metadata } from "next";
 
@@ -70,12 +71,15 @@ export default async function PretothequePage({
           {items.map((it) => (
             <Link key={it.id} href={`/pretotheque/${it.slug}`}>
               <Card className="h-full overflow-hidden transition-shadow hover:shadow-md">
-                <div className={`relative h-28 ${CATEGORY_BG[it.category] ?? "bg-cat-autre"}`}>
-                  {it.photoPath && (
+                {/* No photo: a quiet band with the tool icon, not a block of colour (the category says the colour). */}
+                <div className="relative grid h-28 place-items-center bg-surface-raised text-muted/50">
+                  {it.photoPath ? (
                     // eslint-disable-next-line @next/next/no-img-element -- catalog thumbnail
-                    <img src={it.photoPath} alt="" className="h-full w-full object-cover" />
+                    <img src={it.photoPath} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                  ) : (
+                    <Glyph name="pretotheque" size={30} />
                   )}
-                  <span className="absolute top-2 left-2 rounded-full bg-black/55 px-2.5 py-0.5 text-xs text-white">
+                  <span className="absolute top-2 left-2 rounded-full bg-black/60 px-2.5 py-0.5 text-xs text-white">
                     {categoryLabel(it.category)}
                   </span>
                 </div>
