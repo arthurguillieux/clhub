@@ -421,6 +421,13 @@
       "when": 1795551577169,
       "tag": "0059_changelog_petits_conforts",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1795552555768,
+      "tag": "0060_changelog_fiche_objet",
+      "breakpoints": true
     }
   ]
 }

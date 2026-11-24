@@ -58,7 +58,7 @@ export function EditItemForm({
         <FormField label="Nom *" htmlFor="name">
           <Input id="name" name="name" defaultValue={item.name} required />
         </FormField>
-        <FormField label="Section *" htmlFor="category">
+        <FormField label="Catégorie *" htmlFor="category">
           <Select id="category" name="category" required defaultValue={item.category}>
             <option value="bricolage">Bricolage</option>
             <option value="jardinage">Jardinage</option>
@@ -139,7 +139,7 @@ export function EditItemForm({
               defaultValue={item.maxLoanDays ?? ""}
             />
           </FormField>
-          <FormField label="Jours tampon entre deux prêts" htmlFor="bufferDays">
+          <FormField label="Jours de pause entre deux prêts" htmlFor="bufferDays">
             <Input
               id="bufferDays"
               name="bufferDays"
@@ -156,7 +156,7 @@ export function EditItemForm({
             defaultChecked={item.autoApprove}
             className="h-4 w-4 rounded border-line text-primary focus:ring-primary"
           />
-          Validation automatique des demandes
+          Accepter les demandes d&apos;emprunt sans avoir à les valider
         </label>
       </Fieldset>
 

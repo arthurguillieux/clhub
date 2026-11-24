@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button } from "@/core/ui/components/Button";
 import { NOTIFICATION_CATEGORIES, wantsEmail } from "@/core/notifications/preferences";
 import { updateNotifPrefsAction, type NotifPrefsState } from "./actions";
 
@@ -11,7 +10,12 @@ export function NotificationPrefsForm({ notifPrefs }: { notifPrefs: unknown }) {
   const [state, formAction, pending] = useActionState(updateNotifPrefsAction, initialState);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3">
+    <form
+      action={formAction}
+      // Saved as soon as a box is ticked: no « Enregistrer » to forget.
+      onChange={(e) => e.currentTarget.requestSubmit()}
+      className="flex flex-col gap-3"
+    >
       {NOTIFICATION_CATEGORIES.map((category) => (
         <label
           key={category.key}
@@ -32,15 +36,17 @@ export function NotificationPrefsForm({ notifPrefs }: { notifPrefs: unknown }) {
         </label>
       ))}
 
-      <Button type="submit" disabled={pending} className="self-start">
-        {pending ? "Enregistrement..." : "Enregistrer"}
-      </Button>
-      {state.status === "success" && (
-        <p className="text-sm text-green-700 dark:text-green-400">Enregistré.</p>
-      )}
-      {state.status === "error" && (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.message}</p>
-      )}
+      <p aria-live="polite" className="min-h-5 text-sm">
+        {pending ? (
+          <span className="text-muted">Enregistrement…</span>
+        ) : state.status === "success" ? (
+          <span className="text-green-700 dark:text-green-400">Enregistré ✓</span>
+        ) : state.status === "error" ? (
+          <span className="text-red-600 dark:text-red-400">{state.message}</span>
+        ) : (
+          <span className="text-muted">Chaque case s&apos;enregistre dès que tu la coches.</span>
+        )}
+      </p>
     </form>
   );
 }

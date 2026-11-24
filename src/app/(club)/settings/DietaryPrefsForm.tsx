@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button } from "@/core/ui/components/Button";
 import { FormField, Textarea } from "@/core/ui/components/Field";
 import { DIETARY_TAGS, DIETARY_TAG_LABELS, parseDietaryTags } from "@/core/dietaryTags";
 import { updateDietaryPrefsAction, type DietaryPrefsState } from "./actions";
@@ -19,7 +18,14 @@ export function DietaryPrefsForm({
   const current = parseDietaryTags(dietaryTags);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3">
+    <form
+      action={formAction}
+      // A ticked box saves at once; the free text saves when you leave the field.
+      onChange={(e) => {
+        if ((e.target as unknown as HTMLInputElement).type === "checkbox") e.currentTarget.requestSubmit();
+      }}
+      className="flex flex-col gap-3"
+    >
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {DIETARY_TAGS.map((tag) => (
           <label
@@ -47,22 +53,25 @@ export function DietaryPrefsForm({
           rows={2}
           placeholder="Ce que la liste ci-dessus ne couvre pas..."
           defaultValue={dietaryNotes ?? ""}
+          onBlur={(e) => {
+            if (e.currentTarget.value !== e.currentTarget.defaultValue) e.currentTarget.form?.requestSubmit();
+          }}
         />
       </FormField>
 
       <p className="-mt-1 text-xs text-muted">
-        Visible par les autres membres quand ils préparent un menu partagé.
+        Visible par les autres membres quand ils préparent un potluck.
       </p>
 
-      <Button type="submit" disabled={pending} className="self-start">
-        {pending ? "Enregistrement..." : "Enregistrer"}
-      </Button>
-      {state.status === "success" && (
-        <p className="text-sm text-green-700 dark:text-green-400">Enregistré.</p>
-      )}
-      {state.status === "error" && (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.message}</p>
-      )}
+      <p aria-live="polite" className="min-h-5 text-sm">
+        {pending ? (
+          <span className="text-muted">Enregistrement…</span>
+        ) : state.status === "success" ? (
+          <span className="text-green-700 dark:text-green-400">Enregistré ✓</span>
+        ) : state.status === "error" ? (
+          <span className="text-red-600 dark:text-red-400">{state.message}</span>
+        ) : null}
+      </p>
     </form>
   );
 }

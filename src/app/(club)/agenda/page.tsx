@@ -80,7 +80,7 @@ export default async function AgendaPage({
       {nobodyConnected && (
         <p className="mt-4 text-sm text-muted">
           Personne n&apos;a encore connecté son agenda perso —{" "}
-          <Link href="/settings" className="text-primary underline underline-offset-2">
+          <Link href="/settings?onglet=calendriers" className="text-primary underline underline-offset-2">
             connecte le tien
           </Link>{" "}
           pour voir qui est libre quand.

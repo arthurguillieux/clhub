@@ -218,7 +218,7 @@ export async function mealAction(ref: MealRef, input: unknown): Promise<MealResu
         return { ok: true };
       }
       case "delete":
-        if (!admin) return { ok: false, error: "Seul un admin peut supprimer un repas." };
+        if (!admin) return { ok: false, error: "Seul un admin peut supprimer un potluck." };
         await deleteMeal(meal);
         go = "/repas";
         return { ok: true };

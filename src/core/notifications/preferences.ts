@@ -25,8 +25,8 @@ export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
   },
   {
     key: "repas",
-    label: "Les repas",
-    description: "Un mail quand tu es invité à un repas, quand l'organisateur relance, et la veille avec ce que tu ramènes.",
+    label: "Les potlucks",
+    description: "Un mail quand tu es invité à un potluck, quand l'organisateur relance, et la veille avec ce que tu ramènes.",
   },
   {
     key: "lettre",

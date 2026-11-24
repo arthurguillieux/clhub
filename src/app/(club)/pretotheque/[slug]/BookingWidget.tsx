@@ -87,6 +87,9 @@ export function BookingWidget({
         <AgendaView bookings={bookings} />
       )}
       {dragMessage && <p className="mt-2 text-xs text-muted">{dragMessage}</p>}
+      {!range && view === "month" && (
+        <p className="mt-3 text-sm text-muted">Pour l&apos;emprunter, touche le premier jour puis le dernier sur le calendrier (le même jour deux fois pour une seule journée).</p>
+      )}
 
       {range && (
         <form

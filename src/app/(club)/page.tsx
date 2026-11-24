@@ -181,13 +181,13 @@ function describeNotification(n: Notification): string {
     }
     case "meal.response": {
       const p = n.payload as { name?: string; title?: string };
-      return `🍽️ ${p.name ?? "Quelqu'un"} vient à ton repas « ${p.title ?? "?"} ».`;
+      return `🍽️ ${p.name ?? "Quelqu'un"} vient à ton potluck « ${p.title ?? "?"} ».`;
     }
     case "meal.invited":
     case "meal.nudge":
     case "meal.reminder": {
       const p = n.payload as { text?: string; title?: string };
-      return `🍽️ ${p.text ?? p.title ?? "Un repas"}`;
+      return `🍽️ ${p.text ?? p.title ?? "Un potluck"}`;
     }
     case "don.interest": {
       const p = n.payload as { memberName?: string; title?: string };

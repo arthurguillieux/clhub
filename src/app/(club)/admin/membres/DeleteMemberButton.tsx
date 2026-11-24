@@ -9,7 +9,7 @@ const IMPACT_LABELS: Record<keyof MemberDeletionImpact, string> = {
   bookingsAsBorrower: "emprunt(s)",
   wantedPosts: "recherche(s) publiée(s)",
   projects: "chantier(s)",
-  menuEvents: "repas proposé(s)",
+  menuEvents: "potluck(s) proposé(s)",
   expenseEventsOrganized: "évènement(s) de caisse organisé(s)",
   expensesInvolved: "dépense(s) de caisse (payée(s) ou saisie(s))",
   recipes: "recette(s)",
