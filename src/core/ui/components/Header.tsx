@@ -28,6 +28,12 @@ export async function Header({ user }: { user: HeaderUser }) {
         <AdminGateLogo />
 
         <nav className="flex items-center gap-5">
+          <Link href="/recherche" aria-label="Rechercher dans le club" title="Rechercher" className="-m-2 grid h-11 w-11 place-items-center rounded-full text-muted hover:text-ink">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+          </Link>
           {/* On a phone, the sections and the members are in the shortcut bar at the bottom. */}
           <span className="hidden items-center gap-5 md:flex">
             <Link href="/membres" className="-mx-1 -my-2.5 px-1 py-2.5 text-sm font-medium text-muted hover:text-ink">

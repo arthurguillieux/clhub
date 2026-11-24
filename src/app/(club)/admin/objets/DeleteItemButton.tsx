@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ConfirmDeleteButton } from "@/core/ui/components/ConfirmDeleteButton";
 import { adminDeleteItemAction } from "../actions";
+import { toast } from "@/core/ui/components/Toaster";
 
 export function DeleteItemButton({
   itemId,
@@ -23,6 +24,7 @@ export function DeleteItemButton({
       keepLabel="Garder l'objet"
       onConfirm={async () => {
         await adminDeleteItemAction(itemId);
+        toast(`« ${name} » supprimé`);
         if (redirectTo) router.push(redirectTo);
       }}
     />

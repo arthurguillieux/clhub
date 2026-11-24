@@ -428,6 +428,13 @@
       "when": 1795552555768,
       "tag": "0060_changelog_fiche_objet",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1795553487799,
+      "tag": "0061_changelog_recherche",
+      "breakpoints": true
     }
   ]
 }

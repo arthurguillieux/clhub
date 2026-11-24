@@ -12,6 +12,7 @@ import {
   getClubEventOwnerId,
   updateClubEvent,
 } from "@/modules/agenda/data/clubEvents";
+import { flash } from "@/core/ui/flash";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide");
 
@@ -55,6 +56,7 @@ export async function createClubEventAction(
   });
 
   revalidatePath("/agenda");
+  await flash("Évènement ajouté à l’agenda");
   redirect(`/agenda?month=${created.eventDate}`);
 }
 
@@ -89,6 +91,7 @@ export async function updateClubEventAction(
   await updateClubEvent(eventId, parsed.data);
 
   revalidatePath("/agenda");
+  await flash("Évènement modifié");
   redirect(`/agenda?month=${parsed.data.eventDate}`);
 }
 

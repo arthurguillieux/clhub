@@ -32,6 +32,7 @@ import {
   type Result,
 } from "@/modules/repas/data/meals";
 import { cookieName, resolve, type MealRef } from "./load";
+import { flash } from "@/core/ui/flash";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide.");
 const optText = (max: number) =>
@@ -76,6 +77,7 @@ export async function createMealAction(_prev: CreateMealState, formData: FormDat
   const meal = await createMeal(session.member.id, session.user.name, parsed.data);
   // Only an open meal is news for the whole club; an invitation stays between its guests.
   if (meal.open) await logActivity({ section: "menus", kind: "menu.proposed", actorId: session.member.id, subjectRef: `menu:${meal.id}`, payload: { title: meal.title, eventDate: meal.eventDate } });
+  await flash("Potluck créé : invite tes convives");
   redirect(`/repas/${meal.id}`);
 }
 

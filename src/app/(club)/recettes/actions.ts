@@ -15,6 +15,7 @@ import {
   updateRecipe,
   upsertReview,
 } from "@/modules/recipes/data/recipes";
+import { flash } from "@/core/ui/flash";
 
 const KNOWN_DIETARY_TAGS = new Set<string>(DIETARY_TAGS);
 
@@ -87,6 +88,7 @@ export async function createRecipeAction(
     payload: { title: created.title },
   });
 
+  await flash("Recette publiée");
   redirect(`/recettes/${created.id}`);
 }
 
@@ -125,6 +127,7 @@ export async function updateRecipeAction(
   await updateRecipe(recipeId, { ...parsed.data, dietaryTags: readDietaryTags(formData) });
   revalidatePath(`/recettes/${recipeId}`);
   revalidatePath("/recettes");
+  await flash("Recette modifiée");
   redirect(`/recettes/${recipeId}`);
 }
 
@@ -135,6 +138,7 @@ export async function deleteRecipeAction(recipeId: string): Promise<void> {
 
   await deleteRecipe(recipeId);
   revalidatePath("/recettes");
+  await flash("Recette supprimée");
   redirect("/recettes");
 }
 

@@ -11,7 +11,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Planning" };
 
-const WEEKDAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
+const WEEKDAY_LABELS = ["lu", "ma", "me", "je", "ve", "sa", "di"];
 const WINDOW_DAYS = 21;
 const NAME_COL_WIDTH = "160px";
 const LANE_HEIGHT = 24;
@@ -72,6 +72,13 @@ export default async function PlanningPage({
     return rows;
   }, []);
 
+  const busyItems = sortedItems
+    .map((it) => ({
+      item: it,
+      list: [...(bookingsByItem.get(it.id) ?? [])].sort((a, b) => String(a.startDate).localeCompare(String(b.startDate))),
+    }))
+    .filter((x) => x.list.length > 0);
+
   return (
     <Container size="lg">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -98,7 +105,43 @@ export default async function PlanningPage({
       {sortedItems.length === 0 ? (
         <p className="mt-6 text-sm text-muted">Aucun objet dans la prêtothèque pour l&apos;instant.</p>
       ) : (
-        <div className="mt-6 overflow-x-auto">
+        <>
+        {/* On a phone the 21-day grid doesn't fit: the same three weeks as a list, borrowed objects only. */}
+        <div className="mt-6 sm:hidden">
+          {busyItems.length === 0 ? (
+            <p className="text-sm text-muted">Rien n&apos;est emprunté sur ces trois semaines : tout est libre.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {busyItems.map(({ item: it, list }) => (
+                <li key={it.id} className="rounded-card border border-line bg-surface p-4">
+                  <Link href={`/pretotheque/${it.slug}`} className="font-semibold text-ink hover:underline">
+                    {it.name}
+                  </Link>
+                  <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+                    {list.map((b) => (
+                      <li key={b.id} className="flex flex-wrap items-baseline gap-x-2">
+                        <span className="text-ink">{b.borrowerName}</span>
+                        <span className="text-muted">
+                          {b.startDate === b.endDate
+                            ? `le ${formatFrench(b.startDate as CalendarDate)}`
+                            : `du ${formatFrench(b.startDate as CalendarDate)} au ${formatFrench(b.endDate as CalendarDate)}`}
+                        </span>
+                        {b.status === "pending" && <span className="rounded-full border border-dashed border-line px-2 text-xs text-muted">en attente</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-4 text-xs text-muted">
+            {busyItems.length > 0 && sortedItems.length > busyItems.length
+              ? `${sortedItems.length - busyItems.length === 1 ? "Un autre objet est libre" : `Les ${sortedItems.length - busyItems.length} autres objets sont libres`} sur la période. `
+              : ""}
+            Sur un écran plus large, le planning s&apos;affiche en grille.
+          </p>
+        </div>
+        <div className="mt-6 hidden overflow-x-auto sm:block">
           <div
             className="grid gap-y-1 text-xs"
             style={{ gridTemplateColumns: `${NAME_COL_WIDTH} repeat(${WINDOW_DAYS}, minmax(30px, 1fr))` }}
@@ -123,7 +166,7 @@ export default async function PlanningPage({
                 <div key={it.id} style={{ display: "contents" }}>
                   <div
                     style={{ gridColumn: 1, gridRow: `${rowStart} / span ${laneCount}` }}
-                    className="flex items-center truncate pr-2 text-ink"
+                    className="sticky left-0 z-10 flex items-center truncate bg-ground pr-2 text-ink"
                     title={it.name}
                   >
                     <Link href={`/pretotheque/${it.slug}`} className="truncate hover:underline">
@@ -163,6 +206,7 @@ export default async function PlanningPage({
             })}
           </div>
         </div>
+        </>
       )}
     </Container>
   );

@@ -8,6 +8,7 @@ import { saveItemPhoto } from "@/core/storage/itemPhoto";
 import { createItem, setItemPhoto } from "@/modules/pretotheque/data/items";
 import { fetchOpenGraphMetadata, type OpenGraphMetadata } from "@/core/opengraph";
 import { itemFormSchema, itemFormDataToInput } from "@/modules/pretotheque/itemFormSchema";
+import { flash } from "@/core/ui/flash";
 
 export async function fetchProductMetadataAction(
   productUrl: string,
@@ -58,5 +59,6 @@ export async function createItemAction(
     payload: { name: created.name, category: created.category },
   });
 
+  await flash("Objet ajouté au catalogue");
   redirect(`/pretotheque/${created.slug}`);
 }

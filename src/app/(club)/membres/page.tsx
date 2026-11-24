@@ -4,6 +4,7 @@ import { listMembers } from "@/modules/members/data/members";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
+import { MemberList } from "./MemberList";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Membres" };
@@ -17,38 +18,26 @@ export default async function MembresPage() {
   return (
     <Container>
       <PageTitle>Membres</PageTitle>
+      <p className="mt-2 text-sm text-muted">
+        {members.length} {members.length > 1 ? "membres" : "membre"} au club.{" "}
+        <Link href="/invite" className="text-primary underline underline-offset-2">
+          Inviter quelqu&apos;un
+        </Link>
+      </p>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {members.map((m) => {
-          const name = m.name || "Membre";
-          return (
-            <Link key={m.id} href={`/membres/${m.id}`}>
-              <Card className="flex h-full items-center gap-3 p-4 transition-colors hover:border-primary">
-                {m.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- small avatar thumbnail
-                  <img src={m.image} alt="" className="h-10 w-10 rounded-full object-cover" />
-                ) : (
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent font-display text-sm font-extrabold text-accent-ink">
-                    {name.charAt(0).toUpperCase()}
-                  </span>
-                )}
-                <div>
-                  <p className="font-display text-base font-extrabold text-ink">{name}</p>
-                  <p className="text-xs text-muted">
-                    Membre {m.memberNumber !== null ? `n°${m.memberNumber}` : ""}
-                  </p>
-                </div>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
+      <MemberList members={members} />
 
-      <Link
-        href="/wrapped"
-        className="glow-text-primary mt-8 block font-display text-3xl font-extrabold tracking-tight text-primary text-balance hover:opacity-90"
-      >
-        CLHUB Wrapped
+      {/* The year in review: a card that says what it is, not a lone heading. */}
+      <Link href="/wrapped" className="mt-8 block">
+        <Card className="flex items-center justify-between gap-4 p-5 transition-colors hover:border-primary">
+          <div>
+            <p className="glow-text-primary font-display text-2xl font-extrabold tracking-tight text-primary">CLHUB Wrapped</p>
+            <p className="mt-1 text-sm text-muted">L&apos;année du club en un coup d&apos;œil : l&apos;objet le plus convoité, le mois le plus animé, les duos.</p>
+          </div>
+          <span aria-hidden="true" className="text-2xl text-muted">
+            →
+          </span>
+        </Card>
       </Link>
     </Container>
   );

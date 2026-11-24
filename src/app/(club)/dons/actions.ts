@@ -21,6 +21,7 @@ import {
   cancelReservation,
   markCompleted,
 } from "@/modules/dons/data/listings";
+import { flash } from "@/core/ui/flash";
 
 const listingSchema = z.object({
   categoryId: z.string().uuid("Choisis une catégorie."),
@@ -85,6 +86,7 @@ export async function createListingAction(
   });
 
   revalidatePath("/dons");
+  await flash("Annonce publiée");
   redirect(`/dons/${created.id}`);
 }
 
@@ -123,6 +125,7 @@ export async function updateListingAction(
 
   revalidatePath(`/dons/${listingId}`);
   revalidatePath("/dons");
+  await flash("Annonce modifiée");
   redirect(`/dons/${listingId}`);
 }
 
@@ -133,6 +136,7 @@ export async function deleteListingAction(listingId: string): Promise<void> {
 
   await deleteListing(listingId);
   revalidatePath("/dons");
+  await flash("Annonce supprimée");
   redirect("/dons");
 }
 

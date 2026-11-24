@@ -28,6 +28,7 @@ import {
 } from "@/modules/pretotheque/data/itemUnits";
 import { getItemBySlug, updateItem } from "@/modules/pretotheque/data/items";
 import { itemFormSchema, itemFormDataToInput } from "@/modules/pretotheque/itemFormSchema";
+import { flash } from "@/core/ui/flash";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide");
 
@@ -432,5 +433,6 @@ export async function updateItemAction(
 
   await updateItem(itemId, parsed.data);
   revalidatePath(`/pretotheque/${itemSlug}`);
+  await flash("Fiche enregistrée");
   redirect(`/pretotheque/${itemSlug}`);
 }

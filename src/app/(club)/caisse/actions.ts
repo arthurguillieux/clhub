@@ -19,6 +19,7 @@ import {
   deleteSettlement,
 } from "@/modules/caisse/data/events";
 import { typedEuros } from "@/core/money";
+import { flash } from "@/core/ui/flash";
 
 const nameSchema = z.string().trim().min(1, "Donne un nom à cet évènement.").max(150);
 
@@ -58,6 +59,7 @@ export async function createEventAction(
     payload: { name: created.name },
   });
 
+  await flash("Évènement créé : ajoute les dépenses");
   redirect(`/caisse/${created.id}`);
 }
 
@@ -89,6 +91,7 @@ export async function updateEventAction(
 
   revalidatePath(`/caisse/${eventId}`);
   revalidatePath("/caisse");
+  await flash("Évènement modifié");
   redirect(`/caisse/${eventId}`);
 }
 
@@ -99,6 +102,7 @@ export async function deleteEventAction(eventId: string): Promise<void> {
 
   await deleteExpenseEvent(eventId);
   revalidatePath("/caisse");
+  await flash("Évènement supprimé");
   redirect("/caisse");
 }
 

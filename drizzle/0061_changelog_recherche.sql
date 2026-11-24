@@ -1,0 +1,3 @@
+-- Custom SQL migration file, put your code below! -- -- "Nouveautés" entry for the third UX pass (see 0029 for why entries go through migrations).
+INSERT INTO "changelog_entry" ("entry_date", "summary") VALUES
+('2026-11-24', 'Une loupe en haut de l''écran : une seule recherche pour tout le club (objets à emprunter, dons, recettes jusque dans leurs ingrédients, potlucks, agenda, membres), sans se soucier des accents. Après avoir ajouté, modifié ou supprimé quelque chose, un petit message te le confirme en bas de l''écran. Sur téléphone, le planning de la Prêtothèque devient une liste « qui emprunte quoi » au lieu d''une grille qui débordait. Les Nouveautés se rangent par mois, la page Membres a sa recherche et une vraie carte pour le CLHUB Wrapped.');

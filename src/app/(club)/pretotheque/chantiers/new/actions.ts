@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getSession } from "@/core/auth/session";
 import { createProjectWithBookings } from "@/modules/pretotheque/data/projects";
+import { flash } from "@/core/ui/flash";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide");
 
@@ -46,5 +47,6 @@ export async function createProjectAction(
   }
 
   const { project } = await createProjectWithBookings(session.member.id, parsed.data);
+  await flash("Chantier créé");
   redirect(`/pretotheque/mine?chantier=${project.id}`);
 }
