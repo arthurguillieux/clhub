@@ -1,4 +1,7 @@
 import { TestEmailForm } from "./TestEmailForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Test d’e-mail" };
 
 export default function TestEmailPage() {
   return (

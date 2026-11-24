@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/core/ui/components/Button";
 import { FormField, Input, Select, Textarea } from "@/core/ui/components/Field";
 import { updateItemAction, type UpdateItemFormState } from "./actions";
+import { centsForInput } from "@/core/money";
 
 const initialState: UpdateItemFormState = { status: "idle" };
 
@@ -88,7 +89,7 @@ export function EditItemForm({
               id="price"
               name="price"
               inputMode="decimal"
-              defaultValue={item.priceCents !== null ? (item.priceCents / 100).toFixed(2) : ""}
+              defaultValue={item.priceCents !== null ? centsForInput(item.priceCents) : ""}
             />
           </FormField>
           <FormField label="Valeur de remplacement (€)" htmlFor="replacementValue">
@@ -97,7 +98,7 @@ export function EditItemForm({
               name="replacementValue"
               inputMode="decimal"
               defaultValue={
-                item.replacementValueCents !== null ? (item.replacementValueCents / 100).toFixed(2) : ""
+                item.replacementValueCents !== null ? centsForInput(item.replacementValueCents) : ""
               }
             />
           </FormField>

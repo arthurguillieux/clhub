@@ -11,6 +11,13 @@ import { SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { MemberCard } from "@/core/ui/components/MemberCard";
 import { AdminProfileEditor } from "./AdminProfileEditor";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const d = await getMemberProfile(id);
+  return { title: d?.name || "Membre" };
+}
 
 export default async function MemberProfilePage({
   params,

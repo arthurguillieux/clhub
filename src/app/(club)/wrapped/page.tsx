@@ -4,6 +4,9 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { today } from "@/core/date";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "CLHUB Wrapped" };
 
 function euros(cents: number): string {
   return `${(cents / 100).toFixed(0)} €`;

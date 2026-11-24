@@ -6,6 +6,9 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { NewListingForm } from "./NewListingForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Proposer un objet" };
 
 export default async function NewListingPage() {
   const session = await getSession();

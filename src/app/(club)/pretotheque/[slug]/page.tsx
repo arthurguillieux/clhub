@@ -22,6 +22,14 @@ import { MaintenanceForm } from "./MaintenanceForm";
 import { PhotoGallery } from "./PhotoGallery";
 import { UnitsManager } from "./UnitsManager";
 import { DeleteItemButton } from "@/app/(club)/admin/objets/DeleteItemButton";
+import { euros } from "@/core/money";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const d = await getItemWithOwnerBySlug(slug);
+  return { title: d?.name || "Prêtothèque" };
+}
 
 const MAINTENANCE_KIND_LABELS: Record<string, string> = {
   issue: "Signalement",
@@ -34,10 +42,6 @@ const CONDITION_LABELS: Record<string, string> = {
   usage: "Usagé",
   fragile: "Fragile",
 };
-
-function euros(cents: number | null): string | null {
-  return cents === null ? null : `${(cents / 100).toFixed(2)} €`;
-}
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -133,13 +137,13 @@ export default async function ItemPage({ params }: { params: Promise<{ slug: str
                 }
               />
             )}
-            {euros(item.priceCents) && (
+            {item.priceCents !== null && (
               <DetailRow
                 label="Prix"
                 value={<span className="font-mono tabular-nums">{euros(item.priceCents)}</span>}
               />
             )}
-            {euros(item.replacementValueCents) && (
+            {item.replacementValueCents !== null && (
               <DetailRow
                 label="Valeur de remplacement"
                 value={

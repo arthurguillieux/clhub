@@ -2,6 +2,9 @@ import Link from "next/link";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { PointCounter } from "./PointCounter";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Compteur de points" };
 
 export default function PointsPage() {
   return (

@@ -11,6 +11,9 @@ import { Card } from "@/core/ui/components/Card";
 import { LinkButton } from "@/core/ui/components/Button";
 import { ActionLink } from "@/core/ui/components/ActionLink";
 import { DeleteClubEventButton } from "./DeleteClubEventButton";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Agenda" };
 
 const MONTH_NAMES = [
   "janvier", "février", "mars", "avril", "mai", "juin",

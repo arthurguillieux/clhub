@@ -8,6 +8,9 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { EditListingForm } from "../EditListingForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Modifier l’annonce" };
 
 export default async function EditListingPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();

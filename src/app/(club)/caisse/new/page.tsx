@@ -4,6 +4,9 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { NewEventForm } from "./NewEventForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Nouvel évènement · Caisse" };
 
 export default async function NewExpenseEventPage() {
   const session = await getSession();

@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { recordSettlementAction } from "../actions";
+import { centsForInput } from "@/core/money";
 
 export function QuickSettleButton({
   eventId,
@@ -24,7 +25,7 @@ export function QuickSettleButton({
         const formData = new FormData();
         formData.set("fromMemberId", fromMemberId);
         formData.set("toMemberId", toMemberId);
-        formData.set("amount", (amountCents / 100).toFixed(2));
+        formData.set("amount", centsForInput(amountCents));
         startTransition(() => {
           recordSettlementAction(eventId, { status: "idle" }, formData);
         });

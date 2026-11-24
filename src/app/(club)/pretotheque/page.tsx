@@ -7,6 +7,10 @@ import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { LinkButton } from "@/core/ui/components/Button";
 import { CATEGORY_BG, categoryLabel } from "@/core/ui/categories";
+import { euros } from "@/core/money";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Prêtothèque" };
 
 export default async function PretothequePage({
   searchParams,
@@ -80,7 +84,7 @@ export default async function PretothequePage({
                   <p className="mt-1 text-xs text-muted">Proposé par {it.ownerName}</p>
                   {it.priceCents !== null && (
                     <p className="mt-2 font-mono text-sm tabular-nums text-ink">
-                      {(it.priceCents / 100).toFixed(2)} €
+                      {euros(it.priceCents)}
                     </p>
                   )}
                 </div>

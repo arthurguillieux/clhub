@@ -16,6 +16,9 @@ import { getLatestChangelogDay } from "@/modules/changelog/data/entries";
 import { offerSentence } from "@/modules/lettre/domain/letter";
 import { RelativeTime } from "@/core/ui/components/RelativeTime";
 import { markAllNotificationsReadAction } from "./actions";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: { absolute: "LE CLHUB" } };
 
 const RECENT_ACTIVITY_SHOWN = 3;
 

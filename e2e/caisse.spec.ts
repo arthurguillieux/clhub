@@ -27,7 +27,7 @@ test("Tricount event: split math and settling matches the hand-computed example"
 
   // First expense: the signed-in member (household, 2 shares) pays 60€ —
   // "Payé par" already defaults to whoever is signed in.
-  await page.getByLabel("Montant (€) *").fill("60");
+  await page.getByLabel("Montant (€) *").fill("60,00");
   await page.getByLabel("Pour quoi ? *").fill("Emplacement + courses");
   await page.getByRole("button", { name: "Ajouter la dépense" }).click();
   await expect(page.getByText("Emplacement + courses")).toBeVisible();
@@ -39,9 +39,9 @@ test("Tricount event: split math and settling matches the hand-computed example"
   await page.getByRole("button", { name: "Ajouter la dépense" }).click();
   await expect(page.getByText("Essence")).toBeVisible();
 
-  await expect(page.getByText("Doit recevoir 6.67 €")).toBeVisible();
-  await expect(page.getByText("Doit 6.67 €")).toBeVisible();
-  await expect(page.getByText(/doit verser.*6.67.*€/)).toBeVisible();
+  await expect(page.getByText(/^Doit recevoir 6,67\s€$/)).toBeVisible();
+  await expect(page.getByText(/^Doit 6,67\s€$/)).toBeVisible();
+  await expect(page.getByText(/doit verser.*6,67.*€/)).toBeVisible();
 
   await page.getByRole("button", { name: "Marquer réglé" }).click();
   await expect(page.getByText("Réglé")).toHaveCount(2);

@@ -3,6 +3,9 @@ import { db } from "@/core/db/client";
 import { findInvitationByToken } from "@/core/auth/invitations";
 import { Card } from "@/core/ui/components/Card";
 import { SignInForm } from "../../sign-in/SignInForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Invitation" };
 
 export default async function InvitationPage({
   params,

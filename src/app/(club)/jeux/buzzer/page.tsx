@@ -6,6 +6,9 @@ import { Card } from "@/core/ui/components/Card";
 import { Button } from "@/core/ui/components/Button";
 import { listRoomsByHost } from "@/modules/jeux/data/buzzerRooms";
 import { createGameAction } from "@/app/(buzzer)/buzzer/actions";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Buzzer" };
 
 const STEPS = [
   "Tu lances une partie : un QR code apparaît sur ton écran.",

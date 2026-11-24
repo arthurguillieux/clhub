@@ -3,6 +3,9 @@ import { listItems } from "@/modules/pretotheque/data/items";
 import { itemQrSvg } from "@/core/qrcode";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Étiquettes" };
 
 export default async function EtiquettesPage() {
   const session = await getSession();

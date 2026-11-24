@@ -14,10 +14,13 @@ import { QuickSettleButton } from "./QuickSettleButton";
 import { ExpenseRow } from "./ExpenseRow";
 import { DeleteEventButton } from "./DeleteEventButton";
 import { DeleteSettlementButton } from "./DeleteSettlementButton";
+import { euros } from "@/core/money";
+import type { Metadata } from "next";
 
-function euros(cents: number): string {
-  const sign = cents < 0 ? "−" : "";
-  return `${sign}${(Math.abs(cents) / 100).toFixed(2)} €`;
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const d = await getEventDetail(id);
+  return { title: d?.event.name || "Caisse" };
 }
 
 export default async function ExpenseEventPage({ params }: { params: Promise<{ id: string }> }) {

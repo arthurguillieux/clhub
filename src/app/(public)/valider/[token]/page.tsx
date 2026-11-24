@@ -5,6 +5,9 @@ import { getBookingWithItem } from "@/modules/pretotheque/data/bookings";
 import { Card } from "@/core/ui/components/Card";
 import { ConfirmForm } from "./ConfirmForm";
 import { describeTokenError } from "./labels";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Validation" };
 
 export default async function ValidatePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;

@@ -7,6 +7,9 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { EditRecipeForm } from "../EditRecipeForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Modifier la recette" };
 
 export default async function EditRecipePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();

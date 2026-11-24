@@ -13,6 +13,10 @@ import { CalendarFeedUrl } from "./CalendarFeedUrl";
 import { PersonalCalendarForm } from "./PersonalCalendarForm";
 import { NotificationPrefsForm } from "./NotificationPrefsForm";
 import { DietaryPrefsForm } from "./DietaryPrefsForm";
+import { PhotoInput } from "@/core/ui/components/PhotoInput";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Réglages" };
 
 export default async function SettingsPage() {
   const session = await getSession();
@@ -57,13 +61,7 @@ export default async function SettingsPage() {
         <SectionTitle>Avatar</SectionTitle>
         <Card className="mt-3 p-5">
           <form action={uploadAvatar} className="flex flex-wrap items-center gap-3">
-            <input
-              type="file"
-              name="avatar"
-              accept="image/*"
-              required
-              className="text-sm text-ink file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-ink file:transition-colors hover:file:bg-primary/90"
-            />
+            <PhotoInput name="avatar" required />
             <button
               type="submit"
               className="rounded-md border border-line bg-transparent px-4 py-2 text-sm font-semibold text-ink hover:bg-surface"

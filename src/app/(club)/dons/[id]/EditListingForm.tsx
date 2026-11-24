@@ -5,6 +5,7 @@ import { Button } from "@/core/ui/components/Button";
 import { FormField, Input, Select, Textarea } from "@/core/ui/components/Field";
 import { updateListingAction, type UpdateListingState } from "../actions";
 import type { DonCategory } from "@/core/db/schema";
+import { PhotoInput } from "@/core/ui/components/PhotoInput";
 
 const initialState: UpdateListingState = { status: "idle" };
 
@@ -55,13 +56,7 @@ export function EditListingForm({
           // eslint-disable-next-line @next/next/no-img-element -- current photo preview
           <img src={listing.photoPath} alt="" className="mb-2 h-24 w-24 rounded-md object-cover" />
         )}
-        <input
-          id="photo"
-          name="photo"
-          type="file"
-          accept="image/*"
-          className="text-sm text-ink file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-ink file:transition-colors hover:file:bg-primary/90"
-        />
+        <PhotoInput id="photo" name="photo" label={listing.photoPath ? "Choisir une autre photo" : undefined} />
       </FormField>
 
       <div>

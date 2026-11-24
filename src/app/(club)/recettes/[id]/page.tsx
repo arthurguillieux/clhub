@@ -13,6 +13,13 @@ import { ActionLink } from "@/core/ui/components/ActionLink";
 import { ReviewForm } from "./ReviewForm";
 import { DeleteRecipeButton } from "./DeleteRecipeButton";
 import { DeleteReviewButton } from "./DeleteReviewButton";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const d = await getRecipeDetail(id);
+  return { title: d?.title || "Recettes" };
+}
 
 export default async function RecipeDetailPage({
   params,

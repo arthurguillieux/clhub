@@ -8,6 +8,9 @@ import { InvitationList } from "@/app/(club)/invite/InvitationList";
 import { InviteByEmailForm } from "./InviteByEmailForm";
 import { RoleToggle } from "./RoleToggle";
 import { DeleteMemberButton } from "./DeleteMemberButton";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Admin · Membres" };
 
 export default async function AdminMembresPage() {
   const session = await requireAdmin();

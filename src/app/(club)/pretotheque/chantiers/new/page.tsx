@@ -4,6 +4,9 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { NewProjectForm } from "./NewProjectForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Nouveau chantier" };
 
 export default async function NewProjectPage() {
   const session = await getSession();

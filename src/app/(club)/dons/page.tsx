@@ -7,6 +7,9 @@ import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { Badge } from "@/core/ui/components/Badge";
 import { LinkButton } from "@/core/ui/components/Button";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Dons" };
 
 const STATUS_LABELS: Record<string, string> = {
   available: "Disponible",

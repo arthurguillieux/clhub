@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { typedEuros } from "@/core/money";
 
 export const CATEGORIES = ["bricolage", "jardinage", "menage", "festif", "jeux", "autre"] as const;
 export const CONDITIONS = ["neuf", "bon", "usage", "fragile"] as const;
@@ -17,8 +18,8 @@ const optionalEuros = z
   .optional()
   .transform((v) => {
     if (!v || v.trim() === "") return null;
-    const value = Number.parseFloat(v.replace(",", "."));
-    return Number.isFinite(value) ? Math.round(value * 100) : null;
+    const value = typedEuros(v);
+    return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.round(value * 100) : null;
   });
 
 /** Shared by create (new/actions.ts) and edit ([slug]/actions.ts) — same fields, same rules either way. */

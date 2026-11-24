@@ -10,6 +10,13 @@ import { ActionLink } from "@/core/ui/components/ActionLink";
 import { DeleteListingButton } from "./DeleteListingButton";
 import { InterestButton } from "./InterestButton";
 import { OwnerControls } from "./OwnerControls";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const d = await getListingDetail(id);
+  return { title: d?.title || "Dons" };
+}
 
 const STATUS_LABELS: Record<string, string> = {
   available: "Disponible",

@@ -9,6 +9,7 @@ import {
   uploadItemPhotosAction,
   type PhotoGalleryState,
 } from "./actions";
+import { PhotoInput } from "@/core/ui/components/PhotoInput";
 
 interface Photo {
   id: string;
@@ -117,13 +118,7 @@ export function PhotoGallery({
           action={uploadFormAction}
           className="flex flex-wrap items-center gap-3 border-b border-line-soft p-3"
         >
-          <input
-            type="file"
-            name="photos"
-            accept="image/*"
-            multiple
-            className="text-sm text-ink file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-ink file:transition-colors hover:file:bg-primary/90"
-          />
+          <PhotoInput name="photos" multiple />
           <Button type="submit" variant="ghost" disabled={uploadPending}>
             {uploadPending ? "Envoi..." : "Ajouter des photos"}
           </Button>

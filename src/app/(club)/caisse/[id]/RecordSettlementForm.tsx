@@ -39,7 +39,7 @@ export function RecordSettlementForm({
           </Select>
         </FormField>
         <FormField label="Montant (€)" htmlFor="amount">
-          <Input id="amount" name="amount" type="number" step="0.01" min="0.01" placeholder="25.00" required />
+          <Input id="amount" name="amount" inputMode="decimal" autoComplete="off" placeholder="25,00" required />
         </FormField>
       </div>
 

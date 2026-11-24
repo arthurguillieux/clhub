@@ -414,6 +414,13 @@
       "when": 1795550020888,
       "tag": "0058_changelog_cinq_poles",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1795551577169,
+      "tag": "0059_changelog_petits_conforts",
+      "breakpoints": true
     }
   ]
 }

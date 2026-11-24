@@ -5,10 +5,10 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { LinkButton } from "@/core/ui/components/Button";
+import { euros } from "@/core/money";
+import type { Metadata } from "next";
 
-function euros(cents: number): string {
-  return `${(cents / 100).toFixed(2)} €`;
-}
+export const metadata: Metadata = { title: "Caisse" };
 
 export default async function CaissePage() {
   const session = await getSession();

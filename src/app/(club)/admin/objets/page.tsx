@@ -7,6 +7,9 @@ import { Card } from "@/core/ui/components/Card";
 import { categoryLabel } from "@/core/ui/categories";
 import { ReassignItemForm } from "./ReassignItemForm";
 import { DeleteItemButton } from "./DeleteItemButton";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Admin · Objets" };
 
 export default async function AdminObjetsPage() {
   await requireAdmin();

@@ -5,6 +5,9 @@ import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { NewWantedPostForm } from "./NewWantedPostForm";
 import { WantedPostCard } from "./WantedPostCard";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Recherches" };
 
 export default async function RecherchesPage() {
   const session = await getSession();

@@ -4,6 +4,9 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { formatFrench, type CalendarDate } from "@/core/date";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Nouveautés" };
 
 export default async function ChangelogPage() {
   const days = await listChangelogDays();

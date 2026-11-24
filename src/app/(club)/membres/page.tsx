@@ -4,6 +4,9 @@ import { listMembers } from "@/modules/members/data/members";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Membres" };
 
 export default async function MembresPage() {
   const session = await getSession();

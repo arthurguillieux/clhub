@@ -21,6 +21,9 @@ import {
   leaveWaitlistEntry,
   rejectRequest,
 } from "./actions";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Mes objets" };
 
 const BOOKING_STATUS_LABELS: Record<string, string> = {
   pending: "En attente",

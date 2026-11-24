@@ -5,6 +5,9 @@ import { Card } from "@/core/ui/components/Card";
 import { listInvitations } from "@/modules/invitations/data";
 import { InvitationList } from "./InvitationList";
 import { InviteForm } from "./InviteForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Inviter" };
 
 export default async function InvitePage() {
   const session = await getSession();

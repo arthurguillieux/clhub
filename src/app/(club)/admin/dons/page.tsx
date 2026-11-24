@@ -4,6 +4,9 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { NewCategoryForm } from "./NewCategoryForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Admin · Dons" };
 
 export default async function AdminDonsPage() {
   await requireAdmin();

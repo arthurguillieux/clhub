@@ -5,6 +5,7 @@ import { Button } from "@/core/ui/components/Button";
 import { FormField, Input, Select, Textarea } from "@/core/ui/components/Field";
 import { createListingAction, type CreateListingState } from "../actions";
 import type { DonCategory } from "@/core/db/schema";
+import { PhotoInput } from "@/core/ui/components/PhotoInput";
 
 const initialState: CreateListingState = { status: "idle" };
 
@@ -36,13 +37,7 @@ export function NewListingForm({ categories }: { categories: DonCategory[] }) {
       </FormField>
 
       <FormField label="Photo (optionnel)" htmlFor="photo">
-        <input
-          id="photo"
-          name="photo"
-          type="file"
-          accept="image/*"
-          className="text-sm text-ink file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-ink file:transition-colors hover:file:bg-primary/90"
-        />
+        <PhotoInput id="photo" name="photo" />
       </FormField>
 
       <div>

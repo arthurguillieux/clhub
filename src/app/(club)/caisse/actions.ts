@@ -18,6 +18,7 @@ import {
   deleteExpense,
   deleteSettlement,
 } from "@/modules/caisse/data/events";
+import { typedEuros } from "@/core/money";
 
 const nameSchema = z.string().trim().min(1, "Donne un nom à cet évènement.").max(150);
 
@@ -102,7 +103,7 @@ export async function deleteEventAction(eventId: string): Promise<void> {
 }
 
 const expenseSchema = z.object({
-  amount: z.coerce.number().positive("Le montant doit être supérieur à 0.").max(1000000),
+  amount: z.preprocess(typedEuros, z.number({ error: "Écris un montant, par exemple 25,50." }).positive("Le montant doit être supérieur à 0.").max(1000000)),
   description: z.string().trim().min(1, "Précise à quoi correspond cette dépense.").max(300),
   paidByMemberId: z.string().uuid("Choisis qui a payé."),
 });
@@ -188,7 +189,7 @@ export async function deleteExpenseAction(expenseId: string, eventId: string): P
 const settlementSchema = z.object({
   fromMemberId: z.string().uuid(),
   toMemberId: z.string().uuid(),
-  amount: z.coerce.number().positive("Le montant doit être supérieur à 0.").max(1000000),
+  amount: z.preprocess(typedEuros, z.number({ error: "Écris un montant, par exemple 25,50." }).positive("Le montant doit être supérieur à 0.").max(1000000)),
 });
 
 export type RecordSettlementState = { status: "idle" } | { status: "error"; message: string };

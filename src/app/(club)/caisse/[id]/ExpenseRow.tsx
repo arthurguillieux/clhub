@@ -6,13 +6,9 @@ import { ConfirmDeleteButton } from "@/core/ui/components/ConfirmDeleteButton";
 import { FormField, Input, Select } from "@/core/ui/components/Field";
 import { Card } from "@/core/ui/components/Card";
 import { updateExpenseAction, deleteExpenseAction, type UpdateExpenseState } from "../actions";
+import { centsForInput, euros } from "@/core/money";
 
 const initialState: UpdateExpenseState = { status: "idle" };
-
-function euros(cents: number): string {
-  const sign = cents < 0 ? "−" : "";
-  return `${sign}${(Math.abs(cents) / 100).toFixed(2)} €`;
-}
 
 export interface ExpenseForRow {
   id: string;
@@ -56,10 +52,9 @@ export function ExpenseRow({
               <Input
                 id={`amount-${expense.id}`}
                 name="amount"
-                type="number"
-                step="0.01"
-                min="0.01"
-                defaultValue={(expense.amountCents / 100).toFixed(2)}
+                inputMode="decimal"
+                autoComplete="off"
+                defaultValue={centsForInput(expense.amountCents)}
                 required
               />
             </FormField>

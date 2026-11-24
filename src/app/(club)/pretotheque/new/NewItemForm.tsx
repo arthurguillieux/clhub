@@ -4,6 +4,8 @@ import { useActionState, useRef, useState } from "react";
 import { Button } from "@/core/ui/components/Button";
 import { FormField, Input, Select, Textarea } from "@/core/ui/components/Field";
 import { createItemAction, fetchProductMetadataAction, type CreateItemFormState } from "./actions";
+import { centsForInput } from "@/core/money";
+import { PhotoInput } from "@/core/ui/components/PhotoInput";
 
 const initialState: CreateItemFormState = { status: "idle" };
 
@@ -43,7 +45,7 @@ export function NewItemForm() {
         nameRef.current.value = metadata.title;
       }
       if (metadata.priceCents !== null && priceRef.current && !priceRef.current.value) {
-        priceRef.current.value = (metadata.priceCents / 100).toFixed(2);
+        priceRef.current.value = centsForInput(metadata.priceCents);
       }
       if (metadata.image) {
         setOgImageUrl(metadata.image);
@@ -74,13 +76,7 @@ export function NewItemForm() {
           <Textarea id="description" name="description" rows={3} />
         </FormField>
         <FormField label="Photo" htmlFor="photo">
-          <input
-            id="photo"
-            name="photo"
-            type="file"
-            accept="image/*"
-            className="text-sm text-ink file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-ink file:transition-colors hover:file:bg-primary/90"
-          />
+          <PhotoInput id="photo" name="photo" />
         </FormField>
       </Fieldset>
 

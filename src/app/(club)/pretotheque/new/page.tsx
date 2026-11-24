@@ -3,6 +3,9 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { NewItemForm } from "./NewItemForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Ajouter un objet" };
 
 export default async function NewItemPage() {
   const session = await getSession();

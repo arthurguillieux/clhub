@@ -1,0 +1,3 @@
+-- Custom SQL migration file, put your code below! -- -- "Nouveautés" entry for the first UX pass (see 0029 for why entries go through migrations).
+INSERT INTO "changelog_entry" ("entry_date", "summary") VALUES
+('2026-11-24', 'Petits conforts partout : les montants s''écrivent à la française (« 42,50 € ») et la Caisse accepte enfin la virgule quand tu tapes une dépense. Les boutons pour ajouter une photo parlent français et montrent un aperçu de ce que tu as choisi. Quand une page met un instant à venir, tu vois sa silhouette tout de suite ; si une page a un raté, un écran « Oups » te propose de réessayer ou de le signaler aux admins. Et chaque onglet du navigateur porte enfin le nom de sa page.');

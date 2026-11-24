@@ -7,6 +7,9 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { EditEventForm } from "../EditEventForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Modifier l’évènement" };
 
 export default async function EditExpenseEventPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();

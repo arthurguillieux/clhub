@@ -3,6 +3,9 @@ import { requireAdmin } from "@/core/auth/admin";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Admin" };
 
 export default async function AdminPage() {
   await requireAdmin();

@@ -8,6 +8,9 @@ import { Card } from "@/core/ui/components/Card";
 import { Badge } from "@/core/ui/components/Badge";
 import { LinkButton } from "@/core/ui/components/Button";
 import { StarRating } from "@/core/ui/components/StarRating";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Recettes" };
 
 const SORTS: { value: RecipeSort; label: string }[] = [
   { value: "date", label: "Plus récentes" },

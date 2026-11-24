@@ -7,6 +7,9 @@ import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { EditItemForm } from "../EditItemForm";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Modifier l’objet" };
 
 export default async function EditItemPage({ params }: { params: Promise<{ slug: string }> }) {
   const session = await getSession();

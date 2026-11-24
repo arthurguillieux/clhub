@@ -7,6 +7,9 @@ import { clipToRange, packLanes, type PlaceableSegment } from "@/core/ui/calenda
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { CATEGORY_BG } from "@/core/ui/categories";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Planning" };
 
 const WEEKDAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
 const WINDOW_DAYS = 21;
