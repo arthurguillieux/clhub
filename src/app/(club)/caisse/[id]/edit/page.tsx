@@ -28,7 +28,7 @@ export default async function EditExpenseEventPage({ params }: { params: Promise
         ← {detail.event.name}
       </Link>
       <div className="mt-2">
-        <PageTitle>Modifier {detail.event.name}</PageTitle>
+        <PageTitle section="caisse">Modifier {detail.event.name}</PageTitle>
       </div>
       <Card className="mt-6 p-6">
         <EditEventForm eventId={id} name={detail.event.name} />

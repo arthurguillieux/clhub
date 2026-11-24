@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CLUB_SECTIONS } from "@/core/ui/sections";
+import { SectionTile } from "./SectionIcon";
 
 export function SectionsMenu() {
   const [open, setOpen] = useState(false);
@@ -31,15 +32,16 @@ export function SectionsMenu() {
       </button>
 
       {open && (
-        <div className="absolute left-0 z-40 mt-2 w-60 rounded-md border border-line bg-surface-raised p-1.5 shadow-lg">
+        <div className="absolute left-0 z-40 mt-2 w-64 rounded-2xl border border-line bg-surface-raised p-1.5 shadow-lg">
           {CLUB_SECTIONS.map((section) =>
             section.live && section.href ? (
               <Link
                 key={section.name}
                 href={section.href}
                 onClick={() => setOpen(false)}
-                className="block rounded-md px-3 py-2.5 text-sm text-ink hover:bg-surface"
+                className="flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm text-ink hover:bg-surface"
               >
+                <SectionTile id={section.id} size={32} />
                 {section.name}
               </Link>
             ) : (

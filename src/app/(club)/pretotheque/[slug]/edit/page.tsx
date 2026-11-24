@@ -28,7 +28,7 @@ export default async function EditItemPage({ params }: { params: Promise<{ slug:
         ← {item.name}
       </Link>
       <div className="mt-2">
-        <PageTitle>Modifier {item.name}</PageTitle>
+        <PageTitle section="pretotheque">Modifier {item.name}</PageTitle>
       </div>
       <Card className="mt-6 p-6">
         <EditItemForm itemId={item.id} itemSlug={item.slug} item={item} />

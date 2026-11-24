@@ -6,7 +6,7 @@ import { NewClubEventForm } from "./NewClubEventForm";
 export default function NewClubEventPage() {
   return (
     <Container>
-      <PageTitle>Ajouter un évènement</PageTitle>
+      <PageTitle section="agenda">Ajouter un évènement</PageTitle>
       <p className="mt-2 text-sm text-muted">
         Une grande étape à marquer sur l&apos;agenda du club — un anniversaire, un weekend, une
         fête. Visible de tous, mais ça ne touche jamais aux agendas personnels de chacun.

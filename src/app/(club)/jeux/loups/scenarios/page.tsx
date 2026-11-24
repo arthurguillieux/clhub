@@ -43,7 +43,7 @@ export default async function ScenariosPage() {
         ← Loups-garous
       </Link>
       <div className="mt-2">
-        <PageTitle>Scénarios spéciaux</PageTitle>
+        <PageTitle section="jeux">Scénarios spéciaux</PageTitle>
       </div>
       <p className="mt-2 text-sm text-muted">
         Des soirées de Loups-garous mises en scène. Le meneur ouvre d&apos;abord la station (le décor : ses portes, ses lumières, ses écrans) et la pilote depuis son téléphone, puis y charge le scénario. Un écran projeté montre tout à la salle. Chaque scénario s&apos;ouvre avec son mot de passe.

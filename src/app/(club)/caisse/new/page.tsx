@@ -13,7 +13,7 @@ export default async function NewExpenseEventPage() {
 
   return (
     <Container>
-      <PageTitle>Nouvel évènement</PageTitle>
+      <PageTitle section="caisse">Nouvel évènement</PageTitle>
       <p className="mt-2 text-sm text-muted">
         Un weekend, un camping, une soirée — regroupe les dépenses qui vont avec pour calculer qui doit
         quoi à qui ensuite.

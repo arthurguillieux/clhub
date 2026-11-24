@@ -10,7 +10,7 @@ export default function DesPage() {
         ← Jeux
       </Link>
       <div className="mt-2">
-        <PageTitle>Lancer de dés</PageTitle>
+        <PageTitle section="jeux">Lancer de dés</PageTitle>
       </div>
       <div className="mt-8">
         <DiceRoller />

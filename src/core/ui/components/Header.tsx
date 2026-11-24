@@ -28,10 +28,13 @@ export async function Header({ user }: { user: HeaderUser }) {
         <AdminGateLogo />
 
         <nav className="flex items-center gap-5">
-          <Link href="/membres" className="-mx-1 -my-2.5 px-1 py-2.5 text-sm font-medium text-muted hover:text-ink">
-            Membres
-          </Link>
-          <SectionsMenu />
+          {/* On a phone, the sections and the members are in the shortcut bar at the bottom. */}
+          <span className="hidden items-center gap-5 md:flex">
+            <Link href="/membres" className="-mx-1 -my-2.5 px-1 py-2.5 text-sm font-medium text-muted hover:text-ink">
+              Membres
+            </Link>
+            <SectionsMenu />
+          </span>
           {isAdmin && (
             // The after: layer is an invisible, larger tap area — the pill itself keeps its look.
             <Link

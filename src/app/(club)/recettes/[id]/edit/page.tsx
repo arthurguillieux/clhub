@@ -28,7 +28,7 @@ export default async function EditRecipePage({ params }: { params: Promise<{ id:
         ← {recipe.title}
       </Link>
       <div className="mt-2">
-        <PageTitle>Modifier {recipe.title}</PageTitle>
+        <PageTitle section="recettes">Modifier {recipe.title}</PageTitle>
       </div>
       <Card className="mt-6 p-6">
         <EditRecipeForm recipeId={recipe.id} recipe={recipe} />

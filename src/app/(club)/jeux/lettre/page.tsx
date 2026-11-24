@@ -28,7 +28,7 @@ export default async function LetterHomePage() {
         ← Jeux
       </Link>
       <div className="mt-2">
-        <PageTitle>Ma lettre au Père Noël</PageTitle>
+        <PageTitle section="jeux">Ma lettre au Père Noël</PageTitle>
       </div>
       <p className="mt-2 text-sm text-muted">
         La liste de Noël d&apos;un enfant, pour toute la famille. En haut, sa photo et les quelques lignes qu&apos;il a écrites ; en dessous, ses cadeaux. Tu envoies un seul

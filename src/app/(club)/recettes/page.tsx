@@ -40,34 +40,34 @@ export default async function RecettesPage({
   return (
     <Container size="lg">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <PageTitle>Nos recettes</PageTitle>
+        <PageTitle section="recettes">Nos recettes</PageTitle>
         <LinkButton href="/recettes/new" variant="accent">
           + Proposer une recette
         </LinkButton>
       </div>
 
-      {/* Real vertical padding rather than an invisible tap area: these rows sit right under each other and wrap, so each link needs its own thumb-sized row. */}
-      <div className="mt-1.5 flex gap-4 text-sm font-medium">
+      {/* Pills, scrolling sideways on a phone rather than wrapping onto several lines. */}
+      <div className="mt-4 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 text-sm font-medium">
         {SORTS.map((s) => (
           <Link
             key={s.value}
             href={buildHref(s.value, diet)}
-            className={`-mx-1 px-1 py-2.5 ${sort === s.value ? "text-primary" : "text-muted hover:text-ink"}`}
+            className={`flex min-h-10 shrink-0 items-center rounded-full px-3.5 ${sort === s.value ? "bg-ink text-ground" : "border border-line text-muted hover:text-ink"}`}
           >
             {s.label}
           </Link>
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-x-3 text-xs">
-        <Link href={buildHref(sort)} className={`-mx-1 px-1 py-3 ${!diet ? "text-primary" : "text-muted hover:text-ink"}`}>
+      <div className="mt-2 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 text-xs">
+        <Link href={buildHref(sort)} className={`flex min-h-10 shrink-0 items-center rounded-full px-3.5 ${!diet ? "bg-ink text-ground" : "border border-line text-muted hover:text-ink"}`}>
           Tous régimes
         </Link>
         {DIETARY_TAGS.map((tag) => (
           <Link
             key={tag}
             href={buildHref(sort, tag)}
-            className={`-mx-1 px-1 py-3 ${diet === tag ? "text-primary" : "text-muted hover:text-ink"}`}
+            className={`flex min-h-10 shrink-0 items-center rounded-full px-3.5 ${diet === tag ? "bg-ink text-ground" : "border border-line text-muted hover:text-ink"}`}
           >
             {dietaryTagLabel(tag)}
           </Link>

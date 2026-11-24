@@ -52,7 +52,7 @@ export default async function ExpenseEventPage({ params }: { params: Promise<{ i
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <PageTitle>{detail.event.name}</PageTitle>
+          <PageTitle section="caisse">{detail.event.name}</PageTitle>
           {canManage && (
             <div className="flex min-w-0 flex-wrap items-center gap-x-3">
               <ActionLink href={`/caisse/${id}/edit`}>Modifier</ActionLink>

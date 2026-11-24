@@ -25,7 +25,7 @@ export default async function SantaHomePage() {
         ← Jeux
       </Link>
       <div className="mt-2">
-        <PageTitle>Secret Santa</PageTitle>
+        <PageTitle section="jeux">Secret Santa</PageTitle>
       </div>
       <p className="mt-2 text-sm text-muted">
         Tu listes les participants, membres du club ou pas, tu ajoutes tes règles (« ces deux-là ne se tirent pas »), et le CLHUB fait le tirage et envoie à

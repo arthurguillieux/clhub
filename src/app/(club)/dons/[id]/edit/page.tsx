@@ -31,7 +31,7 @@ export default async function EditListingPage({ params }: { params: Promise<{ id
         ← {listing.title}
       </Link>
       <div className="mt-2">
-        <PageTitle>Modifier {listing.title}</PageTitle>
+        <PageTitle section="dons">Modifier {listing.title}</PageTitle>
       </div>
       <Card className="mt-6 p-6">
         <EditListingForm listingId={listing.id} listing={listing} categories={categories} />

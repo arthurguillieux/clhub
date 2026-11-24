@@ -62,7 +62,7 @@ export default async function AgendaPage({
   return (
     <Container>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <PageTitle>L&apos;agenda en commun</PageTitle>
+        <PageTitle section="agenda">L&apos;agenda en commun</PageTitle>
         <LinkButton href="/agenda/new" variant="accent">
           + Ajouter un évènement
         </LinkButton>

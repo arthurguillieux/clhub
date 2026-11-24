@@ -28,7 +28,7 @@ export default async function EditClubEventPage({ params }: { params: Promise<{ 
         ← L&apos;agenda en commun
       </Link>
       <div className="mt-2">
-        <PageTitle>Modifier {event.title}</PageTitle>
+        <PageTitle section="agenda">Modifier {event.title}</PageTitle>
       </div>
       <Card className="mt-6 p-6">
         <EditClubEventForm eventId={event.id} event={event} />

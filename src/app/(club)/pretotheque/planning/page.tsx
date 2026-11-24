@@ -72,7 +72,7 @@ export default async function PlanningPage({
   return (
     <Container size="lg">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <PageTitle>Planning</PageTitle>
+        <PageTitle section="pretotheque">Planning</PageTitle>
         <div className="flex items-center gap-2 text-sm">
           <Link
             href={`/pretotheque/planning?start=${addDays(windowStart, -WINDOW_DAYS)}`}

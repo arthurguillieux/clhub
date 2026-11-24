@@ -31,7 +31,7 @@ export default async function DonsPage({
     <Container size="lg">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <PageTitle>Cabanes à dons</PageTitle>
+          <PageTitle section="dons">Cabanes à dons</PageTitle>
           <p className="mt-1 text-sm text-muted">Dons, troc et petites ventes entre membres.</p>
         </div>
         <LinkButton href="/dons/new" variant="accent">
@@ -40,16 +40,16 @@ export default async function DonsPage({
       </div>
 
       {categories.length > 0 && (
-        // Real vertical padding (not just a bigger invisible area): the links wrap onto several lines, and each needs its own thumb-sized row.
-        <div className="mt-1.5 flex flex-wrap gap-x-4 text-sm font-medium">
-          <Link href="/dons" className={`-mx-1 px-1 py-2.5 ${!category ? "text-primary" : "text-muted hover:text-ink"}`}>
+        // Pills, scrolling sideways on a phone rather than wrapping onto several lines.
+        <div className="mt-4 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 text-sm font-medium">
+          <Link href="/dons" className={`flex min-h-10 shrink-0 items-center rounded-full px-3.5 ${!category ? "bg-ink text-ground" : "border border-line text-muted hover:text-ink"}`}>
             Tout
           </Link>
           {categories.map((c) => (
             <Link
               key={c.id}
               href={`/dons?category=${c.id}`}
-              className={`-mx-1 px-1 py-2.5 ${category?.id === c.id ? "text-primary" : "text-muted hover:text-ink"}`}
+              className={`flex min-h-10 shrink-0 items-center rounded-full px-3.5 ${category?.id === c.id ? "bg-ink text-ground" : "border border-line text-muted hover:text-ink"}`}
             >
               {c.name}
             </Link>

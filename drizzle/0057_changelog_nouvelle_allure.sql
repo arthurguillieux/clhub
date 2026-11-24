@@ -1,0 +1,3 @@
+-- Custom SQL migration file, put your code below! -- -- "Nouveautés" entry for the club's new look (see 0029 for why entries go through migrations).
+INSERT INTO "changelog_entry" ("entry_date", "summary") VALUES
+('2026-11-24', 'Le CLHUB fait peau neuve, d''après le choix des admins. Sur téléphone, les sections sont en bas de l''écran, en icônes de couleur : Prêts, Repas, Agenda, Jeux, et « Tout » pour le reste. L''accueil commence par « Pour toi » (un objet à rendre, un repas où tu ne ramènes rien encore, une demande de prêt à valider, tes notifications), puis « Dans le club » : les nouveautés et ce que font les autres membres. Chaque section a sa couleur et son icône, et les filtres sont devenus des pastilles.');

@@ -24,7 +24,7 @@ export default async function PretothequePage({
   return (
     <Container size="lg">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <PageTitle>Prêtothèque</PageTitle>
+        <PageTitle section="pretotheque">Prêtothèque</PageTitle>
         <div className="flex items-center gap-3">
           <Link
             href="/pretotheque/etiquettes"
@@ -38,16 +38,17 @@ export default async function PretothequePage({
         </div>
       </div>
 
-      {/* Real vertical padding: the links wrap onto several lines, and each needs its own thumb-sized row. */}
-      <div className="mt-1.5 flex flex-wrap gap-x-4 text-sm font-medium">
-        <Link href="/pretotheque" className={`-mx-1 px-1 py-2.5 ${!category ? "text-primary" : "text-muted hover:text-ink"}`}>
+      {/* Pills, scrolling sideways on a phone rather than wrapping onto three lines. */}
+      <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 text-sm font-medium sm:mx-0 sm:flex-wrap sm:px-0">
+        <Link href="/pretotheque" aria-current={!category ? "page" : undefined} className={`flex min-h-10 shrink-0 items-center rounded-full px-3.5 ${!category ? "bg-ink text-ground" : "border border-line text-muted hover:text-ink"}`}>
           Tout
         </Link>
         {CATEGORIES.map((c) => (
           <Link
             key={c}
             href={`/pretotheque?category=${c}`}
-            className={`-mx-1 px-1 py-2.5 ${category === c ? "text-primary" : "text-muted hover:text-ink"}`}
+            aria-current={category === c ? "page" : undefined}
+            className={`flex min-h-10 shrink-0 items-center rounded-full px-3.5 ${category === c ? "bg-ink text-ground" : "border border-line text-muted hover:text-ink"}`}
           >
             {categoryLabel(c)}
           </Link>

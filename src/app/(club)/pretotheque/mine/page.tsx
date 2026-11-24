@@ -70,7 +70,7 @@ export default async function MyPretothequePage() {
 
   return (
     <Container size="lg">
-      <PageTitle>Mon activité</PageTitle>
+      <PageTitle section="pretotheque">Mon activité</PageTitle>
 
       <section className="mt-10">
         <SectionTitle>

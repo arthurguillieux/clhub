@@ -15,7 +15,7 @@ export default async function NewListingPage() {
 
   return (
     <Container size="sm">
-      <PageTitle>Proposer un objet</PageTitle>
+      <PageTitle section="dons">Proposer un objet</PageTitle>
       <p className="mt-2 text-sm text-muted">
         Un don, un troc ou une petite vente entre membres — visible de tous dans les Cabanes à
         dons.

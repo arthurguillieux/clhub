@@ -53,17 +53,18 @@ export default function JeuxPage() {
 
   return (
     <Container size="md">
-      <PageTitle>Jeux</PageTitle>
+      <PageTitle section="jeux">Jeux</PageTitle>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* Two by two on a phone: the name and its emoji read at a glance, the rest one tap away. */}
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4">
         {tools.map((tool) => (
           <Link key={tool.href} href={tool.href}>
-            <Card className="flex h-full flex-col gap-2 p-5 transition-colors hover:border-primary">
+            <Card className="flex h-full flex-col gap-2 p-4 transition-colors hover:border-[#ffcc29] sm:p-5">
               <span aria-hidden="true" className="text-3xl">
                 {tool.icon}
               </span>
-              <p className="font-display text-lg font-extrabold text-ink">{tool.name}</p>
-              <p className="text-sm text-muted">{tool.description}</p>
+              <p className="font-display text-base font-extrabold text-ink sm:text-lg">{tool.name}</p>
+              <p className="line-clamp-3 text-xs text-muted sm:text-sm">{tool.description}</p>
             </Card>
           </Link>
         ))}

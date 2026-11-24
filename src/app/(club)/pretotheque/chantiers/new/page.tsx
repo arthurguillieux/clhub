@@ -13,7 +13,7 @@ export default async function NewProjectPage() {
 
   return (
     <Container>
-      <PageTitle>Nouveau chantier</PageTitle>
+      <PageTitle section="pretotheque">Nouveau chantier</PageTitle>
       <p className="mt-2 text-sm text-muted">
         Un seul message, plusieurs objets — chaque propriétaire reçoit sa propre demande
         pour les mêmes dates, et tu suis l&apos;ensemble depuis « Mon activité ».

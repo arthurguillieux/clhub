@@ -14,7 +14,7 @@ export default async function RecherchesPage() {
 
   return (
     <Container>
-      <PageTitle>Recherches</PageTitle>
+      <PageTitle section="pretotheque">Recherches</PageTitle>
       <p className="mt-2 text-sm text-muted">
         Tu cherches un objet que personne n&apos;a encore mis au catalogue ? Poste une
         recherche — si plusieurs membres sont intéressés, ça vaut peut-être le coup de

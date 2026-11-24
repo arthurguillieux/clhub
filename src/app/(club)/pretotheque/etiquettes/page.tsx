@@ -23,7 +23,7 @@ export default async function EtiquettesPage() {
   return (
     <Container size="lg">
       <div className="print:hidden">
-        <PageTitle>Étiquettes</PageTitle>
+        <PageTitle section="pretotheque">Étiquettes</PageTitle>
         <p className="mt-2 text-sm text-muted">
           Une étiquette par objet du catalogue, prête à découper et coller. Le raccourci
           clavier d&apos;impression habituel (Ctrl/Cmd+P) fonctionne directement sur cette

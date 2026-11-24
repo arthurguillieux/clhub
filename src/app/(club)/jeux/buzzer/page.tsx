@@ -25,7 +25,7 @@ export default async function BuzzerPage() {
         ← Jeux
       </Link>
       <div className="mt-2">
-        <PageTitle>Buzzer</PageTitle>
+        <PageTitle section="jeux">Buzzer</PageTitle>
       </div>
       <p className="mt-2 text-sm text-muted">
         Un quizz, un blindtest, une soirée : chaque téléphone devient un buzzer.

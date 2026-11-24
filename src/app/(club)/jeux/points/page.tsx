@@ -10,7 +10,7 @@ export default function PointsPage() {
         ← Jeux
       </Link>
       <div className="mt-2">
-        <PageTitle>Compteur de points</PageTitle>
+        <PageTitle section="jeux">Compteur de points</PageTitle>
       </div>
       <div className="mt-8">
         <PointCounter />

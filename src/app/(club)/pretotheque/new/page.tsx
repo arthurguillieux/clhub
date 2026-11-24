@@ -10,7 +10,7 @@ export default async function NewItemPage() {
 
   return (
     <Container size="sm">
-      <PageTitle>Ajouter un objet</PageTitle>
+      <PageTitle section="pretotheque">Ajouter un objet</PageTitle>
       <Card className="mt-6 p-6">
         <NewItemForm />
       </Card>

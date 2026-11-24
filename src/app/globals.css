@@ -73,7 +73,7 @@
   --font-mono:
     ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
 
-  --radius-card: 14px;
+  --radius-card: 18px;
 }
 
 body {

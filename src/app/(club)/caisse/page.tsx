@@ -19,7 +19,7 @@ export default async function CaissePage() {
   return (
     <Container>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <PageTitle>Caisse commune</PageTitle>
+        <PageTitle section="caisse">Caisse commune</PageTitle>
         <LinkButton href="/caisse/new" variant="accent">
           + Nouvel évènement
         </LinkButton>

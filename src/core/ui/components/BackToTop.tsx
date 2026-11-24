@@ -24,7 +24,7 @@ export function BackToTop() {
       type="button"
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       aria-label="Haut de page"
-      className="glow-box-primary fixed right-4 bottom-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-primary/40 bg-surface-raised text-lg text-primary hover:bg-surface print:hidden sm:right-6 sm:bottom-6"
+      className="glow-box-primary fixed right-4 bottom-28 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-primary/40 bg-surface-raised text-lg text-primary hover:bg-surface print:hidden sm:right-6 md:bottom-6"
     >
       ↑
     </button>

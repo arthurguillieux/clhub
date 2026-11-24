@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { getSession } from "@/core/auth/session";
-import { listRecentActivity } from "@/core/activity";
+import { listRecentActivityWithActors, type ActivityWithActor } from "@/core/activity";
 import { listNotifications } from "@/core/notifications";
 import type { ActivityEntry, Notification } from "@/core/db/schema";
 import { Container } from "@/core/ui/components/Container";
-import { PageTitle, SectionTitle } from "@/core/ui/components/Heading";
+import { GroupLabel, PageTitle } from "@/core/ui/components/Heading";
+import { SectionTile } from "@/core/ui/components/SectionIcon";
 import { Card } from "@/core/ui/components/Card";
 import { categoryLabel } from "@/core/ui/categories";
-import { CLUB_SECTIONS } from "@/core/ui/sections";
+import { CLUB_SECTIONS, sectionById, sectionOfActivity, type SectionId } from "@/core/ui/sections";
+import { listBookingsByBorrower, listPendingRequestsForOwner } from "@/modules/pretotheque/data/bookings";
+import { listMealsFor } from "@/modules/repas/data/meals";
 import { formatFrench, type CalendarDate } from "@/core/date";
 import { getLatestChangelogDay } from "@/modules/changelog/data/entries";
 import { offerSentence } from "@/modules/lettre/domain/letter";
@@ -212,80 +215,77 @@ function describeNotification(n: Notification): string {
   }
 }
 
+const today = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", weekday: "long", day: "numeric", month: "long" });
+const shortDay = (iso: string) => new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${iso}T12:00:00Z`));
+
+/** One line of « Pour toi »: what needs you, its section's colour, one tap to it. */
+interface ForYou {
+  key: string;
+  section: SectionId | null;
+  text: React.ReactNode;
+  href: string | null;
+}
+
+/**
+ * Home, the admins' synthesis (24/11/2026): what needs you pinned on top, then the club's feed with
+ * the latest news in it; the sections are the shortcut bar at the bottom (on a computer, a row of tiles).
+ */
 export default async function HomePage() {
   const session = await getSession();
   if (!session) return null; // guarded by (club)/layout.tsx
+  const me = session.member.id;
 
-  const [activityEntries, notifications, latestChangelogDay] = await Promise.all([
-    listRecentActivity(20),
-    listNotifications(session.member.id, 20),
+  const [activityEntries, notifications, latestChangelogDay, borrowings, requests, meals] = await Promise.all([
+    listRecentActivityWithActors(20),
+    listNotifications(me, 20),
     getLatestChangelogDay(),
+    listBookingsByBorrower(me),
+    listPendingRequestsForOwner(me),
+    listMealsFor(me, false),
   ]);
-  const unreadNotifications = notifications.filter((n) => !n.readAt);
-  const readNotifications = notifications.filter((n) => n.readAt);
+  const unread = notifications.filter((n) => !n.readAt);
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const forYou: ForYou[] = [
+    ...borrowings
+      .filter((b) => b.status === "active")
+      .map((b) => ({ key: `b-${b.id}`, section: "pretotheque" as const, href: "/pretotheque/mine", text: <>{b.itemName} : <b>à rendre {b.endDate < todayIso ? "(en retard)" : `le ${shortDay(b.endDate)}`}</b></> })),
+    ...borrowings
+      .filter((b) => b.status === "approved" && b.startDate >= todayIso)
+      .slice(0, 2)
+      .map((b) => ({ key: `p-${b.id}`, section: "pretotheque" as const, href: "/pretotheque/mine", text: <>{b.itemName} : <b>à récupérer le {shortDay(b.startDate)}</b></> })),
+    ...requests.map((r) => ({ key: `r-${r.id}`, section: "pretotheque" as const, href: "/pretotheque/mine", text: <>{r.borrowerName} voudrait emprunter <b>{r.itemName}</b></> })),
+    ...meals
+      .filter((m) => m.upcoming && m.invited && m.myClaims === 0)
+      .slice(0, 3)
+      .map((m) => ({ key: `m-${m.id}`, section: "repas" as const, href: `/repas/${m.id}`, text: <>{m.title} ({shortDay(m.date)}) : <b>tu ne ramènes rien encore</b></> })),
+    ...unread.slice(0, 6).map((n) => ({ key: `n-${n.id}`, section: null, href: notificationHref(n), text: describeNotification(n) })),
+  ];
+  const olderNotifications = notifications.filter((n) => n.readAt);
   const recentActivity = activityEntries.slice(0, RECENT_ACTIVITY_SHOWN);
   const olderActivity = activityEntries.slice(RECENT_ACTIVITY_SHOWN);
 
   return (
     <Container>
-      <PageTitle>Salut {session.user.name} !</PageTitle>
+      <header className="flex flex-col gap-1">
+        <p className="text-sm text-muted first-letter:uppercase">{today.format(new Date())}</p>
+        <PageTitle>Salut {session.user.name} !</PageTitle>
+      </header>
 
-      <section className="mt-8">
-        <SectionTitle>Sections du club</SectionTitle>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {CLUB_SECTIONS.map((section) =>
-            section.live && section.href ? (
-              <Link key={section.name} href={section.href}>
-                <Card className="h-full p-5 transition-colors hover:border-primary">
-                  <p className="font-display font-bold text-ink">{section.name}</p>
-                  <p className="mt-1 text-sm text-muted">{section.description}</p>
-                </Card>
-              </Link>
-            ) : (
-              <Card key={section.name} className="h-full border-dashed p-5 opacity-60">
-                <div className="flex items-center gap-2">
-                  <p className="font-display font-bold text-ink">{section.name}</p>
-                  <span className="rounded-full border border-line-soft px-2 py-0.5 text-[10px] font-semibold tracking-wide text-muted uppercase">
-                    À venir
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-muted">{section.description}</p>
-              </Card>
-            ),
-          )}
-        </div>
-      </section>
-
-      {latestChangelogDay && (
-        <section className="mt-10">
-          <SectionTitle>Nouveautés</SectionTitle>
-          <Card className="mt-3 p-5">
-            <p className="text-xs font-semibold tracking-wide text-muted uppercase">
-              {formatFrench(latestChangelogDay.date as CalendarDate)}
-            </p>
-            <ul className="mt-2 flex flex-col gap-1.5 text-sm text-ink">
-              {latestChangelogDay.entries.map((entry) => (
-                <li key={entry} className="flex gap-2">
-                  <span className="text-primary">•</span>
-                  {entry}
-                </li>
-              ))}
-            </ul>
-          </Card>
-          <Link
-            href="/nouveautes"
-            className="inline-block py-2.5 text-sm font-medium text-muted hover:text-ink"
-          >
-            Voir les anciennes mises à jour →
+      {/* On a computer, the sections as tiles (on a phone, they're the shortcut bar at the bottom). */}
+      <nav aria-label="Les sections" className="mt-6 hidden grid-cols-7 gap-2 md:grid">
+        {CLUB_SECTIONS.filter((s) => s.live && s.href).map((s) => (
+          <Link key={s.id} href={s.href!} className="flex flex-col items-center gap-1.5 rounded-2xl p-2 text-center text-xs text-ink hover:bg-surface">
+            <SectionTile id={s.id} size={52} />
+            {s.short}
           </Link>
-        </section>
-      )}
+        ))}
+      </nav>
 
-      {/* What needs you comes first: unread notifications, with a way to clear them. Already-read ones fold away. */}
-      <section className="mt-10">
+      <section aria-label="Pour toi" className="mt-6 flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
-          <SectionTitle>Notifications</SectionTitle>
-          {unreadNotifications.length > 0 && (
+          <GroupLabel>Pour toi</GroupLabel>
+          {unread.length > 0 && (
             <form action={markAllNotificationsReadAction}>
               <button type="submit" className="-my-2.5 py-2.5 text-xs font-semibold text-primary hover:underline">
                 Tout marquer comme lu
@@ -293,42 +293,64 @@ export default async function HomePage() {
             </form>
           )}
         </div>
-        {unreadNotifications.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">Rien de nouveau.</p>
+        {forYou.length === 0 ? (
+          <p className="rounded-card border border-line-soft px-4 py-3 text-sm text-muted">Rien ne t&apos;attend : profite.</p>
         ) : (
-          <Card className="mt-3 divide-y divide-line-soft">
-            {unreadNotifications.map((n) => (
-              <NotificationRow key={n.id} notification={n} />
+          <ul className="flex flex-col gap-1.5">
+            {forYou.map((f) => (
+              <li key={f.key}>
+                <ForYouRow item={f} />
+              </li>
             ))}
-          </Card>
+          </ul>
         )}
-        {readNotifications.length > 0 && (
-          <FoldedList label={`Déjà lues (${readNotifications.length})`}>
-            {readNotifications.map((n) => (
+        {olderNotifications.length > 0 && (
+          <FoldedList label={`Notifications déjà lues (${olderNotifications.length})`}>
+            {olderNotifications.map((n) => (
               <NotificationRow key={n.id} notification={n} />
             ))}
           </FoldedList>
         )}
       </section>
 
-      {/* The latest few stay visible so the club feels alive; the rest is one tap away. */}
-      <section className="mt-10">
-        <SectionTitle>Activité du club</SectionTitle>
+      <section aria-label="Dans le club" className="mt-8 flex flex-col gap-2.5">
+        <GroupLabel>Dans le club</GroupLabel>
+        {latestChangelogDay && (
+          <Link href="/nouveautes" className="group flex flex-col gap-1.5 rounded-card border border-[#4a2d6b] bg-[#1a1424] p-4">
+            <span className="text-[11px] font-semibold tracking-[0.14em] text-[#d9a6ff] uppercase">Nouveau dans le CLHUB · {formatFrench(latestChangelogDay.date as CalendarDate)}</span>
+            <span className="line-clamp-4 text-sm leading-relaxed text-ink">{latestChangelogDay.entries[0]}</span>
+            <span className="text-sm font-semibold text-[#d9a6ff] group-hover:underline">
+              {latestChangelogDay.entries.length > 1 ? `Lire les ${latestChangelogDay.entries.length} nouveautés` : "Toutes les nouveautés"} ›
+            </span>
+          </Link>
+        )}
         {activityEntries.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">Rien pour l&apos;instant.</p>
+          <p className="text-sm text-muted">Rien pour l&apos;instant.</p>
         ) : (
           <>
-            <Card className="mt-3 divide-y divide-line-soft">
+            <ul className="flex flex-col gap-2">
               {recentActivity.map((a) => (
-                <ActivityRow key={a.id} entry={a} />
+                <li key={a.id}>
+                  <ActivityRow entry={a} />
+                </li>
               ))}
-            </Card>
+            </ul>
             {olderActivity.length > 0 && (
-              <FoldedList label={`Voir les ${olderActivity.length} autres`}>
-                {olderActivity.map((a) => (
-                  <ActivityRow key={a.id} entry={a} />
-                ))}
-              </FoldedList>
+              <details className="group">
+                <summary className="-mx-1 flex cursor-pointer list-none items-center gap-2 px-1 py-2.5 text-sm font-medium text-muted hover:text-ink [&::-webkit-details-marker]:hidden">
+                  <span aria-hidden="true" className="text-xs transition-transform group-open:rotate-90">
+                    ▸
+                  </span>
+                  Voir les {olderActivity.length} autres
+                </summary>
+                <ul className="flex flex-col gap-2">
+                  {olderActivity.map((a) => (
+                    <li key={a.id}>
+                      <ActivityRow entry={a} />
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
           </>
         )}
@@ -337,36 +359,82 @@ export default async function HomePage() {
   );
 }
 
-function NotificationRow({ notification: n }: { notification: Notification }) {
-  const href = notificationHref(n);
-  return (
-    <div className="flex items-start gap-3 px-4 py-3 text-sm">
-      {!n.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />}
-      <div className={n.readAt ? "pl-5" : ""}>
-        <p className={n.readAt ? "text-muted" : "text-ink"}>
-          {href ? (
-            <Link href={href} className="hover:underline">
-              {describeNotification(n)}
-            </Link>
-          ) : (
-            describeNotification(n)
-          )}
-        </p>
-        <p className="mt-0.5 text-xs text-muted">
-          <RelativeTime date={n.createdAt} />
-        </p>
-      </div>
+function ForYouRow({ item }: { item: ForYou }) {
+  const s = item.section ? sectionById(item.section) : null;
+  const body = (
+    <>
+      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s?.color ?? "var(--accent)" }} aria-hidden="true" />
+      <span className="min-w-0 flex-1">{item.text}</span>
+      {item.href && (
+        <span className="text-muted" aria-hidden="true">
+          ›
+        </span>
+      )}
+    </>
+  );
+  const cls = "flex min-h-12 items-center gap-3 rounded-2xl border px-3.5 py-2.5 text-sm text-ink";
+  const style = s ? { borderColor: `color-mix(in srgb, ${s.color} 35%, transparent)`, background: `color-mix(in srgb, ${s.color} 8%, var(--surface))` } : { borderColor: "var(--line)", background: "var(--surface)" };
+  return item.href ? (
+    <Link href={item.href} className={`${cls} hover:brightness-110`} style={style}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls} style={style}>
+      {body}
     </div>
   );
 }
 
-function ActivityRow({ entry: a }: { entry: ActivityEntry }) {
+function NotificationRow({ notification: n }: { notification: Notification }) {
+  const href = notificationHref(n);
   return (
     <div className="px-4 py-3 text-sm">
-      <p className="text-ink">{describeActivity(a)}</p>
-      <p className="mt-0.5 text-xs text-muted">
-        <RelativeTime date={a.createdAt} />
+      <p className="text-muted">
+        {href ? (
+          <Link href={href} className="hover:underline">
+            {describeNotification(n)}
+          </Link>
+        ) : (
+          describeNotification(n)
+        )}
       </p>
+      <p className="mt-0.5 text-xs text-muted">
+        <RelativeTime date={n.createdAt} />
+      </p>
+    </div>
+  );
+}
+
+const AVATAR_COLORS = ["#ffcc29", "#29e0ff", "#c04dff", "#ff7a29", "#baff29", "#ff3ec9", "#39ffb0"];
+const avatarColor = (name: string) => AVATAR_COLORS[[...name].reduce((n, c) => n + c.charCodeAt(0), 0) % AVATAR_COLORS.length]!;
+
+/** One entry of the club's feed: who, what, when, and which section (its colour). */
+function ActivityRow({ entry: a }: { entry: ActivityWithActor }) {
+  const s = sectionOfActivity(a.section);
+  const name = a.actorName ?? "Le club";
+  return (
+    <div className="flex items-center gap-3 rounded-card border border-line bg-surface px-3.5 py-3">
+      {a.actorImage ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a small avatar
+        <img src={a.actorImage} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+      ) : (
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-ground" style={{ background: avatarColor(name) }} aria-hidden="true">
+          {name.charAt(0).toUpperCase()}
+        </span>
+      )}
+      <span className="min-w-0 flex-1 text-sm">
+        <b className="text-ink">{name}</b>
+        <span className="block text-ink/90">{describeActivity(a)}</span>
+        <span className="text-xs text-muted">
+          <RelativeTime date={a.createdAt} />
+          {s && (
+            <>
+              {" · "}
+              <span style={{ color: s.color }}>{s.short}</span>
+            </>
+          )}
+        </span>
+      </span>
     </div>
   );
 }

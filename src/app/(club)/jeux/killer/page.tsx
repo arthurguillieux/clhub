@@ -35,7 +35,7 @@ export default async function KillerHomePage() {
         ← Jeux
       </Link>
       <div className="mt-2">
-        <PageTitle>Killer</PageTitle>
+        <PageTitle section="jeux">Killer</PageTitle>
       </div>
       <p className="mt-2 text-sm text-muted">
         Tu prépares la liste des agents et leurs missions, tu affiches l&apos;écran sur la TV, chacun scanne le QR code et
