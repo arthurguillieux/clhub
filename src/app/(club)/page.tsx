@@ -8,7 +8,7 @@ import { GroupLabel, PageTitle } from "@/core/ui/components/Heading";
 import { SectionTile } from "@/core/ui/components/SectionIcon";
 import { Card } from "@/core/ui/components/Card";
 import { categoryLabel } from "@/core/ui/categories";
-import { CLUB_SECTIONS, sectionById, sectionOfActivity, type SectionId } from "@/core/ui/sections";
+import { POLES, sectionById, sectionOfActivity, type SectionId } from "@/core/ui/sections";
 import { listBookingsByBorrower, listPendingRequestsForOwner } from "@/modules/pretotheque/data/bookings";
 import { listMealsFor } from "@/modules/repas/data/meals";
 import { formatFrench, type CalendarDate } from "@/core/date";
@@ -272,12 +272,12 @@ export default async function HomePage() {
         <PageTitle>Salut {session.user.name} !</PageTitle>
       </header>
 
-      {/* On a computer, the sections as tiles (on a phone, they're the shortcut bar at the bottom). */}
-      <nav aria-label="Les sections" className="mt-6 hidden grid-cols-7 gap-2 md:grid">
-        {CLUB_SECTIONS.filter((s) => s.live && s.href).map((s) => (
-          <Link key={s.id} href={s.href!} className="flex flex-col items-center gap-1.5 rounded-2xl p-2 text-center text-xs text-ink hover:bg-surface">
-            <SectionTile id={s.id} size={52} />
-            {s.short}
+      {/* On a computer, the five verbs as tiles (on a phone, they're the bar at the bottom). */}
+      <nav aria-label="Le club" className="mt-6 hidden grid-cols-5 gap-2 md:grid">
+        {POLES.map((p) => (
+          <Link key={p.id} href={p.href} className="flex flex-col items-center gap-1.5 rounded-2xl p-2 text-center text-sm text-ink hover:bg-surface">
+            <SectionTile id={p.id} size={56} />
+            {p.name}
           </Link>
         ))}
       </nav>

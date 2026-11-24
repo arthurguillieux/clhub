@@ -74,6 +74,13 @@ export function ProfileMenu({ user }: { user: HeaderUser }) {
           >
             Inviter
           </Link>
+          {/* On a phone, the bar at the bottom is the club's five verbs: the members and the news live here. */}
+          <Link href="/membres" onClick={() => setOpen(false)} className="block rounded-md px-3 py-2.5 text-sm text-ink hover:bg-surface">
+            Membres
+          </Link>
+          <Link href="/nouveautes" onClick={() => setOpen(false)} className="block rounded-md px-3 py-2.5 text-sm text-ink hover:bg-surface">
+            Nouveautés
+          </Link>
           <Link
             href={`/signaler?page=${encodeURIComponent(pathname)}`}
             onClick={() => setOpen(false)}

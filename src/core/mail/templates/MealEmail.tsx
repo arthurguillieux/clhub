@@ -4,7 +4,7 @@ export function MealEmail({ heading, lines, link, cta }: { heading: string; line
     <div style={{ fontFamily: "Helvetica, Arial, sans-serif", backgroundColor: "#f6ead7", padding: "32px" }}>
       <div style={{ maxWidth: "520px", margin: "0 auto", backgroundColor: "#ffffff", borderRadius: "10px", overflow: "hidden", border: "1px solid #ead8bb" }}>
         <div style={{ backgroundColor: "#2a1d12", padding: "20px 24px" }}>
-          <span style={{ color: "#ffc94a", fontSize: "18px", fontWeight: 700 }}>LE CLHUB · les repas</span>
+          <span style={{ color: "#ffc94a", fontSize: "18px", fontWeight: 700 }}>LE CLHUB · les potlucks</span>
         </div>
         <div style={{ padding: "24px" }}>
           <p style={{ fontSize: "18px", color: "#2a1d12", fontWeight: 700, margin: "0 0 12px" }}>{heading}</p>

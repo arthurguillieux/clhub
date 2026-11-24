@@ -21,8 +21,8 @@ export default async function BuzzerPage() {
 
   return (
     <Container size="sm">
-      <Link href="/jeux" className="text-sm font-medium text-muted hover:text-ink">
-        ← Jeux
+      <Link href="/jouer" className="text-sm font-medium text-muted hover:text-ink">
+        ← Jouer
       </Link>
       <div className="mt-2">
         <PageTitle section="jeux">Buzzer</PageTitle>

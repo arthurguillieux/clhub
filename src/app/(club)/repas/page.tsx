@@ -4,7 +4,7 @@ import { isAdminModeActive } from "@/core/auth/admin";
 import { getSession } from "@/core/auth/session";
 import { listMealsFor } from "@/modules/repas/data/meals";
 
-export const metadata: Metadata = { title: "Les repas du CLHUB" };
+export const metadata: Metadata = { title: "Les potlucks du CLHUB" };
 
 const frDate = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long" });
 type Meals = Awaited<ReturnType<typeof listMealsFor>>;
@@ -19,12 +19,12 @@ export default async function MealsPage() {
       <div className="relative mx-auto flex max-w-2xl flex-col gap-6 px-4 pt-8 pb-12 sm:px-6">
         <header className="flex flex-col gap-3">
           <p className="repas-label">Raclettes, barbecues, crêpes et apéros</p>
-          <h1 className="repas-title text-4xl sm:text-5xl">Les repas du CLHUB</h1>
+          <h1 className="repas-title text-4xl sm:text-5xl">Les potlucks du CLHUB</h1>
           <p className="repas-muted max-w-prose text-sm">
             Invite du monde (avec ou sans compte), dis ce qu&apos;il faut ramener, et chacun prend sa part. La calculette fait la liste de courses.
           </p>
           <Link href="/repas/nouveau" className="repas-btn self-start">
-            + Organiser un repas
+            + Organiser un potluck
           </Link>
         </header>
         <MealList title="À venir" meals={upcoming} empty="Rien au menu pour l'instant. Une raclette, peut-être ?" />

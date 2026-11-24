@@ -3,11 +3,11 @@ import { Client } from "pg";
 
 /** « Signaler un bug »: from the profile menu, the page already noted, the report sent. */
 test("a member reports a bug from the page they're on", async ({ page }) => {
-  await page.goto("/jeux");
+  await page.goto("/jouer");
   await page.getByRole("button", { expanded: false }).filter({ hasText: /e2e/i }).first().click();
   await page.getByRole("link", { name: "🐞 Signaler un bug" }).click();
-  await expect(page).toHaveURL(/\/signaler\?page=%2Fjeux$/);
-  await expect(page.getByLabel("La page concernée")).toHaveValue("/jeux");
+  await expect(page).toHaveURL(/\/signaler\?page=%2Fjouer$/);
+  await expect(page.getByLabel("La page concernée")).toHaveValue("/jouer");
   await page.getByLabel("Ce qui s'est passé").fill("Le bouton ne répond pas quand je touche « Lancer ».");
   await page.getByRole("button", { name: "Envoyer le signalement" }).click();
   await expect(page.getByText("Merci, c'est envoyé ✓")).toBeVisible();

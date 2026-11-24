@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { PlayerBuzzer } from "./PlayerBuzzer";
 
 export const metadata: Metadata = {
-  title: "Buzzer — LE CLHUB",
+  title: "Buzzer",
   robots: { index: false, follow: false },
 };
 

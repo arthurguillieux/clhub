@@ -9,7 +9,7 @@ import { BuzzerLogo } from "../../BuzzerLogo";
 import { HostScreen } from "./HostScreen";
 
 export const metadata: Metadata = {
-  title: "Buzzer (animateur) — LE CLHUB",
+  title: "Buzzer (animateur)",
   robots: { index: false, follow: false },
 };
 

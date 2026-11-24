@@ -15,7 +15,8 @@ const bricolage = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "LE CLHUB",
+  // Each page names itself; the tab reads « Prêtothèque · LE CLHUB ».
+  title: { default: "LE CLHUB", template: "%s · LE CLHUB" },
   description: "Le club, en ligne.",
   appleWebApp: {
     capable: true,

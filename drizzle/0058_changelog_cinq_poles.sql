@@ -1,0 +1,3 @@
+-- Custom SQL migration file, put your code below! -- -- "Nouveautés" entry for the club in five verbs (see 0029 for why entries go through migrations).
+INSERT INTO "changelog_entry" ("entry_date", "summary") VALUES
+('2026-11-24', 'Le CLHUB se range en cinq verbes, en bas de l''écran sur téléphone : Partager (la Prêtothèque et les Cabanes à dons), Manger (les potlucks, qui remplacent « les repas », et nos recettes), Se retrouver (l''agenda et la caisse), Jouer (Loups-garous, Killer, dés, compteur de points, buzzer) et Célébrer (le Secret Santa et la lettre au Père Noël). Chaque verbe a sa page, avec ses modules et un raccourci vers ce qu''on y fait le plus. Les Membres et les Nouveautés sont dans le menu de ton profil.');

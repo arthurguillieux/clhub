@@ -9,7 +9,7 @@ type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const view = await loadMeal({ id: (await params).id });
-  return { title: view ? `${view.title} · Les repas du CLHUB` : "Les repas du CLHUB" };
+  return { title: view ? view.title : "Les potlucks du CLHUB" };
 }
 
 export default async function MealPage({ params }: Props) {
@@ -19,7 +19,7 @@ export default async function MealPage({ params }: Props) {
     <main className="repas min-h-[calc(100dvh-4rem)]">
       <div className="relative mx-auto max-w-2xl">
         <Link href="/repas" className="repas-muted inline-flex min-h-11 items-center px-4 pt-3 text-sm sm:px-6">
-          ← Les repas du CLHUB
+          ← Les potlucks du CLHUB
         </Link>
         {view ? (
           <MealScreen mealRef={{ id }} initial={view} seed={jokeSeed(view.me?.id ?? id)} signedIn admin={await isAdminModeActive()} />

@@ -30,8 +30,8 @@ export default async function LoupsHomePage() {
 
   return (
     <div className="loups-poster mx-auto my-4 max-w-3xl px-5 py-7 sm:px-8">
-      <Link href="/jeux" className="loups-muted relative text-sm">
-        ← Jeux
+      <Link href="/jouer" className="loups-muted relative text-sm">
+        ← Jouer
       </Link>
       <p className="loups-label mt-4 pl-24 sm:pl-28">Une soirée jeux entre amis</p>
       <h1 className="loups-title text-5xl sm:text-6xl">Loups-garous</h1>

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { createTestMember } from "./helpers/db";
 
 /**
- * « Les repas du CLHUB » end to end: the organizer creates a raclette, the calculator makes the list,
+ * « Les potlucks du CLHUB » end to end: the organizer creates a raclette, the calculator makes the list,
  * a member and a friend without an account are invited; the friend opens the link, says who she is,
  * takes part of the cheese, changes her mind, gives it back, proposes an idea and removes it.
  */
@@ -13,8 +13,8 @@ test("repas: a raclette, the calculator, a guest without an account takes her pa
 
   await page.goto("/menus");
   await expect(page).toHaveURL(/\/repas$/);
-  await expect(page.getByRole("heading", { name: "Les repas du CLHUB" })).toBeVisible();
-  await page.getByRole("link", { name: "+ Organiser un repas" }).click();
+  await expect(page.getByRole("heading", { name: "Les potlucks du CLHUB" })).toBeVisible();
+  await page.getByRole("link", { name: "+ Organiser un potluck" }).click();
   await page.getByLabel("Le repas").fill(`Raclette ${stamp}`);
   await page.getByLabel("Le jour").fill(day);
   await page.getByLabel("Où").fill("Chez Marine");

@@ -10,7 +10,7 @@ type Props = { params: Promise<{ token: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const view = await loadMeal({ token: (await params).token });
   return {
-    title: view ? `${view.title} · tu es invité` : "Les repas du CLHUB",
+    title: view ? `${view.title} · tu es invité` : "Les potlucks du CLHUB",
     description: view ? `${view.organizerName} t'invite. Dis si tu viens et ce que tu ramènes.` : undefined,
     robots: { index: false, follow: false },
     referrer: "no-referrer",
@@ -25,7 +25,7 @@ export default async function MealInvitationPage({ params }: Props) {
   return (
     <main className="repas min-h-dvh">
       <div className="relative mx-auto max-w-2xl">
-        <p className="repas-label px-4 pt-5 sm:px-6">LE CLHUB · les repas</p>
+        <p className="repas-label px-4 pt-5 sm:px-6">LE CLHUB · les potlucks</p>
         {view ? (
           <MealScreen mealRef={{ token }} initial={view} seed={jokeSeed(view.me?.id ?? token)} signedIn={!!session} />
         ) : (

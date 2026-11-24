@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CLUB_SECTIONS } from "@/core/ui/sections";
+import { CLUB_SECTIONS, POLES } from "@/core/ui/sections";
 import { SectionTile } from "./SectionIcon";
 
 export function SectionsMenu() {
@@ -32,30 +32,23 @@ export function SectionsMenu() {
       </button>
 
       {open && (
-        <div className="absolute left-0 z-40 mt-2 w-64 rounded-2xl border border-line bg-surface-raised p-1.5 shadow-lg">
-          {CLUB_SECTIONS.map((section) =>
-            section.live && section.href ? (
-              <Link
-                key={section.name}
-                href={section.href}
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm text-ink hover:bg-surface"
-              >
-                <SectionTile id={section.id} size={32} />
-                {section.name}
+        <div className="absolute left-0 z-40 mt-2 w-72 rounded-2xl border border-line bg-surface-raised p-1.5 shadow-lg">
+          {/* The five verbs, each with its modules under it. */}
+          {POLES.map((pole) => (
+            <div key={pole.id} className="py-0.5">
+              <Link href={pole.href} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-semibold text-ink hover:bg-surface">
+                <SectionTile id={pole.id} size={32} />
+                {pole.name}
               </Link>
-            ) : (
-              <div
-                key={section.name}
-                className="flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm text-muted opacity-60"
-              >
-                <span>{section.name}</span>
-                <span className="rounded-full border border-line-soft px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase">
-                  À venir
-                </span>
+              <div className="flex flex-wrap gap-x-3 pb-1 pl-[3.25rem] text-xs">
+                {(pole.links ?? CLUB_SECTIONS.filter((s) => s.pole === pole.id && s.live && s.href).map((s) => ({ label: s.short, href: s.href! }))).map((l) => (
+                  <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="py-1 text-muted hover:text-ink">
+                    {l.label}
+                  </Link>
+                ))}
               </div>
-            ),
-          )}
+            </div>
+          ))}
         </div>
       )}
     </div>

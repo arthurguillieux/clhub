@@ -6,8 +6,8 @@ import { PointCounter } from "./PointCounter";
 export default function PointsPage() {
   return (
     <Container size="md">
-      <Link href="/jeux" className="text-sm font-medium text-muted hover:text-ink">
-        ← Jeux
+      <Link href="/jouer" className="text-sm font-medium text-muted hover:text-ink">
+        ← Jouer
       </Link>
       <div className="mt-2">
         <PageTitle section="jeux">Compteur de points</PageTitle>

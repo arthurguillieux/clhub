@@ -24,11 +24,11 @@ export default async function LetterHomePage() {
 
   return (
     <Container size="sm">
-      <Link href="/jeux" className="text-sm font-medium text-muted hover:text-ink">
-        ← Jeux
+      <Link href="/celebrer" className="text-sm font-medium text-muted hover:text-ink">
+        ← Célébrer
       </Link>
       <div className="mt-2">
-        <PageTitle section="jeux">Ma lettre au Père Noël</PageTitle>
+        <PageTitle section="lettre">Ma lettre au Père Noël</PageTitle>
       </div>
       <p className="mt-2 text-sm text-muted">
         La liste de Noël d&apos;un enfant, pour toute la famille. En haut, sa photo et les quelques lignes qu&apos;il a écrites ; en dessous, ses cadeaux. Tu envoies un seul
