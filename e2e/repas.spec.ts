@@ -15,10 +15,10 @@ test("repas: a raclette, the calculator, a guest without an account takes her pa
   await expect(page).toHaveURL(/\/repas$/);
   await expect(page.getByRole("heading", { name: "Les potlucks du CLHUB" })).toBeVisible();
   await page.getByRole("link", { name: "+ Organiser un potluck" }).click();
-  await page.getByLabel("Le repas").fill(`Raclette ${stamp}`);
+  await page.getByLabel("Le potluck").fill(`Raclette ${stamp}`);
   await page.getByLabel("Le jour").fill(day);
   await page.getByLabel("Où").fill("Chez Marine");
-  await page.getByRole("button", { name: "Créer le repas" }).click();
+  await page.getByRole("button", { name: "Créer le potluck" }).click();
   await expect(page).toHaveURL(/\/repas\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { name: `Raclette ${stamp}` })).toBeVisible();
 
@@ -47,7 +47,7 @@ test("repas: a raclette, the calculator, a guest without an account takes her pa
   await page.getByLabel("Des personnes sans compte").fill("Léa");
   await page.getByRole("button", { name: "Inviter 2 personnes" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: /^Léa/ })).toContainText("pas de réponse");
-  const link = await page.getByLabel("Le lien du repas").inputValue();
+  const link = await page.getByLabel("Le lien du potluck").inputValue();
   expect(link).toMatch(/\/repas\/invitation\/[\w-]+$/);
 
   // Léa, on her phone, without an account.

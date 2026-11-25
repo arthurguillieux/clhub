@@ -25,13 +25,15 @@ export default async function MealInvitationPage({ params }: Props) {
   return (
     <main className="repas min-h-dvh">
       <div className="relative mx-auto max-w-2xl">
-        <p className="repas-label px-4 pt-5 sm:px-6">LE CLHUB · les potlucks</p>
+        <p className="px-4 pt-5 font-display text-lg font-extrabold tracking-tight sm:px-6">
+          LE CL<span className="text-primary">HUB</span> <span className="repas-muted text-sm font-semibold">· les potlucks</span>
+        </p>
         {view ? (
           <MealScreen mealRef={{ token }} initial={view} seed={jokeSeed(view.me?.id ?? token)} signedIn={!!session} />
         ) : (
           <div className="repas-card m-4 p-6 text-center">
             <h1 className="repas-title text-2xl">Ce lien ne mène nulle part</h1>
-            <p className="repas-muted mt-2 text-sm">Le repas a peut-être été supprimé. Demande à la personne qui t&apos;a envoyé le lien.</p>
+            <p className="repas-muted mt-2 text-sm">Le potluck a peut-être été supprimé. Demande à la personne qui t&apos;a envoyé le lien.</p>
           </div>
         )}
       </div>

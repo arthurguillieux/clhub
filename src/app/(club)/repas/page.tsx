@@ -3,6 +3,8 @@ import Link from "next/link";
 import { isAdminModeActive } from "@/core/auth/admin";
 import { getSession } from "@/core/auth/session";
 import { listMealsFor } from "@/modules/repas/data/meals";
+import { Container } from "@/core/ui/components/Container";
+import { PageTitle } from "@/core/ui/components/Heading";
 
 export const metadata: Metadata = { title: "Les potlucks du CLHUB" };
 
@@ -15,13 +17,12 @@ export default async function MealsPage() {
   const upcoming = meals.filter((m) => m.upcoming);
   const past = meals.filter((m) => !m.upcoming);
   return (
-    <main className="repas min-h-[calc(100dvh-4rem)]">
-      <div className="relative mx-auto flex max-w-2xl flex-col gap-6 px-4 pt-8 pb-12 sm:px-6">
+    <Container>
+      <div className="repas flex flex-col gap-6">
         <header className="flex flex-col gap-3">
-          <p className="repas-label">Raclettes, barbecues, crêpes et apéros</p>
-          <h1 className="repas-title text-4xl sm:text-5xl">Les potlucks du CLHUB</h1>
+          <PageTitle section="repas">Les potlucks du CLHUB</PageTitle>
           <p className="repas-muted max-w-prose text-sm">
-            Invite du monde (avec ou sans compte), dis ce qu&apos;il faut ramener, et chacun prend sa part. La calculette fait la liste de courses.
+            Raclettes, barbecues, crêpes et apéros : invite du monde (avec ou sans compte), dis ce qu&apos;il faut ramener, et chacun prend sa part. La calculette fait la liste de courses.
           </p>
           <Link href="/repas/nouveau" className="repas-btn self-start">
             + Organiser un potluck
@@ -30,7 +31,7 @@ export default async function MealsPage() {
         <MealList title="À venir" meals={upcoming} empty="Rien au menu pour l'instant. Une raclette, peut-être ?" />
         {past.length > 0 && <MealList title="Déjà mangés" meals={past} past />}
       </div>
-    </main>
+    </Container>
   );
 }
 

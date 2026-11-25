@@ -5,14 +5,14 @@
  * et posé sur <html> par app/layout.tsx) : `dark` (le défaut, le CLHUB historique : noir +
  * néons), `light` (le même au grand jour) et `theme-auto` (suit le téléphone).
  *
- * Les sections qui ont leur propre direction artistique (potlucks, Secret Santa, lettre,
+ * Les sections qui ont leur propre direction artistique (Secret Santa, lettre,
  * Loups-garous, Killer, Antarctica, buzzer) restent telles quelles quel que soit le réglage : leurs
- * classes (.repas, .santa…) et `[data-own-theme]` (les mises en page de leurs écrans plein écran)
+ * classes (.santa, .loups…) et `[data-own-theme]` (les mises en page de leurs écrans plein écran)
  * reprennent les couleurs sombres ci-dessous, et la variante `dark:` de Tailwind y reste active,
  * comme avant.
  */
 @custom-variant dark {
-  &:where(.dark, .dark *, .repas, .repas *, .santa, .santa *, .loups, .loups *, .lettre, .lettre *, .scn, .scn *, .killer, .killer *, [data-own-theme], [data-own-theme] *) {
+  &:where(.dark, .dark *, .santa, .santa *, .loups, .loups *, .lettre, .lettre *, .scn, .scn *, .killer, .killer *, [data-own-theme], [data-own-theme] *) {
     @slot;
   }
   @media (prefers-color-scheme: dark) {
@@ -23,7 +23,7 @@
 }
 
 :root,
-.repas, .santa, .loups, .lettre, .scn, .killer, [data-own-theme],
+.santa, .loups, .lettre, .scn, .killer, [data-own-theme],
 :root:has([data-own-theme]) {
   color-scheme: dark;
 
@@ -2047,33 +2047,25 @@ body {
 }
 
 /*
- * « Les potlucks du CLHUB »: a bistro table. Dark wood, cream, melted-cheese yellow for what to do,
- * tomato for what's missing, herb green for what's covered, and a gingham tablecloth along the top.
- * Scoped to the section (`.repas`), on the club's page and on the link for guests without an account.
+ * « Les potlucks du CLHUB » — dressed like the rest of the club since 25/11/2026 (Arthur found the
+ * old bistro look too far from it): the club's colours, light or dark, the green of « Manger » for
+ * what to do, an orange for what's missing, a leaf green for what's covered. The `--r-*` names stay
+ * as the section's vocabulary, now pointing at the club's tokens. On the club's pages and on the
+ * link for guests without an account.
  */
 .repas {
-  --r-bg: #17110c;
-  --r-panel: #221912;
-  --r-raised: #2c2118;
-  --r-line: #3d2e21;
-  --r-ink: #f6ead7;
-  --r-muted: #b8a58c;
-  --r-cheese: #ffc94a;
-  --r-cheese-ink: #2a1d12;
-  --r-tomato: #ff7a59;
-  --r-herb: #8fd694;
+  --r-bg: var(--ground);
+  --r-panel: var(--surface);
+  --r-raised: var(--surface-raised);
+  --r-line: var(--line);
+  --r-ink: var(--ink);
+  --r-muted: var(--muted);
+  --r-cheese: var(--primary);
+  --r-cheese-ink: var(--primary-ink);
+  --r-tomato: var(--cat-bricolage);
+  --r-herb: var(--cat-jardinage);
   position: relative;
-  overflow: hidden;
   color: var(--r-ink);
-  background: var(--r-bg);
-}
-.repas::before {
-  content: "";
-  display: block;
-  height: 14px;
-  background:
-    repeating-linear-gradient(90deg, rgba(255, 122, 89, 0.85) 0 14px, transparent 14px 28px),
-    repeating-linear-gradient(0deg, rgba(255, 122, 89, 0.55) 0 7px, rgba(246, 234, 215, 0.9) 7px 14px);
 }
 .repas-title {
   font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
@@ -2082,18 +2074,18 @@ body {
   text-wrap: balance;
 }
 .repas-label {
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.75rem;
+  font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--r-cheese);
+  color: var(--r-muted);
 }
 .repas-muted {
   color: var(--r-muted);
 }
 .repas-card {
   border: 1px solid var(--r-line);
-  border-radius: 16px;
+  border-radius: var(--radius-card);
   background: var(--r-panel);
 }
 .repas-raised {
@@ -2109,9 +2101,10 @@ body {
   justify-content: center;
   gap: 0.4rem;
   min-height: 44px;
-  padding: 0 1rem;
-  border-radius: 12px;
-  font-weight: 700;
+  padding: 0 1.1rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
   text-align: center;
   transition:
     transform 0.12s ease,
@@ -2120,6 +2113,7 @@ body {
 .repas-btn {
   background: var(--r-cheese);
   color: var(--r-cheese-ink);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--primary) var(--glow-box), transparent);
 }
 .repas-ghost {
   border: 1px solid var(--r-line);
@@ -2141,14 +2135,14 @@ body {
   opacity: 0.45;
 }
 .repas :focus-visible {
-  outline: 2px solid var(--r-cheese);
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 .repas-field {
   min-height: 44px;
   border: 1px solid var(--r-line);
-  border-radius: 10px;
-  background: var(--r-bg);
+  border-radius: 8px;
+  background: var(--r-raised);
   color: var(--r-ink);
   padding: 0 0.75rem;
 }
@@ -2177,7 +2171,7 @@ body {
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 800;
-  color: var(--r-cheese-ink);
+  color: #16151d;
 }
 @keyframes repas-fall {
   from {

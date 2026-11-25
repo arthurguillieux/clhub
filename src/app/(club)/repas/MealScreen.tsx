@@ -106,7 +106,7 @@ function Header({ view }: { view: MealView }) {
         {view.time ? ` · ${view.time}` : ""}
         {view.place ? ` · ${view.place}` : ""}
       </p>
-      <h1 className="repas-title text-4xl sm:text-5xl">{view.title}</h1>
+      <h1 className="repas-title text-3xl tracking-tight sm:text-4xl">{view.title}</h1>
       {view.note && <p className="repas-muted max-w-prose text-sm whitespace-pre-line">{view.note}</p>}
       <div className="flex flex-wrap items-center gap-1.5" aria-label="Les invités">
         {view.guests.map((g) => (
@@ -141,7 +141,7 @@ function WhoAreYou({ view, busy, act, signedIn }: { view: MealView; busy: boolea
   return (
     <section className="repas-card flex flex-col gap-3 p-4">
       <p className="repas-title text-xl">Qui es-tu ?</p>
-      {signedIn && <p className="repas-muted text-sm">Si tu as un compte au CLHUB et que tu es invité, ouvre plutôt le repas depuis la section Repas.</p>}
+      {signedIn && <p className="repas-muted text-sm">Si tu as un compte au CLHUB et que tu es invité, ouvre plutôt le potluck depuis la section Potlucks.</p>}
       {free.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {free.map((g) => (

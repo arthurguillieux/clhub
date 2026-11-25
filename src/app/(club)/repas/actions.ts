@@ -44,7 +44,7 @@ const optText = (max: number) =>
     .optional()
     .transform((v) => (v ? v : null));
 const mealFields = {
-  title: z.string().trim().min(1, "Donne un nom à ce repas.").max(150),
+  title: z.string().trim().min(1, "Donne un nom à ce potluck.").max(150),
   date: isoDate,
   time: z
     .string()

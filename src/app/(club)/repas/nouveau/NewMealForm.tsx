@@ -13,7 +13,7 @@ export function NewMealForm({ suggested }: { suggested: string[] }) {
   return (
     <form action={action} className="repas-card flex flex-col gap-4 p-4">
       <label className="flex flex-col gap-1">
-        <span className="repas-label">Le repas</span>
+        <span className="repas-label">Le potluck</span>
         <input name="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={150} required placeholder="Soirée raclette" className="repas-field" />
       </label>
       {!title && (
@@ -60,7 +60,7 @@ export function NewMealForm({ suggested }: { suggested: string[] }) {
         Ouvert à tout le club (sinon : seulement ceux que tu invites)
       </label>
       <button type="submit" className="repas-btn self-start" disabled={pending}>
-        {pending ? "Un instant…" : "Créer le repas"}
+        {pending ? "Un instant…" : "Créer le potluck"}
       </button>
       {state.status === "error" && (
         <p role="alert" className="text-sm text-[var(--r-tomato)]">

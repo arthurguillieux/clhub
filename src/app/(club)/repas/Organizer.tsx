@@ -74,7 +74,7 @@ function Calculator({ view, busy, act }: { view: MealView; busy: boolean; act: A
         <p className="repas-title text-xl">La calculette</p>
         <p className="repas-muted text-sm">Choisis le repas et le nombre de convives : elle propose une base, à ajuster avant de l&apos;ajouter à la liste.</p>
       </div>
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Le repas">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Ce qu'on mange">
         {TEMPLATES.map((x) => (
           <button
             key={x.id}
@@ -230,7 +230,7 @@ function Guests({ view, busy, act }: { view: MealView; busy: boolean; act: Act }
           <label className="flex flex-col gap-1">
             <span className="repas-label">Des personnes sans compte</span>
             <input value={names} onChange={(e) => setNames(e.target.value)} placeholder="Léa, Karim…" className="repas-field" />
-            <span className="repas-muted text-xs">Sépare les prénoms par des virgules. Envoie-leur ensuite le lien du repas : ils choisiront leur prénom.</span>
+            <span className="repas-muted text-xs">Sépare les prénoms par des virgules. Envoie-leur ensuite le lien du potluck : ils choisiront leur prénom.</span>
           </label>
           <div className="flex flex-wrap gap-2">
             <button
@@ -262,10 +262,10 @@ function Guests({ view, busy, act }: { view: MealView; busy: boolean; act: Act }
       )}
 
       <div className="flex flex-col gap-1.5 border-t border-[var(--r-line)] pt-3">
-        <p className="repas-label">Le lien du repas</p>
+        <p className="repas-label">Le lien du potluck</p>
         <p className="repas-muted text-xs">Pour les invités sans compte : à envoyer par message. Pas besoin de compte pour l&apos;ouvrir.</p>
         <div className="flex gap-2">
-          <input readOnly value={view.link} aria-label="Le lien du repas" className="repas-field min-w-0 flex-1 text-xs" onFocus={(e) => e.target.select()} />
+          <input readOnly value={view.link} aria-label="Le lien du potluck" className="repas-field min-w-0 flex-1 text-xs" onFocus={(e) => e.target.select()} />
           <button type="button" className="repas-ghost shrink-0" onClick={() => void copy()}>
             {copied ? "Copié ✓" : "Copier le lien"}
           </button>
@@ -283,7 +283,7 @@ function Around({ view, busy, act, admin }: { view: MealView; busy: boolean; act
   const idle = view.guests.filter((g) => g.member && g.claims === 0 && g.status !== "no" && g.id !== view.me?.id).length;
   return (
     <div className="repas-card flex flex-col gap-3 p-4">
-      <p className="repas-title text-xl">Autour du repas</p>
+      <p className="repas-title text-xl">Autour du potluck</p>
       <div className="flex flex-col gap-1">
         <button type="button" className="repas-ghost self-start" disabled={busy || idle === 0} onClick={() => void act({ type: "nudge" })}>
           🔔 Relancer ceux qui n&apos;ont rien choisi
@@ -295,7 +295,7 @@ function Around({ view, busy, act, admin }: { view: MealView; busy: boolean; act
       <div className="flex flex-col gap-1">
         {view.caisseEventId ? (
           <Link href={`/caisse/${view.caisseEventId}`} className="repas-ghost self-start">
-            💶 Voir la Caisse du repas
+            💶 Voir la Caisse du potluck
           </Link>
         ) : (
           <button type="button" className="repas-ghost self-start" disabled={busy} onClick={() => void act({ type: "caisse" })}>
@@ -317,7 +317,7 @@ function Around({ view, busy, act, admin }: { view: MealView; busy: boolean; act
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="repas-field" required />
           </label>
           <button type="submit" className="repas-btn" disabled={busy || !date}>
-            Refaire ce repas
+            Refaire ce potluck
           </button>
           <button type="button" className="repas-ghost" onClick={() => setAgain(false)}>
             Annuler
@@ -326,7 +326,7 @@ function Around({ view, busy, act, admin }: { view: MealView; busy: boolean; act
         </form>
       ) : (
         <button type="button" className="repas-ghost self-start" onClick={() => setAgain(true)}>
-          🔁 Refaire ce repas
+          🔁 Refaire ce potluck
         </button>
       )}
       {admin &&
@@ -334,7 +334,7 @@ function Around({ view, busy, act, admin }: { view: MealView; busy: boolean; act
           <div className="repas-raised flex flex-wrap items-center gap-2 p-3 text-sm">
             <span className="flex-1">Supprimer « {view.title} », ses invités et sa liste ? C&apos;est définitif.</span>
             <button type="button" className="repas-danger" disabled={busy} onClick={() => void act({ type: "delete" })}>
-              Supprimer le repas
+              Supprimer le potluck
             </button>
             <button type="button" className="repas-ghost" onClick={() => setDeleting(false)}>
               Garder
@@ -342,7 +342,7 @@ function Around({ view, busy, act, admin }: { view: MealView; busy: boolean; act
           </div>
         ) : (
           <button type="button" className="repas-danger self-start text-sm" onClick={() => setDeleting(true)}>
-            Supprimer ce repas (admin)
+            Supprimer ce potluck (admin)
           </button>
         ))}
     </div>
@@ -367,7 +367,7 @@ function EditInfo({ view, busy, act }: { view: MealView; busy: boolean; act: Act
       }}
     >
       <label className="flex flex-col gap-1">
-        <span className="repas-label">Le repas</span>
+        <span className="repas-label">Le potluck</span>
         <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} maxLength={150} required className="repas-field" />
       </label>
       <div className="flex flex-wrap gap-2">

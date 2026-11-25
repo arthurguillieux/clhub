@@ -272,7 +272,7 @@ export async function inviteGuests(meal: MenuEvent, organizerName: string, input
       const [row] = await db.insert(mealGuest).values({ eventId: meal.id, memberId: p.id, name: p.name }).onConflictDoNothing().returning({ id: mealGuest.id });
       if (!row) continue;
       added.push(p.name);
-      await notify(meal, { id: p.id, email: p.email, prefs: p.prefs }, "meal.invited", `${organizerName} t'invite : ${meal.title}`, [`Le ${frDate(meal.eventDate)}${meal.time ? ` à ${meal.time}` : ""}${meal.place ? `, ${meal.place}` : ""}.`, "Dis si tu viens, et choisis ce que tu ramènes."], "Voir le repas");
+      await notify(meal, { id: p.id, email: p.email, prefs: p.prefs }, "meal.invited", `${organizerName} t'invite : ${meal.title}`, [`Le ${frDate(meal.eventDate)}${meal.time ? ` à ${meal.time}` : ""}${meal.place ? `, ${meal.place}` : ""}.`, "Dis si tu viens, et choisis ce que tu ramènes."], "Voir le potluck");
     }
   }
   for (const raw of input.names) {
@@ -442,7 +442,7 @@ export async function sendMealReminders(): Promise<number> {
       .where(eq(mealGuest.eventId, meal.id));
     for (const p of people.filter((x) => x.status !== "no")) {
       const mine = view.items.flatMap((i) => i.claims.filter((c) => c.guestId === p.guestId).map((c) => (c.amount && c.amount !== "tout" ? `${i.label} (${c.amount})` : i.label)));
-      await notify(meal, p, "meal.reminder", `Demain : ${meal.title}`, [mine.length ? `Tu ramènes : ${mine.join(", ")}.` : "Tu n'as encore rien choisi à ramener : il est encore temps."], "Voir le repas");
+      await notify(meal, p, "meal.reminder", `Demain : ${meal.title}`, [mine.length ? `Tu ramènes : ${mine.join(", ")}.` : "Tu n'as encore rien choisi à ramener : il est encore temps."], "Voir le potluck");
       sent += 1;
     }
     await db.update(menuEvent).set({ reminderSentAt: new Date() }).where(eq(menuEvent.id, meal.id));
