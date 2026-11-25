@@ -456,6 +456,13 @@
       "when": 1795557414519,
       "tag": "0064_changelog_mode_clair",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1795589441932,
+      "tag": "0065_changelog_caisse_supprimer",
+      "breakpoints": true
     }
   ]
 }

@@ -59,7 +59,7 @@ export default async function ExpenseEventPage({ params }: { params: Promise<{ i
           {canManage && (
             <div className="flex min-w-0 flex-wrap items-center gap-x-3">
               <ActionLink href={`/caisse/${id}/edit`}>Modifier</ActionLink>
-              {isAdmin && <DeleteEventButton eventId={id} name={detail.event.name} />}
+              <DeleteEventButton eventId={id} name={detail.event.name} />
             </div>
           )}
         </div>

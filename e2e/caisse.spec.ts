@@ -45,4 +45,11 @@ test("Tricount event: split math and settling matches the hand-computed example"
 
   await page.getByRole("button", { name: "Marquer réglé" }).click();
   await expect(page.getByText("Réglé")).toHaveCount(2);
+
+  // Its organiser can delete it (expenses and settlements included), no admin mode needed.
+  await page.getByRole("button", { name: "Supprimer", exact: true }).first().click();
+  await page.getByRole("button", { name: "Supprimer l'évènement" }).click();
+  await expect(page).toHaveURL(/\/caisse$/);
+  await expect(page.getByText("Évènement supprimé")).toBeVisible();
+  await expect(page.getByText("Camping E2E")).toHaveCount(0);
 });

@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/core/db/client";
 import {
+  menuEvent,
   expenseEvent,
   eventParticipant,
   expense,
@@ -188,6 +189,8 @@ export async function deleteExpenseEvent(eventId: string): Promise<void> {
     await tx.delete(expense).where(eq(expense.eventId, eventId));
     await tx.delete(eventParticipant).where(eq(eventParticipant.eventId, eventId));
     await tx.delete(expenseEvent).where(eq(expenseEvent.id, eventId));
+    // A potluck that opened this Caisse offers « Ouvrir la Caisse » again instead of a dead link.
+    await tx.update(menuEvent).set({ caisseEventId: null }).where(eq(menuEvent.caisseEventId, eventId));
   });
 }
 

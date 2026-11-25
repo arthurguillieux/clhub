@@ -95,10 +95,13 @@ export async function updateEventAction(
   redirect(`/caisse/${eventId}`);
 }
 
-/** Admin-mode only — same split as recipe/item/don/menu deletion. */
+/** Its organiser, or an admin in admin mode (same rule as « Modifier »). */
 export async function deleteEventAction(eventId: string): Promise<void> {
-  const isAdmin = await isAdminModeActive();
-  if (!isAdmin) return;
+  const session = await getSession();
+  if (!session) return;
+  const ownerId = await getEventOwnerId(eventId);
+  if (!ownerId) return;
+  if (ownerId !== session.member.id && !(await isAdminModeActive())) return;
 
   await deleteExpenseEvent(eventId);
   revalidatePath("/caisse");
