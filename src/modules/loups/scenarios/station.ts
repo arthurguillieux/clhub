@@ -55,7 +55,7 @@ export interface StationDoor {
 
 export const STATION_DOORS: StationDoor[] = [
   { id: "sas", letter: "Θ", x: 500, y: 640, v: false, side: "r", into: 1 },
-  { id: "dortoir", letter: "Δ", x: 340, y: 530, v: true, side: "l", into: -1 },
+  { id: "dortoir", letter: "Δ", x: 340, y: 600, v: true, side: "l", into: 1 },
   { id: "beta", letter: "Β", x: 500, y: 420, v: false, side: "r", into: -1 },
   { id: "alpha", letter: "Α", x: 660, y: 530, v: true, side: "r", into: 1 },
   { id: "archives", follows: "beta", letter: "Κ", x: 450, y: 220, v: true, side: "l", into: -1 },

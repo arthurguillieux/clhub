@@ -26,6 +26,18 @@ const night = (infect: string | null, victim: string | null, chosen = "blizzard"
   { t: "dawn" },
 ];
 
+describe("the morning's dead", () => {
+  it("stay secret from the room until the meneur reveals them", () => {
+    const dawn = run([...start, ...night(null, "p3")]);
+    expect(dawn.phase).toBe("day");
+    expect(dawn.announced).toEqual(["p3"]);
+    expect(dawn.revealed).toBe(false);
+    const shown = run([...start, ...night(null, "p3"), { t: "reveal" }]);
+    expect(shown.revealed).toBe(true);
+    expect(shown.log.at(-1)?.text).toBe("Révélé à la salle : Cléo.");
+  });
+});
+
 describe("the station before the game", () => {
   it("is piloted on its own, then loads the scenario, and the game starts in the base the scenario expects", () => {
     const base: Action[] = [{ t: "screen", mode: "plan" }, { t: "light", on: true }, { t: "door", door: "beta", open: true }, { t: "blizzard", on: true }, { t: "sound", slot: "son-vent" }];

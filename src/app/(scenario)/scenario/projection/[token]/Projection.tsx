@@ -275,6 +275,9 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           break;
         }
         case "dawn":
+          // The day breaks; the dead wait for the meneur's « Révéler » (suspense).
+          break;
+        case "reveal":
           setAnnounce(s.announced.map((id) => view.players.find((p) => p.id === id)?.name ?? "?"));
           later(() => {
             setAnnounce(null);
@@ -339,11 +342,18 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           }
           break;
         case "exile":
-          if (lockedNow) {
-            doGlitch();
+          // Who leaves the base, never which side they were on.
+          if (a.player) {
+            const who = view.players.find((p) => p.id === a.player);
             SFX.deny();
-            banner("PERTE DE CONFIANCE. CHEF DE MISSION ÉLIMINÉ SANS MOTIF. VERROUILLAGE GÉNÉRAL.", "bad");
+            banner(`SUJET ${String(who?.room ?? 0).padStart(2, "0")} · ${(who?.name ?? "?").toUpperCase()} : EXILÉ`, "bad");
           }
+          if (lockedNow)
+            later(() => {
+              doGlitch();
+              SFX.deny();
+              banner("PERTE DE CONFIANCE. CHEF DE MISSION ÉLIMINÉ SANS MOTIF. VERROUILLAGE GÉNÉRAL.", "bad");
+            }, 2600);
           break;
         case "reset": {
           // « Redémarrer la station »: a glitch, the reboot sound (or a beep), and the words.
@@ -409,7 +419,9 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   // Zoom on the terminal's place on the station's plan (by the room the scenario puts it in), or the electrical box.
   const zoom = term ? (SPOTS[term.room] ?? term.hot) : s.circuitShown ? SPOTS.circuit! : null;
   const event = view.events.find((e) => e.id === s.event) ?? null;
-  const aliveCount = view.players.filter((p) => p.status === "alive").length;
+  // Until the meneur reveals them, the night's dead still look alive on the room's screen.
+  const shownPlayers = s.revealed ? view.players : view.players.map((p) => (s.announced.includes(p.id) ? { ...p, status: "alive" as const } : p));
+  const aliveCount = shownPlayers.filter((p) => p.status === "alive").length;
 
   return (
     <div className="pj" onMouseMove={() => document.body.dataset.cursor !== "on" && (document.body.dataset.cursor = "on")}>
@@ -450,7 +462,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
             )}
             <div className="pj-mapbox" style={zoom ? { transformOrigin: `${(zoom.x / STATION_W) * 100}% ${(zoom.y / STATION_H) * 100}%`, transform: "scale(2.6)", filter: "blur(3px) brightness(.45)" } : undefined}>
               <Plan
-                players={view.players}
+                players={shownPlayers}
                 sealed={s.sealed}
                 light={s.light}
                 doors={s.doors}
@@ -512,7 +524,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
                 </div>
               </div>
             )}
-            {event && s.phase === "day" && !announce && (
+            {event && s.phase === "day" && s.revealed && !announce && (
               // Big for a moment after dawn, then a small reminder at the top; never over a terminal or the box.
               <div className={`absolute left-1/2 z-[9] -translate-x-1/2 border border-[var(--scn-ice-dim)] bg-[rgba(5,8,12,.88)] text-center transition-all ${eventBig && !term && !s.circuitShown ? "top-[35%] px-[3%] py-[2%]" : "top-[8.5%] px-[1.5%] py-[0.4%]"}`}>
                 <p className={`tracking-[0.2em] ${eventBig && !term && !s.circuitShown ? "text-[5cqw]" : "text-[1.6cqw]"}`}>{event.name.toUpperCase()}</p>

@@ -101,7 +101,7 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
   await tap("Joueur11 · ch. 11");
   await tap(/Lancer le vote · 120 s/);
   await expect(screen.getByText("IDENTIFICATION DU CHEF DE MISSION REQUISE")).toBeVisible();
-  await expect(screen.getByText("JOUEUR11")).toBeVisible();
+  await expect(screen.getByText("JOUEUR11", { exact: true }).last()).toBeVisible();
   await page.getByRole("button", { name: "Joueur10 · ch. 10", exact: true }).click();
   await expect(screen.getByText(/CHEF DE MISSION : JOUEUR10\. IDENTIFICATION ENREGISTRÉE\./)).toBeVisible();
   await bar.getByRole("button", { name: /Texte/ }).click();
@@ -128,6 +128,10 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
   await page.getByLabel("Victime").selectOption({ label: "Joueur04 · ch. 4" });
   await tap("Noter la victime");
   await tap("☀️ Le jour se lève");
+  // The dead wait for the meneur: suspense first, then « Révéler ».
+  await expect(page.getByText("La salle ne le sait pas encore.")).toBeVisible();
+  await expect(screen.getByText("CETTE NUIT, SIGNAL PERDU :")).toHaveCount(0);
+  await tap("Révéler le mort de la nuit");
   await expect(screen.getByText("CETTE NUIT, SIGNAL PERDU :")).toBeVisible();
 
   // Day 1: the two doors of the plan, the vote by moving, the airlock and its pistol.
@@ -148,6 +152,8 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
   // The healthy chief exiled: everything locks.
   await page.getByLabel("Exilé par le vote").selectOption({ label: "Joueur10 · ch. 10" });
   await tap("Exiler");
+  await expect(screen.getByText("SUJET 10 · JOUEUR10 : EXILÉ")).toBeVisible();
+  await expect(page.getByText(/est exilé/)).toBeVisible();
   await expect(screen.getByText(/PERTE DE CONFIANCE\. CHEF DE MISSION ÉLIMINÉ SANS MOTIF\. VERROUILLAGE GÉNÉRAL\./)).toBeVisible();
   await expect(page.getByText("VERROUILLÉS", { exact: true })).toBeVisible();
 
@@ -246,7 +252,7 @@ test("antarctica: the meneur keeps control — faults off, Stop, black screen, b
   await expect(page.getByText("Boucle 1 · Jour 3").first()).toBeVisible();
   const bar = page.getByRole("navigation", { name: "Commandes" });
   await bar.getByRole("button", { name: /Écran/ }).click();
-  await expect(page.getByRole("link", { name: "Ouvrir la projection ↗" })).toBeVisible();
+  await expect(page.getByText("QR code de la projection (autre appareil)")).toBeVisible();
   await page.getByRole("button", { name: "Fermer la fiche" }).click();
 
   await page.locator("summary", { hasText: /^FAILLES/ }).click();

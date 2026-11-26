@@ -68,6 +68,8 @@ export type Action =
   | { t: "deadChoose"; event: string | null }
   | { t: "skip"; step: NightStepId }
   | { t: "dawn" }
+  // The meneur's moment: the night's dead appear on the room's screen only when they choose (suspense).
+  | { t: "reveal" }
   | { t: "exile"; player: string | null }
   | { t: "kill"; player: string }
   | { t: "revive"; player: string }
@@ -233,6 +235,8 @@ export interface State {
   eventsPlayed: string[];
   /** Deaths announced this morning, for the projection. */
   announced: string[];
+  /** Whether this morning's dead (and the day's event) have been revealed to the room yet. */
+  revealed: boolean;
   lastExile: { player: string; chief: boolean; healthy: boolean } | null;
   faults: { id: string; at: string }[];
   /** The loops gone by: who died or was exiled, and when (for SUJETS.DAT). */
@@ -297,6 +301,7 @@ export function initialState(def: ScenarioDef, setup: Setup): State {
     event: null,
     eventsPlayed: [],
     announced: [],
+    revealed: true,
     lastExile: null,
     faults: [],
     past: [],
@@ -667,6 +672,8 @@ function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: 
       return s.phase === "night" ? { ...s, vote: null, timer: null, tonight: { ...s.tonight, chosen: a.event, done: [...new Set([...s.tonight.done, "dead" as const])] } } : s;
     case "skip":
       return s.phase === "night" ? { ...s, tonight: { ...s.tonight, done: [...new Set([...s.tonight.done, a.step])] } } : s;
+    case "reveal":
+      return s.phase === "day" && !s.revealed ? { ...s, revealed: true, log: log(s.announced.length ? `Révélé à la salle : ${s.announced.map((id) => nameOf(s, id)).join(", ")}.` : "Révélé à la salle : aucun mort cette nuit.") } : s;
     case "dawn": {
       if (s.phase !== "night") return s;
       const n = s.tonight;
@@ -714,6 +721,7 @@ function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: 
         event: event?.id ?? null,
         eventsPlayed: event ? [...s.eventsPlayed, event.id] : s.eventsPlayed,
         announced: deaths,
+        revealed: false,
         blizzard: event?.effect === "blizzard",
         aurora: event?.effect === "aurora",
         dark: event?.effect === "dark",

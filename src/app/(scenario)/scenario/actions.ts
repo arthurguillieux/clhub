@@ -178,6 +178,7 @@ const actionSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("deadChoose"), event: id.nullable() }),
   z.object({ t: z.literal("skip"), step: z.enum(["pz", "handover", "panic", "tapes", "infect", "victim", "items", "dead"]) }),
   z.object({ t: z.literal("dawn") }),
+  z.object({ t: z.literal("reveal") }),
   z.object({ t: z.literal("exile"), player: player.nullable() }),
   z.object({ t: z.literal("kill"), player }),
   z.object({ t: z.literal("revive"), player }),

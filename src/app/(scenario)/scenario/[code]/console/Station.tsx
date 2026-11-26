@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { LOADING_MS, momentOf, protocolOf } from "@/modules/loups/scenarios/engine";
 import type { ConsoleView } from "@/modules/loups/scenarios/data";
 import type { PublicScenario } from "@/modules/loups/scenarios/types";
@@ -131,9 +131,15 @@ export function StationFace({ def, view, busy, act, onSheet, sheet }: Props & { 
                       <text x={x + 8} y={y + h * 0.72} fontSize={Math.min(20, h * 0.75)} fill={gone ? "#ff6b6b" : "#8fa6b6"} className="scn-vt">
                         {String(n).padStart(2, "0")}
                       </text>
-                      <text x={x + 36} y={y + h * 0.72} fontSize={Math.min(17, h * 0.62)} fill={gone ? "#ff6b6b" : "#e6f2fa"} textDecoration={gone ? "line-through" : undefined}>
+                      <text x={x + 36} y={y + h * 0.72} fontSize={Math.min(17, h * 0.62)} fill={gone ? "#ff6b6b" : "#e6f2fa"}>
                         {(p?.name ?? (s.sealed[n] ? "scellée" : "")).slice(0, 12)}
                       </text>
+                      {gone && (
+                        <g stroke="#d0181c" strokeWidth={2.5}>
+                          <line x1={x + 2} y1={y + 2} x2={x + w - 2} y2={y + h - 2} />
+                          <line x1={x + w - 2} y1={y + 2} x2={x + 2} y2={y + h - 2} />
+                        </g>
+                      )}
                     </g>
                   );
                 })}
@@ -385,9 +391,14 @@ export function ZoneSheet({ def, view, busy, act, id, onClose, onRoom }: Props &
                 type="button"
                 aria-label={`Chambre ${n}${p ? `, ${p.name}${gone ? (p.status === "dead" ? ", mort" : ", exilé") : ""}` : ", libre"}`}
                 onClick={() => onRoom(n)}
-                className="flex min-h-12 flex-col items-center justify-center overflow-hidden rounded-lg border px-1"
-                style={{ borderColor: s.sealed[n] ? "#6b1f22" : "#1f3a4b", background: "#0f1a22", opacity: p || s.sealed[n] ? 1 : 0.55 }}
+                className="relative flex min-h-12 flex-col items-center justify-center overflow-hidden rounded-lg border px-1"
+                style={{ borderColor: gone || s.sealed[n] ? "#6b1f22" : "#1f3a4b", background: gone ? "#1a0709" : "#0f1a22", opacity: p || s.sealed[n] ? 1 : 0.55 }}
               >
+                {gone && (
+                  <svg aria-hidden className="pointer-events-none absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 10 10">
+                    <path d="M0 0L10 10M10 0L0 10" stroke="#d0181c" strokeWidth="0.6" />
+                  </svg>
+                )}
                 <span className="scn-vt text-lg leading-none" style={{ color: gone ? "#ff6b6b" : "#e6f2fa" }}>
                   {String(n).padStart(2, "0")}
                 </span>
@@ -415,8 +426,8 @@ export function RoomSheet({ view, busy, act, room, onClose }: Props & { room: nu
       {p && live && (
         <Rows label="SUJET">
           <button type="button" className={`scn-btn ${p.status === "alive" ? "scn-btn-danger" : "scn-btn-on"}`} disabled={busy} onClick={() => void act(p.status === "alive" ? { t: "kill", player: p.id } : { t: "revive", player: p.id })}>
-            {p.status === "alive" ? "Noter mort" : "Remettre vivant"}
-            <small>correction du meneur</small>
+            {p.status === "alive" ? "Tuer" : "Remettre vivant"}
+            <small>{p.status === "alive" ? "une croix rouge sur sa chambre" : "correction du meneur"}</small>
           </button>
         </Rows>
       )}
@@ -585,16 +596,10 @@ export function GlobalSheet({ def, view, busy, act, onClose }: Props & { onClose
 }
 
 /** The room's screen: what it shows, and the projection itself (its link, its QR code, its state). */
-export function ScreenSheet({ def, view, busy, act, qrSvg, code, onClose }: Props & { qrSvg: string; code: string; onClose: () => void }) {
+export function ScreenSheet({ view, busy, act, qrSvg, onClose }: Props & { qrSvg: string; code: string; onClose: () => void }) {
   const s = view.state;
   const p = view.projection;
   const before = s.phase === "welcome";
-  // Inside the side-by-side rehearsal, the link to it is pointless.
-  const inFrame = useSyncExternalStore(
-    () => () => undefined,
-    () => window.self !== window.top,
-    () => false,
-  );
   const choice = (on: boolean, label: string, sub: string, action: Parameters<Act>[0]) => (
     <button type="button" className={`scn-btn ${on ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act(action)}>
       {label}
@@ -624,29 +629,12 @@ export function ScreenSheet({ def, view, busy, act, qrSvg, code, onClose }: Prop
         </span>
         <span className={`scn-chip ${p.mic ? "scn-chip-ok" : ""}`}>{p.mic ? "Micro prêt" : "Pas de micro"}</span>
       </div>
-      <p className="text-xs text-[var(--scn-muted)]">Ouvre ce lien sur l&apos;ordinateur branché au vidéoprojecteur : il y choisit son dossier de médias, autorise le micro et passe en plein écran.</p>
-      <input readOnly value={view.link} onFocus={(e) => e.target.select()} aria-label="Lien de la projection" className="scn-field text-xs" data-projection-link={view.link} />
-      <div className="grid grid-cols-2 gap-1.5">
-        <a href={view.link} target="_blank" rel="noopener noreferrer" className="scn-btn flex items-center justify-center">
-          Ouvrir la projection ↗
-        </a>
-        {!inFrame && (
-          <a href={`/scenario/${code}/repetition`} className="scn-btn flex flex-col items-center justify-center">
-            Vue côte à côte<small>téléphone + écran</small>
-          </a>
-        )}
-      </div>
-      <div className="mx-auto w-44 rounded-xl bg-white p-2" aria-label="QR code de la projection" dangerouslySetInnerHTML={{ __html: qrSvg }} />
+      {/* Opening the projection, the side-by-side view and the expected files live on the CLHUB's scenarios page,
+          before choosing phone or projection. Here, only a QR code, folded, for another device in a pinch. */}
       <details className="text-xs">
-        <summary className="cursor-pointer py-2 text-[var(--scn-muted)]">Les fichiers attendus dans le dossier ({def.media.length})</summary>
-        <p className="mb-1 text-[var(--scn-muted)]">Seul le nom compte : sons en .mp3, .aac, .m4a, .ogg ou .wav ; vidéos en .mp4, .webm ou .mov ; images en .jpg ou .png.</p>
-        <ul className="flex flex-col gap-0.5">
-          {def.media.map((m) => (
-            <li key={m.id}>
-              <code className="text-[var(--scn-amber)]">{m.file.replace(/\.[^.]+$/, "")}</code> — {m.label}
-            </li>
-          ))}
-        </ul>
+        <summary className="cursor-pointer py-2 text-[var(--scn-muted)]">QR code de la projection (autre appareil)</summary>
+        <div className="mx-auto mt-1 w-44 rounded-xl bg-white p-2" aria-label="QR code de la projection" dangerouslySetInnerHTML={{ __html: qrSvg }} />
+        <input readOnly value={view.link} onFocus={(e) => e.target.select()} aria-label="Lien de la projection" className="scn-field mt-2 w-full text-xs" />
       </details>
     </SheetFrame>
   );

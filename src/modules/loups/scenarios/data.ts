@@ -203,7 +203,7 @@ async function currentState(g: ScenarioGame, def: ScenarioDef): Promise<State> {
 }
 
 /** The game's own moves wait for « Lancer la partie »; before it, the station is piloted on its own. */
-const GAME_ONLY = new Set<Action["t"]>(["start", "arrive", "patientZero", "night", "panic", "tapes", "infect", "victim", "useItem", "giveItem", "propose", "deadChoose", "skip", "dawn", "exile", "setInfected", "endLoop", "reboot", "goodEnd", "badEnd", "vote", "voteResult", "dayAction", "labForce", "chief", "chiefConfirm", "shoot", "bloodTest", "radio", "quarantine", "confinement", "flag", "jump", "kill", "revive", "fault"]);
+const GAME_ONLY = new Set<Action["t"]>(["start", "reveal", "arrive", "patientZero", "night", "panic", "tapes", "infect", "victim", "useItem", "giveItem", "propose", "deadChoose", "skip", "dawn", "exile", "setInfected", "endLoop", "reboot", "goodEnd", "badEnd", "vote", "voteResult", "dayAction", "labForce", "chief", "chiefConfirm", "shoot", "bloodTest", "radio", "quarantine", "confinement", "flag", "jump", "kill", "revive", "fault"]);
 
 export async function act(g: ScenarioGame, action: Action): Promise<Result> {
   if (g.status === "done") return fail("La soirée est terminée.");

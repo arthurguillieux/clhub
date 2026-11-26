@@ -6,7 +6,7 @@ import { actionAvailable, alive, contagionActive, dawnDeaths, doorProposals, fla
 import type { ConsoleView } from "@/modules/loups/scenarios/data";
 import type { PublicScenario } from "@/modules/loups/scenarios/types";
 import { consoleAction, deleteEveningAction, replayEveningAction } from "../../actions";
-import type { Act } from "./controls";
+import { TimerControls, type Act } from "./controls";
 import { Prep } from "./Prep";
 import { GlobalSheet, ProtocolStrip, RoomSheet, ScreenSheet, StationFace, ZoneSheet, screenLabel, useProtocol, type Sheet } from "./Station";
 import { FaultHint, Reader } from "./Reader";
@@ -115,6 +115,10 @@ export function Console({
           {view.status === "setup" && <Protocol code={code} def={def} view={view} members={members} busy={busy} send={send} act={act} protocol={protocol} progress={progress} />}
           {live && (
             <>
+              <button type="button" className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[#1f3a4b] bg-[#0c141b] px-3 text-left text-[0.8rem]" onClick={() => setSheet({ kind: "global" })}>
+                <span className="text-[var(--scn-muted)]">Lumière, sons, effets, minuteur, intrusion</span>
+                <span className="font-bold whitespace-nowrap text-[var(--scn-ice)]">Toute la base ›</span>
+              </button>
               <PhaseSection def={def} view={view} busy={busy} act={act} send={send} />
               <Powers def={def} view={view} busy={busy} act={act} />
               <Chief def={def} view={view} busy={busy} act={act} />
@@ -624,8 +628,16 @@ function DayPlan({ def, view, busy, act, onGood }: Props & { onGood: () => void 
     <div className="flex flex-col gap-2">
       <p className="text-sm">
         1. Au réveil : {s.announced.length ? <b className="text-[var(--scn-bad)]">{s.announced.map((id) => nameIn(s, id)).join(", ")}</b> : "personne n'est mort"}.
+        {!s.revealed && <span className="text-[var(--scn-muted)]"> La salle ne le sait pas encore.</span>}
       </p>
-      {s.event && <DayEvent def={def} view={view} busy={busy} act={act} />}
+      {!s.revealed ? (
+        <button type="button" className="scn-btn scn-btn-danger min-h-14" disabled={busy} onClick={() => void act({ t: "reveal" })}>
+          {s.announced.length > 1 ? "Révéler les morts de la nuit" : s.announced.length ? "Révéler le mort de la nuit" : "Révéler : aucun mort cette nuit"}
+          <small>quand le suspense est à point ; l&apos;événement du jour s&apos;affiche ensuite</small>
+        </button>
+      ) : (
+        s.event && <DayEvent def={def} view={view} busy={busy} act={act} />
+      )}
       {final ? (
         <button type="button" className="scn-btn scn-btn-danger" disabled={busy} onClick={onGood}>
           3. Le village vote contre le meneur
@@ -667,10 +679,23 @@ function DayPlan({ def, view, busy, act, onGood }: Props & { onGood: () => void 
           ))}
         </div>
       )}
-      <button type="button" className="scn-btn" disabled={busy || !!s.timer} onClick={() => void act({ t: "timer", which: "main", cmd: "start", seconds: 300, label: "Débat" })}>
-        5. Débat · 5 min
-      </button>
+      {s.timer ? (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">5. {(s.timer.label || "MINUTEUR").toUpperCase()}</span>
+          <TimerControls which="main" timer={s.timer} busy={busy} act={act} />
+        </div>
+      ) : (
+        <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "timer", which: "main", cmd: "start", seconds: 300, label: "Débat" })}>
+          5. Débat · 5 min
+        </button>
+      )}
       <p className="text-xs text-[var(--scn-muted)]">6. L&apos;exil.{s.chief ? ` La voix de ${nameIn(s, s.chief)} (chef) compte double.` : ""}</p>
+      {s.lastExile && (
+        <p className="rounded-lg border border-[var(--scn-bad)] px-3 py-2 text-sm">
+          <b className="text-[var(--scn-bad)]">✕ {nameIn(s, s.lastExile.player)}</b> est exilé
+          <span className="text-[var(--scn-muted)]"> ({s.lastExile.healthy ? "il était sain" : "il était contaminé"} ; la salle voit seulement « exilé »)</span>.
+        </p>
+      )}
       <PlayerSelect players={living} value={choice} onChange={setChoice} label="Exilé par le vote" none="Le village exile…" />
       <Row>
         <button

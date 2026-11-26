@@ -74,6 +74,25 @@ export default async function ScenariosPage() {
                         </LinkButton>
                       </div>
                       <p className="text-xs text-muted">Sur le téléphone : « Piloter la station ». Sur l&apos;ordinateur branché au vidéoprojecteur : « Ouvrir sa projection ». Les deux parlent à la même station.</p>
+                      <div className="flex flex-wrap gap-2">
+                        <LinkButton href={`/scenario/${station.code}/repetition`} variant="ghost">
+                          🪟 Vue côte à côte
+                        </LinkButton>
+                      </div>
+                      <p className="text-xs text-muted">Côte à côte : le téléphone et l&apos;écran de la salle sur la même page, pour répéter seul.</p>
+                      <details className="text-sm">
+                        <summary className="cursor-pointer py-1 text-muted">Les fichiers attendus dans le dossier des médias ({s.media.length})</summary>
+                        <p className="mt-1 text-xs text-muted">
+                          Sur l&apos;ordinateur de projection, on choisit le dossier une fois ; seul le nom compte : sons en .mp3, .aac, .m4a, .ogg ou .wav ; vidéos en .mp4, .webm ou .mov ; images en .jpg ou .png.
+                        </p>
+                        <ul className="mt-1 flex flex-col gap-0.5 text-xs">
+                          {s.media.map((m) => (
+                            <li key={m.id}>
+                              <code className="text-ink">{m.file.replace(/\.[^.]+$/, "")}</code> <span className="text-muted">— {m.label}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
                     </div>
                   ) : (
                     <NewEveningButton scenarioId={s.id} baseName={s.base.name} />

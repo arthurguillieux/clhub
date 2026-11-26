@@ -157,7 +157,7 @@ export function Plan({
 }
 
 /** The dormitory's rooms: the number, the dead of earlier loops, the sealed rooms with their name. */
-function Dorm({ rooms, players, sealed, parity }: { rooms: ReturnType<typeof dormRooms>; players: { room: number; status: string }[]; sealed: Record<number, string>; parity: boolean }) {
+function Dorm({ rooms, players, sealed, parity }: { rooms: ReturnType<typeof dormRooms>; players: { room: number; name: string; status: string }[]; sealed: Record<number, string>; parity: boolean }) {
   const size = Math.max(11, Math.min(20, rooms[0]!.h * 0.62));
   return (
     <g>
@@ -171,11 +171,26 @@ function Dorm({ rooms, players, sealed, parity }: { rooms: ReturnType<typeof dor
             <rect x={x} y={y} width={w} height={h} rx={2} className="f" style={lit ? { fill: "rgba(127,216,255,.30)", stroke: "#bfeaff" } : undefined} />
             <rect x={x + 5} y={y + h * 0.2} width={34} height={h * 0.6} rx={3} className="f" />
             {!seal && (
-              <text x={x + w - 30} y={y + h * 0.72} textAnchor="middle" className="sublabel" style={{ fontSize: size, ...(lit ? { fill: "#e8f8ff" } : {}) }}>
-                {String(n).padStart(2, "0")}
-              </text>
+              <>
+                {/* The room's number on the bed, its occupant's first name beside it. */}
+                <text x={x + 22} y={y + h * 0.7} textAnchor="middle" className="sublabel" style={{ fontSize: Math.min(size, 15), letterSpacing: 1, ...(lit ? { fill: "#e8f8ff" } : {}) }}>
+                  {String(n).padStart(2, "0")}
+                </text>
+                {who && (
+                  <text x={x + 46} y={y + h * 0.7} className="sublabel" style={{ fontSize: Math.min(size, 16, (w - 52) / Math.max(4, who.name.length) / 0.62), letterSpacing: 1, fill: gone ? "#ff6b6b" : lit ? "#e8f8ff" : "#bfeaff" }}>
+                    {who.name.toUpperCase()}
+                  </text>
+                )}
+              </>
             )}
-            {gone && !seal && <rect x={x} y={y} width={w} height={h} fill="rgba(155,15,18,.22)" stroke="#9b0f12" strokeWidth="1.5" />}
+            {gone && !seal && (
+              <g>
+                <rect x={x} y={y} width={w} height={h} fill="rgba(155,15,18,.22)" stroke="#9b0f12" strokeWidth="1.5" />
+                {/* A red cross on the room of a dead or exiled subject. */}
+                <line x1={x + 3} y1={y + 3} x2={x + w - 3} y2={y + h - 3} stroke="#d0181c" strokeWidth="2.5" />
+                <line x1={x + w - 3} y1={y + 3} x2={x + 3} y2={y + h - 3} stroke="#d0181c" strokeWidth="2.5" />
+              </g>
+            )}
             {seal && (
               <g>
                 <rect x={x} y={y} width={w} height={h} fill="rgba(155,15,18,.18)" stroke="#d0181c" strokeWidth="2" />
