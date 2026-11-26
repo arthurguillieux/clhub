@@ -66,6 +66,8 @@ export type Action =
   | { t: "jump"; phase: Phase }
   | { t: "room"; player: string; room: number }
   | { t: "intrusion"; text: string | null }
+  // Marga draws on the room's screen: strokes as flat [x, y, x, y…] lists in units of 1000 × 562 (null: take it away).
+  | { t: "drawing"; strokes: number[][] | null }
   | { t: "sound"; slot: string }
   | { t: "stopSound"; slot: string | null }
   | { t: "record" }
@@ -159,6 +161,8 @@ export function protocolOf(s: Pick<State, "phase" | "loadingAt">, now: number): 
 
 export interface State {
   phase: Phase;
+  /** An intrusion drawn by the meneur's finger, shown on the room's screen until taken away. */
+  drawing: { strokes: number[][]; key: number } | null;
   /** The sandbox (station.ts): the space the group is in, the furniture shown close up, the gestures
    * done (« ordi.clavier »), what the group found (its inventory), the computers opened, the overview. */
   at: SpaceId;
@@ -278,6 +282,7 @@ const noFlags = (): Record<Flag, boolean> => ({ key: false, badge2: false, badge
 export function initialState(def: ScenarioDef, setup: Setup): State {
   return {
     phase: "welcome",
+    drawing: null,
     at: "hall",
     prop: null,
     gestures: [],
@@ -665,7 +670,7 @@ function applyActionRaw(def: ScenarioDef, setup: Setup, s: State, a: Action, whe
     }
     case "stop":
       // Everything that plays on the projection stops; the base itself stays as it is.
-      return { ...s, playing: null, ambiances: [], gauge: null, timer: null, intrusion: null, blizzard: false, aurora: false, vote: null, log: log("Stop : tout s'arrête sur la projection.") };
+      return { ...s, playing: null, ambiances: [], gauge: null, timer: null, intrusion: null, drawing: null, blizzard: false, aurora: false, vote: null, log: log("Stop : tout s'arrête sur la projection.") };
     case "neutral":
       return { ...s, neutral: a.mode, ...(a.mode ? { terminal: null, playing: null, circuitShown: false, intrusion: null } : {}) };
     case "media":
@@ -696,6 +701,8 @@ function applyActionRaw(def: ScenarioDef, setup: Setup, s: State, a: Action, whe
         log: log(`Correction : ${p.name} passe en chambre ${a.room}${other ? ` (${other.name} prend la ${p.room})` : ""}.`),
       };
     }
+    case "drawing":
+      return a.strokes?.length ? { ...s, drawing: { strokes: a.strokes, key: when }, neutral: null, log: log("Intrusion dessinée de Marga Berlioz.") } : { ...s, drawing: null };
     case "intrusion":
       return { ...s, intrusion: a.text, log: a.text ? log("Intrusion de Marga Berlioz dans la simulation.") : s.log };
     case "sound": {

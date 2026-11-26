@@ -134,6 +134,7 @@ const actionSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("unload") }),
   z.object({ t: z.literal("screen"), mode: z.enum(["accueil", "plan", "loading"]) }),
   z.object({ t: z.literal("reset") }),
+  z.object({ t: z.literal("drawing"), strokes: z.array(z.array(z.number().int().min(0).max(1000)).max(800)).max(80).nullable() }),
   z.object({ t: z.literal("go"), space: z.string().max(40) }),
   z.object({ t: z.literal("prop"), id: z.string().max(40).nullable() }),
   z.object({ t: z.literal("gesture"), key: z.string().max(80), on: z.boolean() }),

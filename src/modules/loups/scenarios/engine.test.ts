@@ -69,6 +69,16 @@ describe("the sandbox (V1.4)", () => {
   });
 });
 
+describe("the drawn intrusion", () => {
+  it("shows Marga's drawing until it's taken away, or Stop", () => {
+    const drawn = run([{ t: "drawing", strokes: [[10, 10, 50, 50]] }]);
+    expect(drawn.drawing?.strokes).toEqual([[10, 10, 50, 50]]);
+    expect(drawn.log.at(-1)?.text).toBe("Intrusion dessinée de Marga Berlioz.");
+    expect(run([{ t: "drawing", strokes: [[10, 10, 50, 50]] }, { t: "drawing", strokes: null }]).drawing).toBeNull();
+    expect(run([{ t: "drawing", strokes: [[10, 10, 50, 50]] }, { t: "stop" }]).drawing).toBeNull();
+  });
+});
+
 describe("the morning's dead", () => {
   it("stay secret from the room until the meneur reveals them", () => {
     const dawn = run([...start, ...night(null, "p3")]);

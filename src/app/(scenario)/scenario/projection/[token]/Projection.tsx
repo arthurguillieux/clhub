@@ -650,6 +650,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
             </p>
           </div>
         )}
+        {s.drawing && !s.neutral && <Drawing key={s.drawing.key} strokes={s.drawing.strokes} />}
         {!!flyKey && <FlyingKey key={flyKey} to="slot" />}
         {doorAnim && <DoorOpening key={doorAnim.key} letter={doorAnim.letter} dest={doorAnim.dest} withKey={doorAnim.withKey} />}
         {s.neutral === "black" && <Waiting />}
@@ -1595,5 +1596,17 @@ function Password({ text, ok }: { text: string; ok: boolean }) {
         </>
       )}
     </>
+  );
+}
+
+/** Marga's drawing on the room's screen: each stroke traces itself in turn, in magenta, with a slight glitch glow. */
+function Drawing({ strokes }: { strokes: number[][] }) {
+  const path = (pts: number[]) => pts.reduce((d, v, i) => d + (i % 2 === 0 ? `${i === 0 ? "M" : "L"}${v} ` : `${v} `), "");
+  return (
+    <svg className="pj-drawing" viewBox="0 0 1000 562" preserveAspectRatio="xMidYMid meet" aria-label="Intrusion dessinée">
+      {strokes.map((st, i) => (
+        <path key={i} d={path(st)} pathLength={1} className="pj-stroke" style={{ animationDelay: `${i * 0.45}s` }} />
+      ))}
+    </svg>
   );
 }

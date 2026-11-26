@@ -8,6 +8,7 @@ import { MediaControls, TimerControls, type Act } from "./controls";
 import { SPACES, STATION_DOORS, STATION_H, STATION_W, dormRooms } from "@/modules/loups/scenarios/station";
 import { Furniture } from "../../StationFurniture";
 import { GroupCard } from "./Group";
+import { DrawPad } from "./DrawPad";
 
 /**
  * The station, on its own: the base's plan, to pilot with a finger, whatever game is played in it
@@ -613,6 +614,10 @@ export function GlobalSheet({ def, view, busy, act, onClose }: Props & { onClose
             </button>
           </>
         )}
+        <details className="mt-1">
+          <summary className="cursor-pointer py-2 text-sm font-semibold text-[var(--scn-magenta)]">✎ Intrusion dessinée{s.drawing ? " · à l'écran" : ""}</summary>
+          <DrawPad busy={busy} act={act} shown={!!s.drawing} />
+        </details>
       </div>
     </SheetFrame>
   );
