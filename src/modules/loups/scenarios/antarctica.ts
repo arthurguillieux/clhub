@@ -67,7 +67,7 @@ export const ANTARCTICA: ScenarioDef = {
       hint: "accueil",
       room: "hall",
       hot: { x: 460, y: 470 },
-      boot: "A.P.E. SYSTEMS  BIOS v1.04  (C) 1986\nMÉMOIRE ........ 640K OK\nDISQUE C: ...... OK\nLIAISON SATELLITE  ...... ÉCHEC\n\nC:\\> DIR \\LOGS\\EQUIPE87\n\n",
+      boot: "NORDATA  BIOS v1.04  (C) 1986\nMÉMOIRE ........ 640K OK\nDISQUE C: ...... OK\nLIAISON SATELLITE  ...... ÉCHEC\n\nC:\\> DIR \\LOGS\\EQUIPE87\n\n",
       files: [{ id: "log1", name: "LOG_871128.VID", meta: "2 381 Ko   28.11.87", kind: "video", media: "video-log1", date: "28.11.1987", time: "23:14:07", subs: [] }],
     },
     {
@@ -76,17 +76,17 @@ export const ANTARCTICA: ScenarioDef = {
       hint: "aile Bêta",
       room: "beta",
       hot: { x: 860, y: 300 },
-      boot: "A.P.E. SYSTEMS  BIOS v1.04  (C) 1986\nMÉMOIRE ........ 640K OK\nCAPTEURS HALL .. 3 / 3 ACTIFS\n\nC:\\> DIR \\CAPTURE\n\n",
+      boot: "NORDATA  BIOS v1.04  (C) 1986\nMÉMOIRE ........ 640K OK\nCAPTEURS HALL .. 3 / 3 ACTIFS\n\nC:\\> DIR \\CAPTURE\n\n",
       files: [
         { id: "log2", name: "LOG_8801.VID", meta: "1 907 Ko   01.88", kind: "video", media: "video-log2", date: "01.1988", time: "02:51:33", subs: [] },
         {
           id: "hallmic",
           name: "HALL_MIC_01.WAV",
-          meta: "00:30   IL Y A 47 MIN",
+          meta: "00:30   CE SOIR",
           kind: "recording",
           media: "audio-hall-secours",
           date: "22.02.1989",
-          time: "03:00:41",
+          time: "--:--:--",
           subs: ["[ AUDIO · MICRO HALL 01 · 30 S ]"],
           fault: "hallmic",
         },
@@ -98,7 +98,7 @@ export const ANTARCTICA: ScenarioDef = {
       hint: "zone Ζ",
       room: "securite",
       hot: { x: 1290, y: 500 },
-      boot: "A.P.E. SYSTEMS  BIOS v1.04  (C) 1986\nRÉSEAU INTERNE .. OK\nSURVEILLANCE .... 12 / 12\n\nC:\\> DIR \\SECURITE\\LOGS\n\n",
+      boot: "NORDATA  BIOS v1.04  (C) 1986\nRÉSEAU INTERNE .. OK\nSURVEILLANCE .... 12 / 12\n\nC:\\> DIR \\SECURITE\\LOGS\n\n",
       files: [
         { id: "log3", name: "LOG_8805.VID", meta: "3 112 Ko   05.88", kind: "video", media: "video-log3", date: "05.1988", time: "04:12:09", subs: [] },
         { id: "log4", name: "LOG_8807.VID", meta: "2 846 Ko   07.88", kind: "video", media: "video-log4", date: "07.1988", time: "01:37:52", subs: [] },
@@ -110,7 +110,7 @@ export const ANTARCTICA: ScenarioDef = {
       hint: "zone Η",
       room: "labo",
       hot: { x: 1100, y: 730 },
-      boot: "A.P.E. SYSTEMS  BIOS v1.04  (C) 1986\nPROTOCOLE ALPHA . ACCÈS NIVEAU 3\nSOUCHE LYSSA-α . CONFINÉE\n\nC:\\> DIR \\ALPHA\n\n",
+      boot: "NORDATA  BIOS v1.04  (C) 1986\nPROTOCOLE ALPHA . ACCÈS NIVEAU 3\nSOUCHE LYSSA-α . DOSSIER VERROUILLÉ\n\nC:\\> DIR \\ALPHA\n\n",
       files: [
         { id: "rapport", name: "RAPPORT_ALPHA.TXT", meta: "    12 Ko   ??.??.??", kind: "text", date: "??.??.??", time: "--:--:--", subs: [] },
         { id: "sujets", name: "SUJETS.DAT", meta: "ACCÈS RESTREINT", kind: "registry", date: "06.02.2027", time: "21:00:00", subs: [], fault: "sujets" },

@@ -25,6 +25,8 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   const [mic, setMic] = useState(false);
   const [panel, setPanel] = useState(true);
   const recording = useRef<string | null>(null);
+  /** When the room was recorded (the hall microphone's file shows it, and « il y a n min »). */
+  const recordedAt = useRef<number | null>(null);
   const wanted = useMemo(() => [...def.media.map((m) => m.file), ...view.extraFaults.filter((f) => f.kind === "image" && f.media).map((f) => f.media!)], [def.media, view.extraFaults]);
   // Subtitles, optional: a .vtt of the same name next to a video or an audio file.
   const subtitleFiles = useMemo(() => def.media.filter((m) => m.kind !== "image").map((m) => m.file.replace(/\.[^.]+$/, ".vtt")), [def.media]);
@@ -140,6 +142,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
         // Kept in this page's memory only: never sent, gone when the page closes.
         if (recording.current) URL.revokeObjectURL(recording.current);
         recording.current = URL.createObjectURL(new Blob(chunks, { type: rec.mimeType }));
+        recordedAt.current = Date.now() - 30_000;
       };
       rec.start();
       setTimeout(() => rec.state === "recording" && rec.stop(), 30_000);
@@ -481,6 +484,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
                 bootKey={bootKey}
                 urlOf={urlOf}
                 recording={recording}
+                recordedAt={recordedAt}
                 files={view.files}
                 registryLines={registry({ loop: s.loop, players: view.players, past: s.past })}
                 onMedia={(el) => {
@@ -645,7 +649,7 @@ function Loading({ def, players, progress, ready }: { def: PublicScenario; playe
   return (
     <div className="pj-full scn-vt" style={{ zIndex: 12, background: "radial-gradient(ellipse at 50% 40%, #0c1a24 0%, #05080c 70%)", alignItems: "stretch", justifyContent: "center", gap: "2.2cqw", padding: "0 9cqw", color: "#bfeaff" }}>
       <div className="absolute top-[3%] right-[2.5%] left-[2.5%] flex justify-between text-[1.7cqw] text-[var(--scn-muted)]">
-        <span>A.P.E. SYSTEMS · BIOS v1.04 · (C) 1986</span>
+        <span>NORDATA · BIOS v1.04 · (C) 1986</span>
         <span>{def.base.name.toUpperCase()}</span>
       </div>
       <p className="text-[2.7cqw] text-[var(--scn-ice)]">{ready ? "SCÉNARIO CHARGÉ :" : "CHARGEMENT DU SCÉNARIO :"}</p>
@@ -711,7 +715,7 @@ function tickerText(def: PublicScenario, phase: string, a: Action | undefined): 
     case "labForce":
       return "PORTE Η : OUVERTURE NON AUTORISÉE";
     case "radio":
-      return "RADIO : LIAISON ÉTABLIE";
+      return "RADIO : BALAYAGE DES FRÉQUENCES";
     case "bloodTest":
       return "INFIRMERIE : ANALYSE TERMINÉE";
     case "confinement":
@@ -728,7 +732,8 @@ function Clock({ date }: { date: string }) {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
-  const d = new Date(2000, 0, 1, 3, 47, 12 + Math.floor((now - t0) / 1000));
+  // The evening's real hour (Arthur, 26/11/2026), on the world's date.
+  const d = new Date(now);
   return (
     <span>
       {date} {d.toLocaleTimeString("fr-FR")}
@@ -887,6 +892,11 @@ function Typed({ text, className }: { text: string; className: string }) {
 }
 
 /** A terminal of 1988: it boots, lists its files, and plays one on its tube. */
+/** Whole minutes since a moment, at least one (read when the terminal draws its list). */
+function minutesSince(at: number): number {
+  return Math.max(1, Math.round((Date.now() - at) / 60_000));
+}
+
 function Crt({
   term,
   playing,
@@ -894,6 +904,7 @@ function Crt({
   bootKey,
   urlOf,
   recording,
+  recordedAt,
   files: shown,
   registryLines,
   subtitlesOf,
@@ -906,6 +917,7 @@ function Crt({
   bootKey: number;
   urlOf: (slot: string | undefined) => string | null;
   recording: React.RefObject<string | null>;
+  recordedAt: React.RefObject<number | null>;
   files: ProjectionView["files"];
   registryLines: string[];
   subtitlesOf: (slot: string | undefined) => string | null;
@@ -913,7 +925,13 @@ function Crt({
   onMedia: (el: HTMLMediaElement | null) => void;
 }) {
   // What the preparation says the files are called and dated (the lore isn't fixed yet).
-  const files = term.files.filter((f) => !f.fault || faults.includes(f.fault)).map((f) => ({ ...f, name: shown[f.id]?.name || f.name, date: shown[f.id]?.date || f.date }));
+  // The room's own recording carries the real time it was made, and how long ago.
+  const at = recordedAt.current;
+  const recTime = at ? new Date(at).toLocaleTimeString("fr-FR") : null;
+  const recAgo = at ? `00:30   IL Y A ${minutesSince(at)} MIN` : null;
+  const files = term.files
+    .filter((f) => !f.fault || faults.includes(f.fault))
+    .map((f) => ({ ...f, name: shown[f.id]?.name || f.name, date: shown[f.id]?.date || f.date, ...(f.kind === "recording" && recTime && recAgo ? { time: recTime, meta: recAgo } : {}) }));
   const list = files.map((f) => `${f.id === playing ? "> " : "  "}${f.name.padEnd(18)} ${shown[f.id]?.date ? shown[f.id]?.date : f.meta}`).join("\n");
   const [typed, setTyped] = useState(bootKey ? 0 : term.boot.length);
   useEffect(() => {
@@ -955,7 +973,7 @@ function Crt({
             />
           )}
         </div>
-        <div className="pj-brand">A.P.E. SYSTEMS · MODÈLE 286</div>
+        <div className="pj-brand">NORDATA · MODÈLE 286</div>
         <div className="pj-led" />
       </div>
     </div>
@@ -1393,7 +1411,7 @@ function Waiting() {
   }, []);
   return (
     <div className="pj-full flex-col gap-[1.6cqw] text-center" style={{ zIndex: 20, background: "#020304" }}>
-      <p className="scn-vt text-[1.6cqw] tracking-[0.4em] text-[#3f6f88]">A.P.E. SYSTEMS · LIAISON SATELLITE</p>
+      <p className="scn-vt text-[1.6cqw] tracking-[0.4em] text-[#3f6f88]">NORDATA · LIAISON SATELLITE</p>
       <p className="scn-vt text-[4.2cqw] tracking-[0.18em] text-[var(--scn-ice)] drop-shadow-[0_0_18px_rgba(127,216,255,.35)]">
         EN ATTENTE DE CONNEXION{".".repeat(tick % 4)}
         <span className="invisible">{".".repeat(3 - (tick % 4))}</span>
