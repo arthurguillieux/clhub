@@ -3,6 +3,7 @@
  * state is rebuilt from the list. « Annuler » removes the last action; nothing else can go stale.
  * Pure functions on plain values: the console proposes, the meneur confirms (and can force anything).
  */
+import { PROPS, SPACES, type SpaceId } from "./station";
 import type { DayEvent, Fault, Flag, ScenarioDef, ScenarioParams } from "./types";
 
 export interface Setup {
@@ -29,6 +30,14 @@ export type Action =
   | { t: "screen"; mode: "accueil" | "plan" }
   // « Redémarrer la station »: before the game, everything back as at the start (players and journal kept).
   | { t: "reset" }
+  // The sandbox: where the group is, the furniture it searches, a computer's password, a door opened with
+  // what they found, the room's overview of the whole base.
+  | { t: "go"; space: string }
+  | { t: "prop"; id: string | null }
+  | { t: "gesture"; key: string; on: boolean }
+  | { t: "password"; prop: string; text: string }
+  | { t: "unlock"; door: string }
+  | { t: "overview"; on: boolean }
   | { t: "start" }
   | { t: "arrive" }
   | { t: "patientZero"; player: string }
@@ -146,6 +155,15 @@ export function protocolOf(s: Pick<State, "phase" | "loadingAt">, now: number): 
 
 export interface State {
   phase: Phase;
+  /** The sandbox (station.ts): the space the group is in, the furniture shown close up, the gestures
+   * done (« ordi.clavier »), what the group found (its inventory), the computers opened, the overview. */
+  at: SpaceId;
+  prop: string | null;
+  gestures: string[];
+  inventory: string[];
+  unlocked: string[];
+  pwTries: number;
+  overview: boolean;
   /** When the scenario started loading into the station (null: the station runs on its own). */
   loadingAt: number | null;
   /** Before the game, what the room's screen shows: the welcome image, or the base's plan. */
@@ -251,6 +269,13 @@ const noFlags = (): Record<Flag, boolean> => ({ key: false, badge2: false, badge
 export function initialState(def: ScenarioDef, setup: Setup): State {
   return {
     phase: "welcome",
+    at: "hall",
+    prop: null,
+    gestures: [],
+    inventory: [],
+    unlocked: [],
+    pwTries: 0,
+    overview: false,
     loadingAt: null,
     screen: "accueil",
     loop: 1,
@@ -475,6 +500,52 @@ function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: 
       return s.phase === "welcome" && s.loadingAt !== null ? { ...s, loadingAt: null, log: log("Scénario retiré : la station tourne seule.") } : s;
     case "screen":
       return { ...s, screen: a.mode, neutral: null };
+    case "go": {
+      const space = SPACES.find((x) => x.id === a.space);
+      if (!space) return s;
+      return { ...s, at: space.id, prop: null, screen: s.phase === "welcome" ? "plan" : s.screen, log: log(`Le groupe va : ${space.name.toLowerCase()}.`) };
+    }
+    case "prop": {
+      if (a.id === null) return { ...s, prop: null };
+      const prop = PROPS.find((p) => p.id === a.id && p.space === s.at);
+      return prop ? { ...s, prop: prop.id, neutral: null, terminal: null, playing: null, screen: s.phase === "welcome" ? "plan" : s.screen, log: log(`Fouille : ${prop.name.charAt(0).toLowerCase()}${prop.name.slice(1)}.`) } : s;
+    }
+    case "gesture": {
+      const [propId, gesture] = a.key.split(".");
+      const prop = PROPS.find((p) => p.id === propId);
+      const g = prop?.gestures.find((x) => x.id === gesture);
+      if (!prop || !g) return s;
+      const gestures = a.on ? [...new Set([...s.gestures, a.key])] : s.gestures.filter((x) => x !== a.key);
+      const next = { ...s, gestures, log: log(`${prop.name} : ${(a.on ? g.on : g.off).charAt(0).toLowerCase()}${(a.on ? g.on : g.off).slice(1)}.`) };
+      // Something hidden there, found the first time: into the group's inventory, with what it unlocks.
+      const hidden = a.on ? def.sandbox?.hides[a.key] : undefined;
+      const thing = hidden ? def.sandbox?.stash.find((x) => x.id === hidden) : undefined;
+      if (!thing || s.inventory.includes(thing.id)) return next;
+      return {
+        ...next,
+        inventory: [...s.inventory, thing.id],
+        flags: thing.flag ? { ...s.flags, [thing.flag]: true } : s.flags,
+        actionsDone: thing.action ? [...new Set([...s.actionsDone, thing.action])] : s.actionsDone,
+        log: [...next.log, { at, text: `Trouvé : ${thing.name} (${g.on.charAt(0).toLowerCase()}${g.on.slice(1)}).` }],
+      };
+    }
+    case "password": {
+      const prop = PROPS.find((p) => p.id === a.prop);
+      const expected = def.sandbox?.passwords[a.prop];
+      if (!prop?.computer || !expected) return s;
+      const ok = a.text.trim().toUpperCase() === expected.trim().toUpperCase();
+      if (!ok) return { ...s, pwTries: s.pwTries + 1, log: log(`${prop.name} : mot de passe refusé (« ${a.text.trim().toUpperCase()} »).`) };
+      return { ...s, unlocked: [...new Set([...s.unlocked, prop.id])], pwTries: 0, log: log(`${prop.name} : mot de passe accepté.`) };
+    }
+    case "unlock": {
+      const door = def.doors.find((d) => d.id === a.door);
+      if (!door) return s;
+      if (door.locked) return { ...s, log: log(`Porte ${door.letter} ${door.label} : accès refusé.`) };
+      if (door.requires && !s.flags[door.requires]) return { ...s, log: log(`Porte ${door.letter} ${door.label} : il manque ${flagName(door.requires)}.`) };
+      return { ...s, doors: { ...s.doors, [door.id]: true }, screen: s.phase === "welcome" ? "plan" : s.screen, log: log(`Porte ${door.letter} ${door.label} : ouverte${door.requires ? ` avec ${flagName(door.requires)}` : ""}.`) };
+    }
+    case "overview":
+      return { ...s, overview: a.on };
     case "reset":
       return s.phase === "welcome" ? { ...initialState(def, setup), players: s.players, loadingAt: s.loadingAt, log: log("Station redémarrée : tout revient comme au départ.") } : s;
     case "start":

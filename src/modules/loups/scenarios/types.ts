@@ -166,6 +166,17 @@ export interface ScenarioDef {
   events: DayEvent[];
   faults: Fault[];
   texts: { goodEnd: string; badEnd: string; reboot: string; welcome: string };
+  /**
+   * What the scenario puts in the station's sandbox (modules/loups/scenarios/station.ts): behind which
+   * gestures its things are hidden (« ordi.clavier » → the key), what they unlock (a flag of the access
+   * chain, the day action they stand for), the computers' passwords, and what a gesture shows (a post-it).
+   */
+  sandbox?: {
+    hides: Record<string, string>;
+    stash: { id: string; name: string; flag?: Flag; action?: string }[];
+    passwords: Record<string, string>;
+    notes?: Record<string, string>;
+  };
 }
 
 /** What the browser gets of a scenario: everything but its password's hash. */

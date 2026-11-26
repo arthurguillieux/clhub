@@ -214,6 +214,58 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
   await ctx.close();
 });
 
+test("antarctica: the station's sandbox — search the reception computer, the key under the keyboard, the password, Bêta opened with the key", async ({ page, browser, baseURL }) => {
+  test.setTimeout(120_000);
+  await page.goto("/jeux/loups/scenarios");
+  await page.getByRole("button", { name: /Ouvrir la station/ }).or(page.getByRole("link", { name: /Piloter la station/ })).or(page.getByLabel("Mot de passe du scénario")).first().waitFor();
+  if (await page.getByLabel("Mot de passe du scénario").count()) {
+    await page.getByLabel("Mot de passe du scénario").fill("ape26");
+    await page.getByRole("button", { name: "Ouvrir le scénario" }).click();
+  }
+  await page.getByRole("button", { name: /Ouvrir la station/ }).or(page.getByRole("link", { name: /Piloter la station/ })).first().click();
+  const bar = page.getByRole("navigation", { name: "Commandes" });
+  await bar.getByRole("button", { name: /Écran/ }).click();
+  const link = await page.getByLabel("Lien de la projection").inputValue();
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
+  const ctx = await browser.newContext({ baseURL, viewport: { width: 1600, height: 900 }, storageState: { cookies: [], origins: [] } });
+  const screen = await ctx.newPage();
+  await screen.goto(link);
+  await screen.getByRole("button", { name: /Lancer la projection/ }).click();
+
+  const group = page.getByRole("region", { name: "Le groupe" });
+  await expect(group.getByText("HALL", { exact: true })).toBeVisible();
+  // Bêta is locked: trying it says so to the room.
+  await group.getByRole("button", { name: /Porte Β/ }).click();
+  await group.getByRole("button", { name: "Ils tentent d'ouvrir" }).click();
+  await expect(screen.getByText("PORTE VERROUILLÉE")).toBeVisible();
+  await group.getByRole("button", { name: /Porte Β/ }).click(); // folds the door's row again
+  // The reception computer: switched on, the password dictated (wrong, then right), the keyboard lifted.
+  await group.getByRole("button", { name: /L'ordinateur de l'accueil/ }).click();
+  await page.getByRole("button", { name: "Allumer l'écran" }).click();
+  await expect(screen.getByText(/MOT DE PASSE :/)).toBeVisible();
+  await page.getByLabel("Mot de passe dicté par les joueurs").fill("hiver");
+  await page.getByRole("button", { name: "Taper" }).click();
+  await expect(screen.getByText("MOT DE PASSE INCORRECT")).toBeVisible();
+  await page.getByLabel("Mot de passe dicté par les joueurs").fill("blizzard");
+  await page.getByRole("button", { name: "Taper" }).click();
+  await expect(screen.getByText("ACCÈS AUTORISÉ")).toBeVisible();
+  await page.getByRole("button", { name: "Soulever le clavier" }).click();
+  await expect(screen.getByText("CLÉ DE BÊTA")).toBeVisible();
+  await page.getByRole("button", { name: "Revenir au plan" }).click();
+  // With the key, Bêta opens, and the group goes in.
+  await group.getByRole("button", { name: /Porte Β/ }).click();
+  await group.getByRole("button", { name: "Utiliser : Clé de Bêta" }).click();
+  await expect(screen.getByLabel("La porte Β s'ouvre")).toBeVisible();
+  await group.getByRole("button", { name: "Entrer : Aile bêta" }).click();
+  await expect(group.getByText("AILE BÊTA", { exact: true })).toBeVisible();
+  // Restarting the station puts everything back.
+  await page.getByRole("button", { name: /Toute la base/ }).click();
+  await page.getByRole("button", { name: /Redémarrer la station/ }).click();
+  await page.getByRole("button", { name: /^Redémarrer/ }).first().click();
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
+  await expect(group.getByText("HALL", { exact: true })).toBeVisible();
+});
+
 test("antarctica: « Simuler une partie » opens at loop 2 with loop 1's dead sealed, and goes away in one click", async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto("/jeux/loups/scenarios");

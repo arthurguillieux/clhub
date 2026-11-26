@@ -8,7 +8,8 @@ import { parseCues, type Cue } from "@/modules/loups/scenarios/subtitles";
 import type { Fault, PublicScenario, Terminal } from "@/modules/loups/scenarios/types";
 import { projectionReportAction } from "../../actions";
 import { forgetFiles, keepFiles, keyOf, loadFiles, MEDIA_FORMATS } from "./media";
-import { SPOTS, STATION_H, STATION_W } from "@/modules/loups/scenarios/station";
+import { SPOTS, STATION_DOORS, STATION_H, STATION_W } from "@/modules/loups/scenarios/station";
+import { DoorOpening, FlyingKey, Inventory, PropScene } from "./Sandbox";
 import { Plan } from "./Plan";
 import { SFX, audio, cassette } from "./sfx";
 
@@ -113,6 +114,11 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   const [announce, setAnnounce] = useState<string[] | null>(null);
   const [eventBig, setEventBig] = useState(false);
   const [reboot, setReboot] = useState<string | null>(null);
+  // The sandbox's moments: a key flying to the group's slots, a password being typed, a door opening.
+  const [flyKey, setFlyKey] = useState(0);
+  const [typing, setTyping] = useState<{ text: string; ok: boolean; key: number } | null>(null);
+  const [doorAnim, setDoorAnim] = useState<{ letter: string; dest: (typeof STATION_DOORS)[number]["b"]; withKey: boolean; key: number } | null>(null);
+  const lastInventory = useRef(initial.state.inventory.length);
   const [bootKey, setBootKey] = useState(0);
   const lastSeq = useRef<number | null>(null);
   const wasLocked = useRef(initial.state.locked);
@@ -163,6 +169,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
     for (const { action: a } of fresh) {
       play(a);
     }
+    lastInventory.current = s.inventory.length;
     function play(a: Action) {
       switch (a.t) {
         case "light":
@@ -355,6 +362,34 @@ export function Projection({ token, def, initial }: { token: string; def: Public
               banner("PERTE DE CONFIANCE. CHEF DE MISSION ÉLIMINÉ SANS MOTIF. VERROUILLAGE GÉNÉRAL.", "bad");
             }, 2600);
           break;
+        case "gesture":
+          if (s.inventory.length > lastInventory.current) {
+            // Something found: it shows in its hiding place, then flies to the group's slots.
+            later(() => {
+              SFX.ok();
+              setFlyKey(Date.now());
+              later(() => setFlyKey(0), 1500);
+            }, 700);
+          } else SFX.click();
+          break;
+        case "password":
+          setTyping({ text: a.text.trim().toUpperCase(), ok: s.unlocked.includes(a.prop), key: Date.now() });
+          later(() => (s.unlocked.includes(a.prop) ? SFX.ok() : SFX.deny()), 140 * a.text.trim().length + 200);
+          break;
+        case "unlock": {
+          const door = def.doors.find((d) => d.id === a.door);
+          const sd = STATION_DOORS.find((d) => d.id === a.door);
+          if (door && sd && s.doors[a.door]) {
+            setDoorAnim({ letter: sd.letter, dest: sd.b, withKey: !!door.requires, key: Date.now() });
+            later(() => SFX.door(), door.requires ? 1500 : 600);
+            later(() => setDoorAnim(null), door.requires ? 4600 : 3700);
+          } else {
+            SFX.deny();
+            setFlash(Date.now());
+            banner(door?.locked ? "ACCÈS REFUSÉ" : "PORTE VERROUILLÉE", "bad");
+          }
+          break;
+        }
         case "reset": {
           // « Redémarrer la station »: a glitch, the reboot sound (or a beep), and the words.
           doGlitch();
@@ -471,6 +506,8 @@ export function Projection({ token, def, initial }: { token: string; def: Public
                 denied={denied}
                 parity={(s.parity || s.confinement) && s.phase === "day"}
                 confinement={s.confinement}
+                at={s.at}
+                overview={s.overview}
               />
             </div>
             <div className="pj-dark" style={{ opacity: darkOverride ?? (s.light && !shedding ? 0 : 1) }}>
@@ -509,6 +546,21 @@ export function Projection({ token, def, initial }: { token: string; def: Public
                 simulated={view.simulated}
               />
             )}
+            {s.prop && !term && !night && (
+              <PropScene
+                key={s.prop}
+                prop={s.prop}
+                gestures={s.gestures}
+                hides={def.sandbox?.hides ?? {}}
+                notes={def.sandbox?.notes ?? {}}
+                inventory={s.inventory}
+                unlocked={s.unlocked.includes(s.prop)}
+                typing={typing}
+                boot={def.terminals.find((t) => t.id === "accueil")?.boot ?? ""}
+                files={(def.terminals.find((t) => t.id === "accueil")?.files ?? []).filter((f) => !f.fault).map((f) => view.files[f.id]?.name || f.name)}
+              />
+            )}
+            {def.sandbox && !night && <Inventory items={s.inventory.map((id) => ({ id, name: def.sandbox!.stash.find((x) => x.id === id)?.name ?? id }))} />}
             {s.circuitShown && !term && !night && <CircuitBox switches={s.switches} ready={s.panicReady} sparks={sparks} />}
             {!night && (
               <div className="pj-ticker">
@@ -594,6 +646,8 @@ export function Projection({ token, def, initial }: { token: string; def: Public
             </p>
           </div>
         )}
+        {!!flyKey && <FlyingKey key={flyKey} to="slot" />}
+        {doorAnim && <DoorOpening key={doorAnim.key} letter={doorAnim.letter} dest={doorAnim.dest} withKey={doorAnim.withKey} />}
         {s.neutral === "black" && <Waiting />}
         {!!flash && <div key={flash} className="pj-flash" />}
         {overlay && (
@@ -799,13 +853,54 @@ function VoteDoors({ def, view, left }: { def: PublicScenario; view: ProjectionV
       const e = view.events.find((x) => x.id === id);
       return { id, name: e?.name ?? id, sentence: e?.rule ?? "" };
     }
-    if (id === "fouiller") return { id, name: "Fouiller ce qu'on connaît déjà", sentence: "Revenir sur ses pas : rien de neuf, peut-être." };
+    if (id === "fouiller") return { id, name: "Fouiller ce qu'on connaît déjà", sentence: "Revenir sur ses pas : rien de neuf, peut-être.", letter: "" };
     const a = def.dayActions.find((x) => x.id === id);
     const door = def.doors.find((d) => d.id === a?.zone);
-    return { id, name: `${door ? `${door.letter} ` : ""}${a?.label ?? id}`, sentence: a?.sentence ?? "" };
+    return { id, name: a?.label ?? id, sentence: a?.sentence ?? "", letter: door?.letter ?? "" };
   });
   const title = vote.kind === "chief" ? "IDENTIFICATION DU CHEF DE MISSION REQUISE" : vote.kind === "dead" ? "LES MORTS CHOISISSENT" : "CHOIX DE LA PORTE";
   const paused = view.state.timer?.endsAt === null;
+  // The day's door: drawn as the base's doors (their Greek letter on the leaves), left half and right half of the room.
+  if (vote.kind === "door")
+    return (
+      <div className="pj-full" style={{ zIndex: 11, background: "rgba(3,6,10,.92)", flexDirection: "column", gap: "2.5%" }}>
+        <p className="text-[2.2cqw] tracking-[0.3em] text-[var(--scn-ice)]">{title}</p>
+        <div className="flex w-[86%] items-end justify-center gap-[6cqw]">
+          {options.map((o, i) => (
+            <div key={o.id} className="flex w-[34%] flex-col items-center gap-[0.8cqw] text-center">
+              <p className="text-[1.4cqw] tracking-[0.35em] text-[var(--scn-muted)]">{options.length === 2 ? (i === 0 ? "◀ À GAUCHE" : "À DROITE ▶") : `PORTE ${"ABC"[i]}`}</p>
+              <svg viewBox="0 0 240 300" className="w-[70%]" aria-hidden>
+                <rect x="6" y="6" width="228" height="288" fill="#0a1117" stroke="#2c4252" strokeWidth="10" />
+                {o.letter ? (
+                  <>
+                    <rect x="16" y="16" width="104" height="272" fill="#16232d" stroke="#3f6f88" strokeWidth="4" />
+                    <rect x="120" y="16" width="104" height="272" fill="#16232d" stroke="#3f6f88" strokeWidth="4" />
+                    <text x="108" y="170" textAnchor="end" fontFamily="var(--scn-font-vt)" fontSize="72" fill="#7fd8ff">
+                      {o.letter}
+                    </text>
+                    <circle cx="136" cy="160" r="9" fill="#0a1117" stroke="#5fe39a" strokeWidth="3" />
+                  </>
+                ) : (
+                  <>
+                    <rect x="16" y="16" width="208" height="272" fill="#0c1820" />
+                    <circle cx="112" cy="140" r="40" fill="none" stroke="#7fd8ff" strokeWidth="8" />
+                    <line x1="140" y1="168" x2="182" y2="210" stroke="#7fd8ff" strokeWidth="12" strokeLinecap="round" />
+                  </>
+                )}
+              </svg>
+              <p className="text-[2.4cqw] leading-tight tracking-[0.08em] text-[var(--scn-txt)]">{o.name.toUpperCase()}</p>
+              {o.sentence && <p className="text-[1.4cqw] text-[var(--scn-muted)]">{o.sentence}</p>}
+            </div>
+          ))}
+        </div>
+        {left !== null && (
+          <p className="text-[4.5cqw] leading-none tabular-nums text-[var(--scn-amber)]">
+            {Math.floor(left / 60)}:{String(Math.floor(left % 60)).padStart(2, "0")}
+            {paused && <span className="ml-[0.4em] text-[2cqw]">PAUSE</span>}
+          </p>
+        )}
+      </div>
+    );
   return (
     <div className="pj-full" style={{ zIndex: 11, background: "rgba(3,6,10,.9)", flexDirection: "column", gap: "3%" }}>
       <p className="text-[2.2cqw] tracking-[0.3em] text-[var(--scn-ice)]">{title}</p>

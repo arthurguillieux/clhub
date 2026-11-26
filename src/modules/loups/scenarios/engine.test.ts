@@ -26,6 +26,32 @@ const night = (infect: string | null, victim: string | null, chosen = "blizzard"
   { t: "dawn" },
 ];
 
+describe("the sandbox", () => {
+  it("knows where the group is, what it searches, and finds the key under the keyboard", () => {
+    const s = run([{ t: "light", on: true }, { t: "prop", id: "ordi" }, { t: "gesture", key: "ordi.allume", on: true }, { t: "gesture", key: "ordi.clavier", on: true }]);
+    expect(s).toMatchObject({ at: "hall", prop: "ordi", inventory: ["cle"] });
+    expect(s.flags.key).toBe(true);
+    expect(s.actionsDone).toContain("accueil");
+    expect(s.log.at(-1)?.text).toBe("Trouvé : Clé de Bêta (soulever le clavier).");
+    // Found once: putting the keyboard back and lifting it again finds nothing more.
+    const again = run([{ t: "gesture", key: "ordi.clavier", on: true }, { t: "gesture", key: "ordi.clavier", on: false }, { t: "gesture", key: "ordi.clavier", on: true }]);
+    expect(again.inventory).toEqual(["cle"]);
+    // Other furniture hides nothing here.
+    expect(run([{ t: "gesture", key: "comptoir.tiroir", on: true }]).inventory).toEqual([]);
+  });
+
+  it("opens a computer with its password, and Bêta with the key only", () => {
+    expect(run([{ t: "password", prop: "ordi", text: "hiver" }]).pwTries).toBe(1);
+    expect(run([{ t: "password", prop: "ordi", text: " blizzard " }]).unlocked).toEqual(["ordi"]);
+    expect(run([{ t: "unlock", door: "beta" }]).doors.beta).toBe(false);
+    expect(run([{ t: "gesture", key: "ordi.clavier", on: true }, { t: "unlock", door: "beta" }]).doors.beta).toBe(true);
+    expect(run([{ t: "unlock", door: "alpha" }]).doors.alpha).toBe(false);
+    expect(run([{ t: "go", space: "couloir" }, { t: "prop", id: "ordi" }]).prop).toBeNull(); // not in this space
+    // A restart puts everything back, inventory included.
+    expect(run([{ t: "gesture", key: "ordi.clavier", on: true }, { t: "go", space: "dortoir" }, { t: "reset" }])).toMatchObject({ at: "hall", inventory: [], gestures: [] });
+  });
+});
+
 describe("the morning's dead", () => {
   it("stay secret from the room until the meneur reveals them", () => {
     const dawn = run([...start, ...night(null, "p3")]);

@@ -7,6 +7,7 @@ import type { PublicScenario } from "@/modules/loups/scenarios/types";
 import { MediaControls, TimerControls, type Act } from "./controls";
 import { SPACES, STATION_DOORS, STATION_H, STATION_W, dormRooms } from "@/modules/loups/scenarios/station";
 import { Furniture } from "../../StationFurniture";
+import { GroupCard } from "./Group";
 
 /**
  * The station, on its own: the base's plan, to pilot with a finger, whatever game is played in it
@@ -15,7 +16,7 @@ import { Furniture } from "../../StationFurniture";
  */
 
 type Props = { def: PublicScenario; view: ConsoleView; busy: boolean; act: Act };
-export type Sheet = { kind: "zone"; id: string } | { kind: "room"; room: number } | { kind: "global" } | { kind: "screen" } | null;
+export type Sheet = { kind: "zone"; id: string } | { kind: "room"; room: number } | { kind: "prop"; id: string } | { kind: "global" } | { kind: "screen" } | null;
 
 interface Zone {
   id: string;
@@ -89,6 +90,8 @@ export function StationFace({ def, view, busy, act, onSheet, sheet }: Props & { 
         </span>
         <span className="font-bold whitespace-nowrap text-[var(--scn-ice)]">Toute la base ›</span>
       </button>
+
+      <GroupCard def={def} view={view} busy={busy} act={act} onProp={(id) => onSheet({ kind: "prop", id })} />
 
       <svg viewBox="20 18 960 726" className="mx-auto mt-2 w-full max-w-[560px] select-none" role="group" aria-label="Plan de la base">
         <defs>
@@ -202,6 +205,18 @@ export function StationFace({ def, view, busy, act, onSheet, sheet }: Props & { 
         <text x={500} y={740} textAnchor="middle" fontSize={20} letterSpacing={3} fill="#5d7a8c" className="scn-vt">
           ↓ DEHORS · −45 °C
         </text>
+        {/* The group: a pulsing amber mark in its space. */}
+        {(() => {
+          const at = SPACES.find((x) => x.id === s.at)!;
+          const gx = at.id === "couloir" ? at.x + at.w / 2 + 16 : at.x + at.w / 2;
+          const gy = at.y + at.h / 2 + (at.id === "hall" ? 30 : 0);
+          return (
+            <g aria-hidden pointerEvents="none">
+              <circle cx={gx} cy={gy} r={18} fill="none" stroke="#ffb23e" strokeWidth={4} className="animate-ping" style={{ transformOrigin: `${gx}px ${gy}px` }} />
+              <circle cx={gx} cy={gy} r={11} fill="#ffb23e" />
+            </g>
+          );
+        })()}
       </svg>
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.7rem] text-[var(--scn-muted)]">
         <span className="flex items-center gap-1">
@@ -277,6 +292,12 @@ export function ZoneSheet({ def, view, busy, act, id, onClose, onRoom }: Props &
       sub={door?.locked ? "Ne s'ouvre jamais : la base répond « ACCÈS REFUSÉ »." : door?.requires ? `Accès dans le scénario : ${door.hint}${live ? (flagOk ? " (trouvé)" : " (pas encore trouvé)") : ""}.` : door ? "Accès libre." : "Le hall : on l'éclaire, ou pas."}
       onClose={onClose}
     >
+      {z.id !== "alpha" && (
+        <button type="button" className={`scn-btn ${SPACES.some((x) => x.zone === z.id && x.id === s.at) ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "go", space: SPACES.find((x) => x.zone === z.id && (z.id !== "beta" || x.id === "couloir"))!.id })}>
+          {SPACES.some((x) => x.zone === z.id && x.id === s.at) ? "Le groupe est ici" : "Le groupe va ici"}
+          <small>la salle suit le groupe</small>
+        </button>
+      )}
       {door && (
         <Rows label="PORTE">
           {door.locked ? (

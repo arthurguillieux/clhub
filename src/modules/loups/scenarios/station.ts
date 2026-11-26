@@ -20,27 +20,32 @@ export interface Space {
   h: number;
   /** The scenario's zone it belongs to (its door, its sheet on the phone): the Bêta wing is one zone. */
   zone: string;
+  /** What the meneur reads out on entering (« Le groupe est dans… »). */
+  desc: string;
 }
 
 export const STATION_W = 1000;
 export const STATION_H = 760;
 
 export const SPACES: Space[] = [
-  { id: "hall", name: "HALL", x: 340, y: 420, w: 320, h: 220, zone: "hall" },
-  { id: "sas", name: "SAS", x: 440, y: 640, w: 120, h: 90, zone: "sas" },
-  { id: "dortoir", name: "DORTOIR", x: 40, y: 330, w: 300, h: 390, zone: "dortoir" },
-  { id: "couloir", name: "AILE BÊTA", x: 450, y: 150, w: 100, h: 270, zone: "beta" },
-  { id: "archives", name: "ARCHIVES", x: 230, y: 160, w: 220, h: 120, zone: "beta" },
-  { id: "infirmerie", name: "INFIRMERIE", x: 330, y: 290, w: 120, h: 110, zone: "gamma" },
-  { id: "generateurs", name: "GÉNÉRATEURS", x: 550, y: 160, w: 220, h: 120, zone: "generateurs" },
-  { id: "securite", name: "PC SÉCU.", x: 550, y: 290, w: 120, h: 110, zone: "securite" },
-  { id: "labo", name: "LABORATOIRE", x: 380, y: 30, w: 240, h: 120, zone: "labo" },
-  { id: "alpha", name: "ALPHA", x: 660, y: 380, w: 300, h: 340, zone: "alpha" },
+  { id: "hall", name: "HALL", x: 340, y: 420, w: 320, h: 220, zone: "hall", desc: "L'accueil : le comptoir et son ordinateur, le coin détente. Trois portes, et le sas par où vous êtes arrivés." },
+  { id: "sas", name: "SAS", x: 440, y: 640, w: 120, h: 90, zone: "sas", desc: "Combinaisons, la porte extérieure. Derrière : −45 °C." },
+  { id: "dortoir", name: "DORTOIR", x: 40, y: 330, w: 300, h: 390, zone: "dortoir", desc: "Un long couloir, les chambres numérotées des sujets." },
+  { id: "couloir", name: "AILE BÊTA", x: 450, y: 150, w: 100, h: 270, zone: "beta", desc: "Un long couloir. Des portes de chaque côté, une au fond." },
+  { id: "archives", name: "ARCHIVES", x: 230, y: 160, w: 220, h: 120, zone: "beta", desc: "Des cartons, des classeurs, un bureau et son terminal. Un boîtier électrique au mur." },
+  { id: "infirmerie", name: "INFIRMERIE", x: 330, y: 290, w: 120, h: 110, zone: "gamma", desc: "Trois lits, une armoire à pharmacie." },
+  { id: "generateurs", name: "GÉNÉRATEURS", x: 550, y: 160, w: 220, h: 120, zone: "generateurs", desc: "Le bourdonnement des groupes, la jauge de carburant." },
+  { id: "securite", name: "PC SÉCU.", x: 550, y: 290, w: 120, h: 110, zone: "securite", desc: "La radio, les écrans de surveillance, un terminal." },
+  { id: "labo", name: "LABORATOIRE", x: 380, y: 30, w: 240, h: 120, zone: "labo", desc: "Des paillasses, une chambre froide, un terminal." },
+  { id: "alpha", name: "ALPHA", x: 660, y: 380, w: 300, h: 340, zone: "alpha", desc: "" },
 ];
 
 export interface StationDoor {
   /** The scenario's door id; `follows`: drawn open with that door (the archives open with the Bêta wing). */
   id: string;
+  /** The two spaces it joins (the doors « seen » from where the group is). */
+  a: SpaceId;
+  b: SpaceId;
   follows?: string;
   letter: string;
   x: number;
@@ -54,15 +59,15 @@ export interface StationDoor {
 }
 
 export const STATION_DOORS: StationDoor[] = [
-  { id: "sas", letter: "Θ", x: 500, y: 640, v: false, side: "r", into: 1 },
-  { id: "dortoir", letter: "Δ", x: 340, y: 600, v: true, side: "l", into: 1 },
-  { id: "beta", letter: "Β", x: 500, y: 420, v: false, side: "r", into: -1 },
-  { id: "alpha", letter: "Α", x: 660, y: 530, v: true, side: "r", into: 1 },
-  { id: "archives", follows: "beta", letter: "Κ", x: 450, y: 220, v: true, side: "l", into: -1 },
-  { id: "gamma", letter: "Γ", x: 450, y: 345, v: true, side: "l", into: -1 },
-  { id: "generateurs", letter: "Ε", x: 550, y: 220, v: true, side: "r", into: 1 },
-  { id: "securite", letter: "Ζ", x: 550, y: 345, v: true, side: "r", into: 1 },
-  { id: "labo", letter: "Η", x: 500, y: 150, v: false, side: "r", into: -1 },
+  { id: "sas", a: "hall", b: "sas", letter: "Θ", x: 500, y: 640, v: false, side: "r", into: 1 },
+  { id: "dortoir", a: "hall", b: "dortoir", letter: "Δ", x: 340, y: 600, v: true, side: "l", into: 1 },
+  { id: "beta", a: "hall", b: "couloir", letter: "Β", x: 500, y: 420, v: false, side: "r", into: -1 },
+  { id: "alpha", a: "hall", b: "alpha", letter: "Α", x: 660, y: 530, v: true, side: "r", into: 1 },
+  { id: "archives", a: "couloir", b: "archives", follows: "beta", letter: "Κ", x: 450, y: 220, v: true, side: "l", into: -1 },
+  { id: "gamma", a: "couloir", b: "infirmerie", letter: "Γ", x: 450, y: 345, v: true, side: "l", into: -1 },
+  { id: "generateurs", a: "couloir", b: "generateurs", letter: "Ε", x: 550, y: 220, v: true, side: "r", into: 1 },
+  { id: "securite", a: "couloir", b: "securite", letter: "Ζ", x: 550, y: 345, v: true, side: "r", into: 1 },
+  { id: "labo", a: "couloir", b: "labo", letter: "Η", x: 500, y: 150, v: false, side: "r", into: -1 },
 ];
 
 /** Where things stand on the plan: the terminals (by the room the scenario puts them in), the electrical box. */
@@ -91,3 +96,38 @@ export function dormRooms(count: number): { n: number; x: number; y: number; w: 
   const rowH = (bottom - top) / rows;
   return Array.from({ length: count }, (_, i) => ({ n: i + 1, x: 54 + (i % 2) * 144, y: top + Math.floor(i / 2) * rowH, w: 128, h: rowH - 6 }));
 }
+
+/** The other side of a door, seen from a space. */
+export const otherSide = (d: StationDoor, from: SpaceId): SpaceId => (d.a === from ? d.b : d.a);
+/** The doors one sees from a space. */
+export const doorsFrom = (space: SpaceId) => STATION_DOORS.filter((d) => d.a === space || d.b === space);
+
+/**
+ * The furniture one can search, with its gestures (each one on/off: « Soulever le clavier » /
+ * « Reposer le clavier »). A gesture's key is `prop.gesture` (« ordi.clavier »): the scenario hides
+ * its things behind those keys. A `computer` asks for a password before showing its files.
+ */
+export interface Prop {
+  id: string;
+  space: SpaceId;
+  name: string;
+  gestures: { id: string; on: string; off: string }[];
+  computer?: { terminal: string; gesture: string };
+}
+
+export const PROPS: Prop[] = [
+  {
+    id: "ordi",
+    space: "hall",
+    name: "L'ordinateur de l'accueil",
+    gestures: [
+      { id: "allume", on: "Allumer l'écran", off: "Éteindre l'écran" },
+      { id: "clavier", on: "Soulever le clavier", off: "Reposer le clavier" },
+      { id: "souris", on: "Soulever la souris", off: "Reposer la souris" },
+    ],
+    computer: { terminal: "accueil", gesture: "allume" },
+  },
+  { id: "comptoir", space: "hall", name: "Le comptoir", gestures: [{ id: "tiroir", on: "Ouvrir le tiroir", off: "Fermer le tiroir" }] },
+  { id: "detente", space: "hall", name: "Le coin détente", gestures: [{ id: "coussins", on: "Soulever les coussins", off: "Remettre les coussins" }] },
+];
+export const propsIn = (space: SpaceId) => PROPS.filter((p) => p.space === space);

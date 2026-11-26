@@ -166,6 +166,14 @@ export const ANTARCTICA: ScenarioDef = {
     { id: "noms", title: "Le document aux noms", loops: [2], kind: "terminalFile", terminal: "labo", file: "noms", zone: "labo", missed: "Un document avec les noms des deux chercheurs" },
     { id: "midwinter", title: "La vidéo de Midwinter", loops: [2], kind: "terminalFile", terminal: "labo", file: "midwinter", zone: "labo", missed: "La vidéo de Midwinter, où l'on voit les deux chercheurs" },
   ],
+  // The free search of the hall (day 1): the key of Bêta under the reception computer's keyboard (Arthur,
+  // 23/11; the socle doc said « sous le tiroir » — the narration settles it). Password: to be written.
+  sandbox: {
+    hides: { "ordi.clavier": "cle" },
+    stash: [{ id: "cle", name: "Clé de Bêta", flag: "key", action: "accueil" }],
+    passwords: { ordi: "BLIZZARD" },
+    notes: { "ordi.souris": "mdp : BLIZZARD" },
+  },
   texts: {
     welcome: "ANTARCTICA : SANG-FROID",
     reboot: "SIMULATION ALPHA — SESSION",

@@ -10,6 +10,7 @@ import { TimerControls, type Act } from "./controls";
 import { Prep } from "./Prep";
 import { GlobalSheet, ProtocolStrip, RoomSheet, ScreenSheet, StationFace, ZoneSheet, screenLabel, useProtocol, type Sheet } from "./Station";
 import { FaultHint, Reader } from "./Reader";
+import { PropSheet } from "./Group";
 
 export type Send = (input: Record<string, unknown>) => Promise<string | null>;
 
@@ -115,10 +116,15 @@ export function Console({
           {view.status === "setup" && <Protocol code={code} def={def} view={view} members={members} busy={busy} send={send} act={act} protocol={protocol} progress={progress} />}
           {live && (
             <>
-              <button type="button" className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[#1f3a4b] bg-[#0c141b] px-3 text-left text-[0.8rem]" onClick={() => setSheet({ kind: "global" })}>
-                <span className="text-[var(--scn-muted)]">Lumière, sons, effets, minuteur, intrusion</span>
-                <span className="font-bold whitespace-nowrap text-[var(--scn-ice)]">Toute la base ›</span>
-              </button>
+              {/* By day (and on arrival), the game is played on the base itself: the same plan, the same gestures. */}
+              {view.state.phase === "arrival" || view.state.phase === "day" ? (
+                <StationFace def={def} view={view} busy={busy} act={act} sheet={sheet} onSheet={setSheet} />
+              ) : (
+                <button type="button" className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[#1f3a4b] bg-[#0c141b] px-3 text-left text-[0.8rem]" onClick={() => setSheet({ kind: "global" })}>
+                  <span className="text-[var(--scn-muted)]">Lumière, sons, effets, minuteur, intrusion</span>
+                  <span className="font-bold whitespace-nowrap text-[var(--scn-ice)]">Toute la base ›</span>
+                </button>
+              )}
               <PhaseSection def={def} view={view} busy={busy} act={act} send={send} />
               <Powers def={def} view={view} busy={busy} act={act} />
               <Chief def={def} view={view} busy={busy} act={act} />
@@ -133,6 +139,7 @@ export function Console({
       )}
 
       {sheet?.kind === "zone" && <ZoneSheet def={def} view={view} busy={busy} act={act} id={sheet.id} onClose={() => setSheet(null)} onRoom={(room) => setSheet({ kind: "room", room })} />}
+      {sheet?.kind === "prop" && <PropSheet def={def} view={view} busy={busy} act={act} id={sheet.id} onClose={() => setSheet(null)} />}
       {sheet?.kind === "room" && <RoomSheet def={def} view={view} busy={busy} act={act} room={sheet.room} onClose={() => setSheet(null)} />}
       {sheet?.kind === "global" && <GlobalSheet def={def} view={view} busy={busy} act={act} onClose={() => setSheet(null)} />}
       {sheet?.kind === "screen" && <ScreenSheet def={def} view={view} busy={busy} act={act} qrSvg={qrSvg} code={code} onClose={() => setSheet(null)} />}
@@ -646,6 +653,12 @@ function DayPlan({ def, view, busy, act, onGood }: Props & { onGood: () => void 
         <p className="text-sm text-[var(--scn-ok)]">3. Porte du jour : {labelOf(s.lastAction)}.</p>
       ) : (
         <>
+          {s.loop === 1 && s.round === 1 && (
+            <p className="rounded-lg border border-[var(--scn-amber)] px-3 py-2 text-sm">
+              <b className="text-[var(--scn-amber)]">D&apos;abord la fouille libre.</b> Le groupe explore le hall depuis le plan (« À fouiller » : l&apos;ordinateur, le comptoir, le coin détente). Quand la fouille s&apos;éternise, arrête-la, puis lance le choix de la porte.
+              {s.flags.key ? " La clé est trouvée : l'aile Bêta fait partie des choix." : ""}
+            </p>
+          )}
           <VoteControl
             key={doors.join()}
             def={def}

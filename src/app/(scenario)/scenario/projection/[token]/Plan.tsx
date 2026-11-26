@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { SPACES, SPOTS, STATION_DOORS, STATION_H, STATION_W, dormRooms, spaceShown, type Space, type StationDoor } from "@/modules/loups/scenarios/station";
+import { SPACES, SPOTS, STATION_DOORS, STATION_H, STATION_W, dormRooms, spaceShown, type Space, type SpaceId, type StationDoor } from "@/modules/loups/scenarios/station";
 import { Furniture } from "../../StationFurniture";
 
 /**
@@ -18,6 +18,8 @@ export function Plan({
   denied,
   parity = false,
   confinement = false,
+  at = null,
+  overview = true,
 }: {
   players: { id: string; name: string; room: number; status: "alive" | "dead" | "exiled" }[];
   sealed: Record<number, string>;
@@ -31,9 +33,28 @@ export function Plan({
   parity?: boolean;
   /** The base cut in two by a fire door. */
   confinement?: boolean;
+  /** Where the group is (a pulsing mark), and whether the room sees the whole base or follows the group. */
+  at?: SpaceId | null;
+  overview?: boolean;
 }) {
   const shown = (s: Space) => spaceShown(s.id, light, doors);
   const rooms = dormRooms(Math.max(players.length, 20));
+  // Following the group: the frame closes on what's known (and where they are), in the plan's proportions.
+  const frame = (() => {
+    if (overview || !at) return "none";
+    const known = SPACES.filter((s) => s.id !== "alpha" && (shown(s) || s.id === at));
+    if (!known.length) return "none";
+    const x0 = Math.min(...known.map((k) => k.x)) - 70;
+    const y0 = Math.min(...known.map((k) => k.y)) - 70;
+    const x1 = Math.max(...known.map((k) => k.x + k.w)) + 70;
+    const y1 = Math.max(...known.map((k) => k.y + k.h)) + 50;
+    const scale = Math.min(2.2, STATION_W / Math.max(1, x1 - x0), STATION_H / Math.max(1, y1 - y0));
+    if (scale <= 1.02) return "none";
+    const cx = (x0 + x1) / 2;
+    const cy = (y0 + y1) / 2;
+    return `translate(${STATION_W / 2 - cx * scale}px, ${STATION_H / 2 - cy * scale}px) scale(${scale})`;
+  })();
+  const atSpace = at ? SPACES.find((s) => s.id === at) : null;
 
   return (
     <svg viewBox={`0 0 ${STATION_W} ${STATION_H}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Plan de la base">
@@ -62,6 +83,7 @@ export function Plan({
         </filter>
       </defs>
       <rect x="-200" y="-200" width={STATION_W + 400} height={STATION_H + 400} fill="url(#pj-grid)" />
+      <g style={{ transform: frame, transformOrigin: "0 0", transition: "transform 1.1s cubic-bezier(.6,0,.2,1)" }}>
       <text x="500" y="752" textAnchor="middle" className="sublabel" style={{ fontSize: 18 }}>
         ↓ DEHORS · −45 °C
       </text>
@@ -152,6 +174,13 @@ export function Plan({
       {STATION_DOORS.map((d) => (
         <Door key={d.id} d={d} open={d.id === "alpha" ? false : !!doors[d.follows ?? d.id]} denied={d.id === "alpha" && denied} blood={d.id === "alpha"} />
       ))}
+      {atSpace && (
+        <g aria-hidden>
+          <circle className="pj-group" cx={atSpace.x + atSpace.w / 2 + (atSpace.id === "couloir" ? 16 : 0)} cy={atSpace.y + atSpace.h / 2 + (atSpace.id === "hall" ? 30 : 0)} r={15} fill="none" stroke="#ffb23e" strokeWidth={3} />
+          <circle cx={atSpace.x + atSpace.w / 2 + (atSpace.id === "couloir" ? 16 : 0)} cy={atSpace.y + atSpace.h / 2 + (atSpace.id === "hall" ? 30 : 0)} r={9} fill="#ffb23e" />
+        </g>
+      )}
+      </g>
     </svg>
   );
 }
