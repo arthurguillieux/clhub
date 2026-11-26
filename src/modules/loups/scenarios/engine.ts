@@ -27,6 +27,8 @@ export type Action =
   | { t: "load" }
   | { t: "unload" }
   | { t: "screen"; mode: "accueil" | "plan" }
+  // « Redémarrer la station »: before the game, everything back as at the start (players and journal kept).
+  | { t: "reset" }
   | { t: "start" }
   | { t: "arrive" }
   | { t: "patientZero"; player: string }
@@ -468,6 +470,8 @@ function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: 
       return s.phase === "welcome" && s.loadingAt !== null ? { ...s, loadingAt: null, log: log("Scénario retiré : la station tourne seule.") } : s;
     case "screen":
       return { ...s, screen: a.mode, neutral: null };
+    case "reset":
+      return s.phase === "welcome" ? { ...initialState(def, setup), players: s.players, loadingAt: s.loadingAt, log: log("Station redémarrée : tout revient comme au départ.") } : s;
     case "start":
       // The game starts in the base the scenario expects (doors shut, hall dark…): what was tried
       // before, to set up or rehearse, doesn't follow. The players and the journal stay.

@@ -135,6 +135,8 @@ export interface BaseDef {
   id: string;
   /** « STATION ANTARCTICA »: the phone's header and the room's welcome screen. */
   name: string;
+  /** The ambiance that goes with the welcome screen (the wind): plays while it's shown. */
+  welcomeSound?: string;
 }
 
 export interface ScenarioDef {

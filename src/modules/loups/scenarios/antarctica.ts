@@ -10,7 +10,7 @@ export const ANTARCTICA: ScenarioDef = {
   id: "antarctica",
   title: "Antarctica : Sang-froid",
   short: "Sang-froid",
-  base: { id: "antarctica", name: "Station Antarctica" },
+  base: { id: "antarctica", name: "Station Antarctica", welcomeSound: "son-vent" },
   subtitle: "Une base polaire, une meute, et une simulation qui fuit",
   // Normalised (trimmed, upper case) before hashing; see scenarios/index.ts.
   passwordSha256: "ca4716a4ceb41934436aff8525edc0ab8e82344228df89d543fd1ee5c4dec34b",
@@ -25,7 +25,7 @@ export const ANTARCTICA: ScenarioDef = {
     circuit: [true, false, true, true],
     eventsProposed: 2,
     hallLitLoop2: false,
-    gaugeSeconds: 180,
+    gaugeSeconds: 600,
     voteDoorSeconds: 60,
     voteDeadSeconds: 60,
     voteChiefSeconds: 120,

@@ -257,8 +257,8 @@ test("antarctica: the meneur keeps control — faults off, Stop, black screen, b
   await expect(page.getByRole("button", { name: /Glitch d'en-tête/ })).toBeEnabled();
 
   await bar.getByRole("button", { name: /Écran/ }).click();
-  await page.getByRole("button", { name: /^Noir/ }).click();
-  await expect(bar.getByRole("button", { name: /Écran/ })).toContainText("noir");
+  await page.getByRole("button", { name: /^En attente/ }).click();
+  await expect(bar.getByRole("button", { name: /Écran/ })).toContainText("en attente");
   await page.getByRole("button", { name: "Fermer la fiche" }).click();
   await bar.getByRole("button", { name: /Stop/ }).click();
   await page.locator("summary", { hasText: /^JOURNAL/ }).click();

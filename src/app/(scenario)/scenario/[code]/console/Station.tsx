@@ -5,6 +5,8 @@ import { LOADING_MS, momentOf, protocolOf } from "@/modules/loups/scenarios/engi
 import type { ConsoleView } from "@/modules/loups/scenarios/data";
 import type { PublicScenario } from "@/modules/loups/scenarios/types";
 import { MediaControls, TimerControls, type Act } from "./controls";
+import { SPACES, STATION_DOORS, STATION_H, STATION_W, dormRooms } from "@/modules/loups/scenarios/station";
+import { Furniture } from "../../StationFurniture";
 
 /**
  * The station, on its own: the base's plan, to pilot with a finger, whatever game is played in it
@@ -15,59 +17,29 @@ import { MediaControls, TimerControls, type Act } from "./controls";
 type Props = { def: PublicScenario; view: ConsoleView; busy: boolean; act: Act };
 export type Sheet = { kind: "zone"; id: string } | { kind: "room"; room: number } | { kind: "global" } | { kind: "screen" } | null;
 
-// The plan of the phone, in its own units (358 × 446): the zones, the corridors, the doors in the walls.
-const W = 358;
-const H = 446;
-const pct = (v: number, of: number) => `${(v / of) * 100}%`;
-const box = (x: number, y: number, w: number, h: number) => ({ left: pct(x, W), top: pct(y, H), width: pct(w, W), height: pct(h, H) });
-
 interface Zone {
   id: string;
   name: string;
   /** The door that opens it (none: the hall, lit or not). */
   door: string | null;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
   extra: string;
   terminal?: string;
   ambiance?: string;
 }
 
 const ZONES: Zone[] = [
-  { id: "hall", name: "HALL", door: null, x: 0, y: 0, w: 186, h: 108, extra: "accueil · terminal", terminal: "accueil" },
-  { id: "sas", name: "SAS", door: "sas", x: 190, y: 0, w: 58, h: 108, extra: "hangar", ambiance: "son-vent" },
-  { id: "beta", name: "ARCHIVES", door: "beta", x: 20, y: 126, w: 110, h: 70, extra: "panic room · terminal", terminal: "beta" },
-  { id: "generateurs", name: "GÉNÉRAT.", door: "generateurs", x: 134, y: 126, w: 114, h: 70, extra: "la jauge", ambiance: "son-generateurs" },
-  { id: "gamma", name: "INFIRMERIE", door: "gamma", x: 20, y: 214, w: 110, h: 70, extra: "trois lits" },
-  { id: "securite", name: "PC SÉCURITÉ", door: "securite", x: 134, y: 214, w: 114, h: 70, extra: "radio · terminal", terminal: "securite" },
-  { id: "labo", name: "LABORATOIRE", door: "labo", x: 20, y: 300, w: 248, h: 76, extra: "terminal · chambre froide", terminal: "labo" },
-  { id: "alpha", name: "ALPHA", door: "alpha", x: 0, y: 384, w: 268, h: 62, extra: "accès refusé" },
+  { id: "hall", name: "HALL", door: null, extra: "accueil · terminal", terminal: "accueil" },
+  { id: "sas", name: "SAS", door: "sas", extra: "hangar", ambiance: "son-vent" },
+  { id: "beta", name: "AILE BÊTA", door: "beta", extra: "le couloir, les archives : panic room · terminal", terminal: "beta" },
+  { id: "generateurs", name: "GÉNÉRATEURS", door: "generateurs", extra: "la jauge", ambiance: "son-generateurs" },
+  { id: "gamma", name: "INFIRMERIE", door: "gamma", extra: "trois lits" },
+  { id: "securite", name: "PC SÉCURITÉ", door: "securite", extra: "radio · terminal", terminal: "securite" },
+  { id: "labo", name: "LABORATOIRE", door: "labo", extra: "terminal · chambre froide", terminal: "labo" },
+  { id: "alpha", name: "ALPHA", door: "alpha", extra: "accès refusé" },
 ];
 
-/** The doors drawn in the walls: their centre, and whether the wall is vertical. */
-const DOORS: { id: string; cx: number; cy: number; v: boolean }[] = [
-  { id: "sas", cx: 188, cy: 54, v: true },
-  { id: "dortoir", cx: 270, cy: 150, v: true },
-  { id: "beta", cx: 75, cy: 126, v: false },
-  { id: "generateurs", cx: 191, cy: 126, v: false },
-  { id: "gamma", cx: 75, cy: 214, v: false },
-  { id: "securite", cx: 191, cy: 214, v: false },
-  { id: "labo", cx: 258, cy: 300, v: false },
-  { id: "alpha", cx: 8, cy: 384, v: false },
-];
-
-const CORRIDORS: { x: number; y: number; w: number; h: number; label: string; vertical?: boolean; condemned?: boolean }[] = [
-  { x: 16, y: 108, w: 252, h: 18, label: "COULOIR" },
-  { x: 20, y: 196, w: 248, h: 18, label: "COULOIR" },
-  { x: 248, y: 108, w: 20, h: 192, label: "SERVICE", vertical: true },
-  { x: 0, y: 108, w: 16, h: 276, label: "CONDAMNÉ", vertical: true, condemned: true },
-];
-
-const DORM = { x: 272, y: 0, w: 86, h: 446 };
-/** The dormitory as a zone (its header opens its sheet); its rooms open their subject. */
-const DORM_ZONE: Zone = { id: "dortoir", name: "DORTOIR", door: "dortoir", ...DORM, extra: "les chambres des sujets" };
+/** The dormitory as a zone (its header opens its sheet); its rooms open their subject from the sheet. */
+const DORM_ZONE: Zone = { id: "dortoir", name: "DORTOIR", door: "dortoir", extra: "les chambres des sujets" };
 
 /** The server's clock as seen from the phone, ticking: for the scenario's loading bar. */
 function useServerNow(serverNow: number): number {
@@ -90,7 +62,7 @@ export function useProtocol(view: ConsoleView) {
 /** What the room sees, in a word, for the header. */
 export function screenLabel(view: ConsoleView): string {
   const s = view.state;
-  if (s.neutral === "black") return "noir";
+  if (s.neutral === "black") return "en attente";
   if (s.neutral === "plan") return "plan seul";
   if (s.phase === "welcome") return s.loadingAt !== null ? "chargement" : s.screen === "plan" ? "plan" : "accueil";
   if (s.terminal) return "terminal";
@@ -118,118 +90,113 @@ export function StationFace({ def, view, busy, act, onSheet, sheet }: Props & { 
         <span className="font-bold whitespace-nowrap text-[var(--scn-ice)]">Toute la base ›</span>
       </button>
 
-      <div className="relative mx-auto mt-3 w-full max-w-[420px]" style={{ aspectRatio: `${W} / ${H}` }} aria-label="Plan de la base">
-        {CORRIDORS.map((c, i) => (
-          <div
-            key={i}
-            aria-hidden
-            className="absolute flex items-center justify-center overflow-hidden"
-            style={{
-              ...box(c.x, c.y, c.w, c.h),
-              background: c.condemned ? "repeating-linear-gradient(-45deg, #1a0709 0 5px, #0a0405 5px 10px)" : "#0b141b",
-              borderTop: c.condemned ? undefined : "1px dashed #1f3a4b",
-              borderBottom: c.condemned ? undefined : "1px dashed #1f3a4b",
-            }}
-          >
-            <span className="text-[0.5rem] font-bold tracking-[0.3em] whitespace-nowrap" style={{ color: c.condemned ? "#8a2a2d" : "#2f4b5d", transform: c.vertical ? "rotate(-90deg)" : undefined }}>
-              {c.label}
-            </span>
-          </div>
-        ))}
-        {ZONES.map((z) => {
-          const alpha = z.id === "alpha";
+      <svg viewBox="20 18 960 726" className="mx-auto mt-2 w-full max-w-[560px] select-none" role="group" aria-label="Plan de la base">
+        <defs>
+          <pattern id="ph-red" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="14" height="14" fill="#0c0607" />
+            <rect width="7" height="14" fill="#1a090b" />
+          </pattern>
+          <pattern id="ph-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M40 0H0V40" fill="none" stroke="#0e1a23" strokeWidth="1" />
+          </pattern>
+        </defs>
+        <rect x="0" y="0" width={STATION_W} height={STATION_H} fill="url(#ph-grid)" />
+        {SPACES.map((sp) => {
+          const z = [...ZONES, DORM_ZONE].find((x) => x.id === sp.zone)!;
+          const alpha = sp.id === "alpha";
           const on = reachable(z);
-          const selected = sheet?.kind === "zone" && sheet.id === z.id;
+          const selected = sheet?.kind === "zone" && sheet.id === sp.zone;
+          const open = () => onSheet({ kind: "zone", id: sp.zone });
           return (
-            <button
-              key={z.id}
-              type="button"
-              aria-label={`${z.name}${z.id === "hall" ? (s.light ? ", éclairé" : ", dans le noir") : on ? ", ouvert" : ", fermé"}. Ouvrir la fiche.`}
-              onClick={() => onSheet({ kind: "zone", id: z.id })}
-              className="absolute flex flex-col items-start justify-between rounded-[3px] p-1.5 text-left"
-              style={{
-                ...box(z.x, z.y, z.w, z.h),
-                border: `2px solid ${selected ? "#7fd8ff" : alpha ? "#6b1f22" : "#3f6f88"}`,
-                background: selected ? "#12364a" : alpha ? "repeating-linear-gradient(45deg, #14080a 0 7px, #0c0607 7px 14px)" : on ? "#10202b" : "#070b10",
-              }}
+            <g
+              key={sp.id}
+              role="button"
+              tabIndex={0}
+              aria-label={sp.id === "dortoir" ? `DORTOIR, porte ${s.doors.dortoir ? "ouverte" : "fermée"}. Ouvrir la fiche.` : `${sp.name}${sp.id === "hall" ? (s.light ? ", éclairé" : ", dans le noir") : on ? ", ouvert" : ", fermé"}. Ouvrir la fiche.`}
+              onClick={open}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), open())}
+              className="cursor-pointer outline-none"
             >
-              <span className="flex w-full items-center justify-between">
-                <span className="text-[0.62rem] font-bold tracking-[0.1em]" style={{ color: alpha ? "#ff6b6b" : on ? "#e6f2fa" : "#8fa6b6" }}>
-                  {z.name}
-                </span>
-                <span className="h-[7px] w-[7px] rounded-full" style={{ background: on && !alpha ? "#ffd76b" : "#1f3a4b" }} />
-              </span>
-              <span className="text-[0.58rem] text-[#8fa6b6]">{z.extra}</span>
-            </button>
+              <rect x={sp.x} y={sp.y} width={sp.w} height={sp.h} fill={alpha ? "url(#ph-red)" : selected ? "#12364a" : on ? "#10202b" : "#070b10"} stroke={selected ? "#7fd8ff" : alpha ? "#6b1f22" : "#3f6f88"} strokeWidth={selected ? 7 : 5} />
+              <g fill="#1d3444" stroke="#3a6378" strokeWidth={1.5} opacity={on || alpha ? 1 : 0.5}>
+                <Furniture id={sp.id} />
+              </g>
+              {sp.id === "dortoir" &&
+                dormRooms(rooms).map(({ n, x, y, w, h }) => {
+                  const p = byRoom.get(n);
+                  const gone = p && p.status !== "alive";
+                  return (
+                    <g key={n}>
+                      <rect x={x} y={y} width={w} height={h} rx={2} fill={s.sealed[n] ? "#1a0709" : "#0a1720"} stroke={s.sealed[n] ? "#6b1f22" : "#24394a"} />
+                      <text x={x + 8} y={y + h * 0.72} fontSize={Math.min(20, h * 0.75)} fill={gone ? "#ff6b6b" : "#8fa6b6"} className="scn-vt">
+                        {String(n).padStart(2, "0")}
+                      </text>
+                      <text x={x + 36} y={y + h * 0.72} fontSize={Math.min(17, h * 0.62)} fill={gone ? "#ff6b6b" : "#e6f2fa"} textDecoration={gone ? "line-through" : undefined}>
+                        {(p?.name ?? (s.sealed[n] ? "scellée" : "")).slice(0, 12)}
+                      </text>
+                    </g>
+                  );
+                })}
+              {sp.id === "couloir" ? (
+                <text x={sp.x + 24} y={sp.y + sp.h / 2} textAnchor="middle" transform={`rotate(-90 ${sp.x + 24} ${sp.y + sp.h / 2})`} fontSize={24} letterSpacing={3} fontWeight={700} fill={on ? "#e6f2fa" : "#8fa6b6"}>
+                  {sp.name}
+                </text>
+              ) : (
+                <text x={sp.x + 10} y={sp.y + 30} fontSize={sp.w <= 120 ? 17 : 26} letterSpacing={sp.w <= 120 ? 0 : 2} fontWeight={700} fill={alpha ? "#ff6b6b" : on ? "#e6f2fa" : "#8fa6b6"}>
+                  {sp.name}
+                </text>
+              )}
+              {!alpha && sp.id !== "couloir" && <circle cx={sp.x + sp.w - 14} cy={sp.y + 20} r={7} fill={on ? "#ffd76b" : "#1f3a4b"} />}
+            </g>
           );
         })}
-        <div className="absolute rounded border-2 border-[#3f6f88] bg-[#081017]" style={box(DORM.x, DORM.y, DORM.w, DORM.h)}>
-          <button
-            type="button"
-            aria-label={`DORTOIR, porte ${s.doors.dortoir ? "ouverte" : "fermée"}. Ouvrir la fiche.`}
-            onClick={() => onSheet({ kind: "zone", id: "dortoir" })}
-            className="flex h-8 w-full items-center justify-between rounded-t-[2px] px-1.5 text-left"
-            style={{ background: sheet?.kind === "zone" && sheet.id === "dortoir" ? "#12364a" : "#0c1a24" }}
-          >
-            <span className="text-[0.6rem] font-bold tracking-[0.1em]" style={{ color: s.doors.dortoir ? "#e6f2fa" : "#8fa6b6" }}>
-              DORTOIR
-            </span>
-            <span className="text-[0.75rem] font-bold text-[var(--scn-ice)]">›</span>
-          </button>
-          <div className="grid grid-cols-2 gap-[3px] p-[3px]" style={{ height: "calc(100% - 2rem)", gridTemplateRows: `repeat(${Math.ceil(rooms / 2)}, minmax(0, 1fr))` }}>
-            {Array.from({ length: rooms }, (_, i) => i + 1).map((n) => {
-              const p = byRoom.get(n);
-              const gone = p && p.status !== "alive";
-              const selected = sheet?.kind === "room" && sheet.room === n;
-              return (
-                <button
-                  key={n}
-                  type="button"
-                  aria-label={`Chambre ${n}${p ? `, ${p.name}${gone ? (p.status === "dead" ? ", mort" : ", exilé") : ""}` : ", libre"}`}
-                  onClick={() => onSheet({ kind: "room", room: n })}
-                  className="flex min-h-0 flex-col items-center justify-center overflow-hidden rounded-[3px] px-[1px]"
-                  style={{ border: `${selected ? 2 : 1}px solid ${selected ? "#7fd8ff" : s.sealed[n] ? "#6b1f22" : "#1f3a4b"}`, background: selected ? "#12364a" : "#0f1a22", opacity: p || s.sealed[n] ? 1 : 0.55 }}
-                >
-                  <span className="scn-vt text-[0.95rem] leading-none" style={{ color: gone ? "#ff6b6b" : "#e6f2fa" }}>
-                    {String(n).padStart(2, "0")}
-                  </span>
-                  <span className={`max-w-full truncate text-[0.5rem] font-semibold ${gone ? "text-[#ff6b6b] line-through" : ""}`}>{p?.name ?? (s.sealed[n] ? "scellée" : "")}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        {DOORS.map((d) => {
-          const door = def.doors.find((x) => x.id === d.id);
+        {STATION_DOORS.map((d) => {
+          const door = def.doors.find((x) => x.id === (d.follows ?? d.id));
           if (!door) return null;
-          const open = !!s.doors[d.id];
+          const open = !!s.doors[door.id];
           const alpha = !!door.locked;
-          const color = alpha && !open ? "#ff3b3b" : open ? "#7fd8ff" : door.requires ? "#ff6b6b" : "#6f8796";
-          const len = d.id === "labo" || alpha ? 16 : 26;
+          const color = alpha && !open ? "#ff3b3b" : open ? "#7fd8ff" : door.requires ? "#ff6b6b" : "#9fb3c2";
+          const len = 44;
+          const left = d.v && d.side === "l";
+          const lx = d.v ? (left ? d.x - 12 : d.x + 12) : d.x + len / 2 + 8;
+          const ly = d.v ? d.y + 8 : d.y + 10;
+          const bar = d.v ? <rect x={d.x - 5} y={d.y - len / 2} width={10} height={len} rx={2} fill={color} /> : <rect x={d.x - len / 2} y={d.y - 5} width={len} height={10} rx={2} fill={color} />;
+          const letter = (
+            <text x={lx} y={ly} textAnchor={left ? "end" : "start"} fontSize={30} fill={color} className="scn-vt">
+              {d.letter}
+            </text>
+          );
+          // The archives open with the Bêta wing: drawn, not touched.
+          if (d.follows)
+            return (
+              <g key={d.id} aria-hidden>
+                {bar}
+                {letter}
+              </g>
+            );
+          const toggle = () => void act({ t: "door", door: door.id, open: alpha && !open ? false : !open });
           return (
-            <button
+            <g
               key={d.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               aria-label={`Porte ${door.letter} ${door.label} : ${open ? "ouverte" : alpha ? "ne s'ouvre jamais" : "fermée"}. ${alpha && !open ? "Tenter de l'ouvrir." : open ? "Toucher pour fermer." : "Toucher pour ouvrir."}`}
-              disabled={busy}
-              onClick={() => void act({ t: "door", door: d.id, open: alpha && !open ? false : !open })}
-              className="absolute z-[2] h-11 w-11 -translate-x-1/2 -translate-y-1/2 p-0"
-              style={{ left: pct(d.cx, W), top: pct(d.cy, H) }}
+              aria-disabled={busy}
+              onClick={() => !busy && toggle()}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && !busy && (e.preventDefault(), toggle())}
+              className="cursor-pointer outline-none"
             >
-              <span
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-sm"
-                style={{ width: d.v ? 6 : len, height: d.v ? len : 6, background: color, boxShadow: open ? `0 0 8px ${color}` : undefined }}
-              />
-              <span className="scn-vt absolute text-[0.95rem] leading-none whitespace-nowrap" style={{ color, ...(d.v ? { left: 26, top: 2 } : { left: 22 + len / 2 + 3, top: 14 }) }}>
-                {door.letter}
-              </span>
-            </button>
+              <rect x={d.x - 42} y={d.y - 42} width={84} height={84} fill="transparent" />
+              {bar}
+              {open && <rect x={d.v ? d.x - 9 : d.x - len / 2 - 4} y={d.v ? d.y - len / 2 - 4 : d.y - 9} width={d.v ? 18 : len + 8} height={d.v ? len + 8 : 18} fill="none" stroke={color} strokeWidth={2} opacity={0.5} />}
+              {letter}
+            </g>
           );
         })}
-        <span className="scn-vt absolute text-[0.8rem] tracking-[0.1em] text-[#bfeaff]" style={{ left: pct(192, W), top: "-15px" }} aria-hidden>
-          ↑ DEHORS
-        </span>
-      </div>
+        <text x={500} y={740} textAnchor="middle" fontSize={20} letterSpacing={3} fill="#5d7a8c" className="scn-vt">
+          ↓ DEHORS · −45 °C
+        </text>
+      </svg>
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.7rem] text-[var(--scn-muted)]">
         <span className="flex items-center gap-1">
           <span className="inline-block h-1 w-4 bg-[#7fd8ff]" />
@@ -288,7 +255,7 @@ export function SheetFrame({ title, sub, color = "var(--scn-ice)", onClose, chil
   );
 }
 
-export function ZoneSheet({ def, view, busy, act, id, onClose }: Props & { id: string; onClose: () => void }) {
+export function ZoneSheet({ def, view, busy, act, id, onClose, onRoom }: Props & { id: string; onClose: () => void; onRoom: (room: number) => void }) {
   const s = view.state;
   const z = [...ZONES, DORM_ZONE].find((x) => x.id === id)!;
   const door = z.door ? def.doors.find((d) => d.id === z.door) : null;
@@ -404,8 +371,31 @@ export function ZoneSheet({ def, view, busy, act, id, onClose }: Props & { id: s
           {s.players.length
             ? `${s.players.length} sujets, ${s.players.filter((p) => p.status === "alive").length} actifs${Object.keys(s.sealed).length ? `, ${Object.keys(s.sealed).length} chambres scellées` : ""}.`
             : "Pas encore de sujets : ils se préparent dans Protocole."}{" "}
-          Touche une chambre du plan pour la fiche de son sujet.
+          Touche une chambre pour la fiche de son sujet.
         </p>
+      )}
+      {z.id === "dortoir" && (
+        <div className="grid grid-cols-4 gap-1.5">
+          {Array.from({ length: Math.max(20, s.players.length) }, (_, i) => i + 1).map((n) => {
+            const p = s.players.find((x) => x.room === n);
+            const gone = p && p.status !== "alive";
+            return (
+              <button
+                key={n}
+                type="button"
+                aria-label={`Chambre ${n}${p ? `, ${p.name}${gone ? (p.status === "dead" ? ", mort" : ", exilé") : ""}` : ", libre"}`}
+                onClick={() => onRoom(n)}
+                className="flex min-h-12 flex-col items-center justify-center overflow-hidden rounded-lg border px-1"
+                style={{ borderColor: s.sealed[n] ? "#6b1f22" : "#1f3a4b", background: "#0f1a22", opacity: p || s.sealed[n] ? 1 : 0.55 }}
+              >
+                <span className="scn-vt text-lg leading-none" style={{ color: gone ? "#ff6b6b" : "#e6f2fa" }}>
+                  {String(n).padStart(2, "0")}
+                </span>
+                <span className={`max-w-full truncate text-[0.62rem] font-semibold ${gone ? "text-[#ff6b6b] line-through" : ""}`}>{p?.name ?? (s.sealed[n] ? "scellée" : "")}</span>
+              </button>
+            );
+          })}
+        </div>
       )}
     </SheetFrame>
   );
@@ -466,6 +456,7 @@ export function RoomSheet({ view, busy, act, room, onClose }: Props & { room: nu
 export function GlobalSheet({ def, view, busy, act, onClose }: Props & { onClose: () => void }) {
   const s = view.state;
   const [text, setText] = useState("");
+  const [resetAsked, setResetAsked] = useState(false);
   const categories = [...new Set(def.media.filter((m) => m.category).map((m) => m.category!))];
   return (
     <SheetFrame title="TOUTE LA BASE" sub="Ce qui touche la station entière." onClose={onClose}>
@@ -534,6 +525,36 @@ export function GlobalSheet({ def, view, busy, act, onClose }: Props & { onClose
       <button type="button" className="scn-btn scn-btn-danger" disabled={busy} onClick={() => void act({ t: "stopSound", slot: null })}>
         Couper tous les sons
       </button>
+      {s.phase === "welcome" && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">REDÉMARRAGE</span>
+          {resetAsked ? (
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                className="scn-btn scn-btn-danger"
+                disabled={busy}
+                onClick={async () => {
+                  setResetAsked(false);
+                  await act({ t: "reset" });
+                }}
+              >
+                Redémarrer
+                <small>portes, lumière, sons : tout revient</small>
+              </button>
+              <button type="button" className="scn-btn" onClick={() => setResetAsked(false)}>
+                Garder la station
+                <small>ne rien changer</small>
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="scn-btn" disabled={busy} onClick={() => setResetAsked(true)}>
+              Redémarrer la station
+              <small>tout comme au départ ; les joueurs restent</small>
+            </button>
+          )}
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-magenta)]">INTRUSION</span>
         {s.intrusion ? (
@@ -594,7 +615,7 @@ export function ScreenSheet({ def, view, busy, act, qrSvg, code, onClose }: Prop
             {choice(s.neutral === "plan", "Plan seul", "écran neutre", { t: "neutral", mode: s.neutral === "plan" ? null : "plan" })}
           </>
         )}
-        {choice(s.neutral === "black", "Noir", s.neutral === "black" ? "toucher pour revenir" : "écran de secours", { t: "neutral", mode: s.neutral === "black" ? null : "black" })}
+        {choice(s.neutral === "black", "En attente", s.neutral === "black" ? "toucher pour revenir" : "« en attente de connexion »", { t: "neutral", mode: s.neutral === "black" ? null : "black" })}
       </Rows>
       <div className="flex flex-wrap gap-1.5 text-xs">
         <span className={`scn-chip ${p.connected ? "scn-chip-ok" : "scn-chip-bad"}`}>{p.connected ? "Projection connectée" : "Projection déconnectée"}</span>

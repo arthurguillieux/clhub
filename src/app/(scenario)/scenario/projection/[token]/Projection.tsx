@@ -8,6 +8,7 @@ import { parseCues, type Cue } from "@/modules/loups/scenarios/subtitles";
 import type { Fault, PublicScenario, Terminal } from "@/modules/loups/scenarios/types";
 import { projectionReportAction } from "../../actions";
 import { forgetFiles, keepFiles, keyOf, loadFiles, MEDIA_FORMATS } from "./media";
+import { SPOTS, STATION_H, STATION_W } from "@/modules/loups/scenarios/station";
 import { Plan } from "./Plan";
 import { SFX, audio, cassette } from "./sfx";
 
@@ -86,14 +87,17 @@ export function Projection({ token, def, initial }: { token: string; def: Public
     },
     [urlOf, def.media],
   );
+  // The welcome screen comes with its own ambiance (the wind on the station's sign), as long as it's shown.
+  const welcomeShown = s.phase === "welcome" && s.loadingAt === null && s.screen === "accueil" && !s.neutral;
   useEffect(() => {
     for (const m of def.media.filter((x) => x.loop)) {
       const el = soundOf(m.id);
       if (!el) continue;
-      if (s.ambiances.includes(m.id)) void el.play().catch(() => undefined);
+      if (s.ambiances.includes(m.id) || (welcomeShown && m.id === def.base.welcomeSound)) void el.play().catch(() => undefined);
       else el.pause();
     }
-  }, [s.ambiances, def.media, soundOf]);
+    // `panel`: the browser lets sound play once « Lancer la projection » has been pressed.
+  }, [s.ambiances, def.media, def.base.welcomeSound, welcomeShown, soundOf, panel]);
 
   // ── Effects played once, for gestures newer than what this screen has seen ──
   const [overlay, setOverlay] = useState<Overlay>(null);
@@ -338,6 +342,19 @@ export function Projection({ token, def, initial }: { token: string; def: Public
             banner("PERTE DE CONFIANCE. CHEF DE MISSION ÉLIMINÉ SANS MOTIF. VERROUILLAGE GÉNÉRAL.", "bad");
           }
           break;
+        case "reset": {
+          // « Redémarrer la station »: a glitch, the reboot sound (or a beep), and the words.
+          doGlitch();
+          const el = soundOf("son-reboot");
+          if (el) {
+            el.currentTime = 0;
+            void el.play().catch(() => undefined);
+          } else SFX.boot();
+          setReboot("");
+          later(() => setReboot("REDÉMARRAGE DE LA STATION"), 700);
+          later(() => setReboot(null), 2600);
+          break;
+        }
         case "reboot":
           doGlitch();
           setReboot("");
@@ -376,10 +393,18 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   const protocol = protocolOf(s, now + offset);
   const stationPlan = s.phase === "welcome" && protocol === "none" && s.screen === "plan";
   const mapPhase = s.phase === "arrival" || s.phase === "day" || s.phase === "loopEnd" || stationPlan;
+  // Arriving on the plan (the station's, or the base at the arrival): a short electronic chirp.
+  const planArrived = (stationPlan || s.phase === "arrival") && !s.neutral && !s.terminal;
+  const wasOnPlan = useRef(planArrived);
+  useEffect(() => {
+    if (planArrived && !wasOnPlan.current && !panel) SFX.plan();
+    wasOnPlan.current = planArrived;
+  }, [planArrived, panel]);
   // Délestage: the day's event in the game; any time on the station alone.
   const shedding = s.dark && (s.phase === "day" || stationPlan);
   const term = def.terminals.find((t) => t.id === s.terminal) ?? null;
-  const zoom = term ? term.hot : s.circuitShown ? { x: 1390, y: 500 } : null;
+  // Zoom on the terminal's place on the station's plan (by the room the scenario puts it in), or the electrical box.
+  const zoom = term ? (SPOTS[term.room] ?? term.hot) : s.circuitShown ? SPOTS.circuit! : null;
   const event = view.events.find((e) => e.id === s.event) ?? null;
   const aliveCount = view.players.filter((p) => p.status === "alive").length;
 
@@ -420,14 +445,14 @@ export function Projection({ token, def, initial }: { token: string; def: Public
                 </span>
               </div>
             )}
-            <div className="pj-mapbox" style={zoom ? { transformOrigin: `${(zoom.x / 1600) * 100}% ${(zoom.y / 820) * 100}%`, transform: "scale(2.6)", filter: "blur(3px) brightness(.45)" } : undefined}>
+            <div className="pj-mapbox" style={zoom ? { transformOrigin: `${(zoom.x / STATION_W) * 100}% ${(zoom.y / STATION_H) * 100}%`, transform: "scale(2.6)", filter: "blur(3px) brightness(.45)" } : undefined}>
               <Plan
                 players={view.players}
                 sealed={s.sealed}
                 light={s.light}
                 doors={s.doors}
                 panicReady={s.panicReady}
-                hot={{ accueil: s.light && !term, beta: !!s.doors.beta && !term, securite: !!s.doors.securite && !term, labo: !!s.doors.labo && !term }}
+                hot={{ hall: s.light && !term, beta: !!s.doors.beta && !term, securite: !!s.doors.securite && !term, labo: !!s.doors.labo && !term }}
                 denied={denied}
                 parity={(s.parity || s.confinement) && s.phase === "day"}
                 confinement={s.confinement}
@@ -553,7 +578,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
             </p>
           </div>
         )}
-        {s.neutral === "black" && <div className="pj-full" style={{ zIndex: 20, background: "#000" }} />}
+        {s.neutral === "black" && <Waiting />}
         {!!flash && <div key={flash} className="pj-flash" />}
         {overlay && (
           <div key={overlay.key} className={`pj-banner ${overlay.tone}`}>
@@ -954,7 +979,34 @@ function Tape({
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const audioEl = useRef<HTMLAudioElement>(null);
+  const videoEl = useRef<HTMLVideoElement | null>(null);
   const [line, setLine] = useState("");
+  // A video that stalls (the decoder chokes now and then on a long file): when the picture hasn't moved
+  // for about 1.5 s while it should play, step back a quarter of a second and play on — the meneur's
+  // « −10 s » trick, done for them, without a visible jump.
+  useEffect(() => {
+    if (!url || file.kind !== "video") return;
+    let last = -1;
+    let still = 0;
+    const watch = setInterval(() => {
+      const el = videoEl.current;
+      if (!el || el.paused || el.ended || el.seeking) {
+        still = 0;
+        last = el?.currentTime ?? -1;
+        return;
+      }
+      if (el.currentTime === last) {
+        still += 1;
+        if (still >= 2) {
+          el.currentTime = Math.max(0, el.currentTime - 0.25);
+          void el.play().catch(() => undefined);
+          still = 0;
+        }
+      } else still = 0;
+      last = el.currentTime;
+    }, 750);
+    return () => clearInterval(watch);
+  }, [url, file.kind]);
   const follow = (e: React.SyntheticEvent<HTMLMediaElement>) => {
     const t = e.currentTarget.currentTime;
     setLine(cues.find((c) => t >= c.start && t < c.end)?.text ?? "");
@@ -1008,7 +1060,19 @@ function Tape({
     );
   return (
     <>
-      {file.kind === "video" && <video ref={onMedia} src={url} autoPlay playsInline onTimeUpdate={follow} />}
+      {file.kind === "video" && (
+        <video
+          ref={(el) => {
+            videoEl.current = el;
+            onMedia(el);
+          }}
+          src={url}
+          autoPlay
+          playsInline
+          preload="auto"
+          onTimeUpdate={follow}
+        />
+      )}
       {file.kind === "image" && (
         // eslint-disable-next-line @next/next/no-img-element -- a local file of the projection computer
         <img src={url} alt="" />
@@ -1289,6 +1353,30 @@ function TypedFile({ lines, byLine }: { lines: string[]; byLine: boolean }) {
     <div ref={box} className="pj-txt overflow-hidden" style={{ fontSize: byLine ? "1.05cqw" : undefined }}>
       {all.slice(0, n)}
       <span className="pj-cursor" style={{ background: "var(--scn-amber)" }} />
+    </div>
+  );
+}
+
+/**
+ * « En attente de connexion »: the screen the meneur keeps in reserve (it used to be plain black). Dark,
+ * quiet, but alive: the base is trying to reach someone.
+ */
+function Waiting() {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 600);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="pj-full flex-col gap-[1.6cqw] text-center" style={{ zIndex: 20, background: "#020304" }}>
+      <p className="scn-vt text-[1.6cqw] tracking-[0.4em] text-[#3f6f88]">A.P.E. SYSTEMS · LIAISON SATELLITE</p>
+      <p className="scn-vt text-[4.2cqw] tracking-[0.18em] text-[var(--scn-ice)] drop-shadow-[0_0_18px_rgba(127,216,255,.35)]">
+        EN ATTENTE DE CONNEXION{".".repeat(tick % 4)}
+        <span className="invisible">{".".repeat(3 - (tick % 4))}</span>
+      </p>
+      <p className="scn-vt text-[1.5cqw] tracking-[0.3em] text-[#3f6f88]">
+        TENTATIVE {String(1 + Math.floor(tick / 8)).padStart(2, "0")} <span className="pj-cursor" />
+      </p>
     </div>
   );
 }

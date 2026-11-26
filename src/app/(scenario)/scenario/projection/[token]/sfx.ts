@@ -76,6 +76,12 @@ export const SFX = {
     tone(220, 0.15, "sawtooth", 0.05, 0.15);
   },
   click: () => tone(1800, 0.03, "square", 0.03),
+  /** The plan comes up: a little rising chirp, like a 1980s terminal finding its screen. */
+  plan: () => {
+    [523, 784, 1047, 1568].forEach((f, i) => tone(f, 0.07, "square", 0.022, i * 0.075));
+    tone(196, 0.45, "sine", 0.035, 0.32);
+    noise(0.2, 0.015, 5200);
+  },
   wind: () => noise(2.5, 0.05, 300),
 };
 

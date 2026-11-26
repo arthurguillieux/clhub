@@ -47,6 +47,16 @@ describe("the station before the game", () => {
     expect(protocolOf(started, 0)).toBe("running");
   });
 
+  it("restarts the station: everything as at the start, the players and the journal kept", () => {
+    const s = run([{ t: "room", player: "p1", room: 3 }, { t: "light", on: true }, { t: "door", door: "beta", open: true }, { t: "sound", slot: "son-vent" }, { t: "reset" }]);
+    expect(s).toMatchObject({ phase: "welcome", screen: "accueil", light: false, ambiances: [] });
+    expect(s.doors.beta).toBe(false);
+    expect(s.players.find((p) => p.id === "p1")?.room).toBe(3);
+    expect(s.log.at(-1)?.text).toContain("Station redémarrée");
+    // In the game, nothing: the loop's reboot is the scenario's.
+    expect(run([...start, { t: "light", on: true }, { t: "reset" }]).light).toBe(true);
+  });
+
   it("shows the plan to the room as soon as the base is touched, and goes back to the welcome image on demand", () => {
     expect(run([{ t: "sound", slot: "son-vent" }]).screen).toBe("accueil");
     expect(run([{ t: "door", door: "sas", open: true }]).screen).toBe("plan");

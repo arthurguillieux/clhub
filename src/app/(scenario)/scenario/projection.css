@@ -455,6 +455,11 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+/* The old-tape tint on still pictures only: a filter on a playing video makes the browser redo every
+   frame by hand, and long videos stutter or freeze (25/11/2026). Videos keep their own colours. */
+.pj-tube img,
+.pj-tube canvas {
   filter: sepia(0.25) saturate(0.8) contrast(1.1);
 }
 .pj-vhs {
@@ -493,18 +498,22 @@
   position: absolute;
   left: 0;
   right: 0;
+  top: 0;
   height: 3%;
   background: rgba(255, 255, 255, 0.18);
+  will-change: transform;
   animation: pj-track 4.5s linear infinite;
 }
 @keyframes pj-track {
+  /* Moved by transform, not `top`: no repaint of the picture under it at every frame. */
   from {
-    top: -5%;
+    transform: translateY(-200%);
   }
   to {
-    top: 105%;
+    transform: translateY(3500%);
   }
 }
+
 /* The panic room's box. */
 .pj-circ {
   position: absolute;

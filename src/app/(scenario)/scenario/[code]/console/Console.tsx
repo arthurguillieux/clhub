@@ -128,7 +128,7 @@ export function Console({
         </>
       )}
 
-      {sheet?.kind === "zone" && <ZoneSheet def={def} view={view} busy={busy} act={act} id={sheet.id} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "zone" && <ZoneSheet def={def} view={view} busy={busy} act={act} id={sheet.id} onClose={() => setSheet(null)} onRoom={(room) => setSheet({ kind: "room", room })} />}
       {sheet?.kind === "room" && <RoomSheet def={def} view={view} busy={busy} act={act} room={sheet.room} onClose={() => setSheet(null)} />}
       {sheet?.kind === "global" && <GlobalSheet def={def} view={view} busy={busy} act={act} onClose={() => setSheet(null)} />}
       {sheet?.kind === "screen" && <ScreenSheet def={def} view={view} busy={busy} act={act} qrSvg={qrSvg} code={code} onClose={() => setSheet(null)} />}
@@ -162,7 +162,7 @@ function CommandBar({ view, busy, act, send, reading, onScreen, onText }: { view
           ■ Stop<small>tout ce qui joue</small>
         </button>
         <button type="button" className={`scn-btn min-h-12 px-1 text-xs ${s.neutral ? "scn-btn-on" : ""}`} onClick={onScreen}>
-          Écran<small>{s.neutral === "black" ? "noir" : s.neutral === "plan" ? "plan seul" : "de la salle"}</small>
+          Écran<small>{s.neutral === "black" ? "en attente" : s.neutral === "plan" ? "plan seul" : "de la salle"}</small>
         </button>
         <button type="button" className="scn-btn min-h-12 px-1 text-xs" disabled={busy || !view.canUndo} onClick={() => void send({ type: "undo" })}>
           ↶ Annuler<small>dernière action</small>
