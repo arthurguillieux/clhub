@@ -7,7 +7,7 @@ import { LOADING_MS, protocolOf, registry, timeLeft, type Action } from "@/modul
 import { parseCues, type Cue } from "@/modules/loups/scenarios/subtitles";
 import type { Fault, PublicScenario, Terminal } from "@/modules/loups/scenarios/types";
 import { projectionReportAction } from "../../actions";
-import { forgetFiles, keepFiles, keyOf, loadFiles } from "./media";
+import { forgetFiles, keepFiles, keyOf, loadFiles, MEDIA_FORMATS } from "./media";
 import { Plan } from "./Plan";
 import { SFX, audio, cassette } from "./sfx";
 
@@ -1160,6 +1160,8 @@ function OperatorPanel({
   onStart: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  /** The folder's media files that match nothing the scenario asks for: shown with their real name, to spot a typo or a hidden extension. */
+  const [unknown, setUnknown] = useState<string[]>([]);
   const ready = wanted.filter((f) => files.has(keyOf(f))).length;
   // Whether this browser can pick a folder; the server assumes it can, so nothing flashes.
   const folders = useSyncExternalStore(
@@ -1194,6 +1196,8 @@ function OperatorPanel({
             onChange={async (e) => {
               const list = [...(e.target.files ?? [])];
               e.target.value = "";
+              const keys = new Set(wanted.map(keyOf));
+              setUnknown(list.filter((f) => MEDIA_FORMATS.test(f.name) && !keys.has(keyOf(f.name))).map((f) => f.name));
               setBusy(true);
               await onPick(list).catch(() => undefined);
               setBusy(false);
@@ -1209,6 +1213,12 @@ function OperatorPanel({
         </ul>
         <p className="mt-1 text-xs text-[var(--scn-muted)]">Seul le nom compte, pas le format : les sons peuvent être en .mp3, .aac, .m4a, .ogg ou .wav, les vidéos en .mp4, .webm ou .mov, les images en .jpg ou .png.</p>
         {subtitles.length > 0 && <p className="mt-1 text-xs text-[var(--scn-ok)]">Sous-titres : {subtitles.join(", ")}</p>}
+        {unknown.length > 0 && (
+          <p className="mt-1 text-xs text-[var(--scn-amber)]">
+            Dans le dossier mais pas reconnus (vérifiez le nom) : {unknown.slice(0, 12).join(", ")}
+            {unknown.length > 12 ? `… et ${unknown.length - 12} autres` : ""}
+          </p>
+        )}
         {files.size > 0 && (
           <button type="button" className="mt-1 py-1 text-xs text-[var(--scn-muted)] underline" onClick={() => void onForget()}>
             Oublier les médias de cet ordinateur

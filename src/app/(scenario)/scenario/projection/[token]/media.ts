@@ -19,7 +19,13 @@ function open(): Promise<IDBDatabase> {
 /** The formats a browser plays: sounds, videos, images. */
 export const MEDIA_FORMATS = /\.(mp3|aac|m4a|ogg|oga|opus|wav|flac|mp4|m4v|webm|mov|jpe?g|png|webp|gif)$/i;
 
-export const keyOf = (name: string) => name.trim().toLowerCase().replace(MEDIA_FORMATS, "");
+const MEDIA_SUFFIXES = /(\.(mp3|aac|m4a|ogg|oga|opus|wav|flac|mp4|m4v|webm|mov|jpe?g|png|webp|gif))+$/i;
+
+/**
+ * A file's key: its name without format, case or stray spaces. Windows hides known extensions, so a
+ * file shown as « vent.aac » is often really « vent.aac.m4a »: every trailing media format goes.
+ */
+export const keyOf = (name: string) => name.trim().toLowerCase().replace(MEDIA_SUFFIXES, "").trim();
 
 /** Keeps the chosen files (only the ones the scenario asks for, so a whole folder of holiday photos stays out). */
 export async function keepFiles(files: File[], wanted: Set<string>): Promise<number> {

@@ -9,6 +9,12 @@ describe("the projection's media", () => {
     expect(keyOf("accueil.png")).toBe(keyOf("accueil.jpg"));
   });
 
+  it("see through the extensions Windows hides", () => {
+    expect(keyOf("vent.aac.m4a")).toBe("vent");
+    expect(keyOf("vent.mp3.mp3")).toBe("vent");
+    expect(keyOf(" Vent .AAC")).toBe("vent");
+  });
+
   it("keep the subtitles apart from their video", () => {
     expect(keyOf("log-2.vtt")).toBe("log-2.vtt");
     expect(keyOf("log-2.vtt")).not.toBe(keyOf("log-2.mp4"));
