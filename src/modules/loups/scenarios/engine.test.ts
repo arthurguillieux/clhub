@@ -26,29 +26,46 @@ const night = (infect: string | null, victim: string | null, chosen = "blizzard"
   { t: "dawn" },
 ];
 
-describe("the sandbox", () => {
-  it("knows where the group is, what it searches, and finds the key under the keyboard", () => {
-    const s = run([{ t: "light", on: true }, { t: "prop", id: "ordi" }, { t: "gesture", key: "ordi.allume", on: true }, { t: "gesture", key: "ordi.clavier", on: true }]);
-    expect(s).toMatchObject({ at: "hall", prop: "ordi", inventory: ["cle"] });
+describe("the sandbox (V1.4)", () => {
+  const search = (key: string): Action => ({ t: "gesture", key, on: true });
+  it("finds the key of Bêta under the reception computer's keyboard, the post-it under the mouse, the log book in the drawer", () => {
+    const s = run([{ t: "light", on: true }, { t: "prop", id: "ordi" }, search("ordi.clavier")]);
+    expect(s).toMatchObject({ at: "hall", prop: "ordi", inventory: ["cle_beta"] });
     expect(s.flags.key).toBe(true);
-    expect(s.actionsDone).toContain("accueil");
-    expect(s.log.at(-1)?.text).toBe("Trouvé : Clé de Bêta (soulever le clavier).");
-    // Found once: putting the keyboard back and lifting it again finds nothing more.
-    const again = run([{ t: "gesture", key: "ordi.clavier", on: true }, { t: "gesture", key: "ordi.clavier", on: false }, { t: "gesture", key: "ordi.clavier", on: true }]);
-    expect(again.inventory).toEqual(["cle"]);
-    // Other furniture hides nothing here.
-    expect(run([{ t: "gesture", key: "comptoir.tiroir", on: true }]).inventory).toEqual([]);
+    expect(s.opened["ordi.clavier"]).toMatchObject({ objet: "cle_beta", texte: "FOU-01" });
+    expect(s.log.at(-1)?.text).toBe("Fouille (FOU-01) : La clé de l'aile Bêta.");
+    expect(run([search("ordi.souris")]).inventory).toEqual(["postit_mdp"]);
+    expect(run([search("comptoir.fouiller")])).toMatchObject({ inventory: [], opened: { "comptoir.fouiller": { texte: "FOU-03", objet: null } } });
+    // Opened once: putting it back and opening it again finds nothing more.
+    expect(run([search("ordi.clavier"), { t: "gesture", key: "ordi.clavier", on: false }, search("ordi.clavier")]).inventory).toEqual(["cle_beta"]);
   });
 
-  it("opens a computer with its password, and Bêta with the key only", () => {
-    expect(run([{ t: "password", prop: "ordi", text: "hiver" }]).pwTries).toBe(1);
-    expect(run([{ t: "password", prop: "ordi", text: " blizzard " }]).unlocked).toEqual(["ordi"]);
+  it("opens one hiding place per visit in the game, swaps two in secret, and noted as décor from the BASE face", () => {
+    const day1: Action[] = [...start, { t: "night" }, { t: "victim", player: null }, { t: "dawn" }, { t: "light", on: true }, { t: "dayAction", id: "accueil" }];
+    const one = run([...day1, search("comptoir.fouiller"), search("ordi.clavier")]);
+    expect(one.at).toBe("hall");
+    expect(one.inventory).toEqual([]); // the drawer had the log book; the keyboard waits for another visit
+    expect(one.log.at(-1)?.text).toContain("une seule cachette par visite");
+    // The meneur swaps, before the gesture: the drawer now holds the key.
+    const swapped = run([...day1, { t: "swap", a: "comptoir.fouiller", b: "ordi.clavier" }, search("comptoir.fouiller")]);
+    expect(swapped.inventory).toEqual(["cle_beta"]);
+    expect(swapped.log.some((l) => l.text.startsWith("(Secret) Contenus échangés"))).toBe(true);
+    // From the BASE face during the game: décor, nothing found, noted as such.
+    const decor = run([...day1, { ...search("ordi.clavier"), decor: true } as unknown as Action]);
+    expect(decor.inventory).toEqual([]);
+    expect(decor.log.at(-1)?.text).toMatch(/\(décor\)$/);
+    // Before the game, the sandbox has no limit.
+    expect(run([search("comptoir.fouiller"), search("ordi.clavier")]).inventory).toEqual(["cle_beta"]);
+  });
+
+  it("unlocks the archives' terminal with LYSSA only, and Bêta with the key only", () => {
+    expect(run([{ t: "password", prop: "beta", text: "hiver" }]).pwTries).toBe(1);
+    expect(run([{ t: "password", prop: "beta", text: " lyssa " }]).unlocked).toEqual(["beta"]);
+    expect(run([{ t: "password", prop: "accueil", text: "lyssa" }]).unlocked).toEqual([]); // no lock there
     expect(run([{ t: "unlock", door: "beta" }]).doors.beta).toBe(false);
-    expect(run([{ t: "gesture", key: "ordi.clavier", on: true }, { t: "unlock", door: "beta" }]).doors.beta).toBe(true);
+    expect(run([search("ordi.clavier"), { t: "unlock", door: "beta" }]).doors.beta).toBe(true);
     expect(run([{ t: "unlock", door: "alpha" }]).doors.alpha).toBe(false);
-    expect(run([{ t: "go", space: "couloir" }, { t: "prop", id: "ordi" }]).prop).toBeNull(); // not in this space
-    // A restart puts everything back, inventory included.
-    expect(run([{ t: "gesture", key: "ordi.clavier", on: true }, { t: "go", space: "dortoir" }, { t: "reset" }])).toMatchObject({ at: "hall", inventory: [], gestures: [] });
+    expect(run([search("ordi.clavier"), { t: "go", space: "dortoir" }, { t: "reset" }])).toMatchObject({ at: "hall", inventory: [], gestures: [], opened: {} });
   });
 });
 
@@ -99,8 +116,10 @@ describe("the station before the game", () => {
     expect(run([{ t: "sound", slot: "son-vent" }]).screen).toBe("accueil");
     expect(run([{ t: "door", door: "sas", open: true }]).screen).toBe("plan");
     expect(run([{ t: "light", on: true }, { t: "screen", mode: "accueil" }]).screen).toBe("accueil");
-    // Once the scenario loads, the room watches it load: no switch to the plan.
-    expect(run([{ t: "load" }, { t: "light", on: true }]).screen).toBe("accueil");
+    // Loading the scenario sends nothing to the room (V1.4): the base, touched, still shows its plan.
+    expect(run([{ t: "load" }]).screen).toBe("accueil");
+    expect(run([{ t: "load" }, { t: "light", on: true }]).screen).toBe("plan");
+    expect(run([{ t: "load" }, { t: "screen", mode: "loading" }]).screen).toBe("loading");
   });
 });
 
@@ -307,22 +326,25 @@ describe("V1.2: the access chain and the two doors", () => {
     let s = run([...lit, ...quiet()]);
     expect(doorProposals(ANTARCTICA, s)).toEqual(["accueil", "sas"]);
     expect(actionAvailable(ANTARCTICA, s, "archives-fouille")).toBe(false); // no key yet
-    s = run([...lit, ...quiet(), ...door("accueil")]);
+    s = run([...lit, ...quiet(), ...door("accueil"), { t: "gesture", key: "ordi.clavier", on: true }]);
     expect(s.flags.key).toBe(true);
     expect(s.actionsDone).toEqual(["accueil"]);
-    s = run([...lit, ...quiet(), ...door("accueil"), { t: "exile", player: null }, ...quiet()]);
+    s = run([...lit, ...quiet(), ...door("accueil"), { t: "gesture", key: "ordi.clavier", on: true }, { t: "exile", player: null }, ...quiet()]);
     expect(doorProposals(ANTARCTICA, s)).toEqual(["archives-panic", "archives-fouille"]);
     // Only the airlock left of what's open: the other door is « Fouiller ce qu'on connaît déjà ».
-    const one = run([...lit, ...quiet(), { t: "dayAction", id: "accueil" }, { t: "dayAction", id: "archives-panic" }, { t: "dayAction", id: "archives-fouille" }, { t: "dayAction", id: "infirmerie" }, { t: "flag", flag: "code", on: false }]);
+    const one = run([...lit, ...quiet(), { t: "dayAction", id: "accueil" }, { t: "gesture", key: "ordi.clavier", on: true }, { t: "dayAction", id: "archives-panic" }, { t: "dayAction", id: "archives-fouille" }, { t: "dayAction", id: "infirmerie" }, { t: "flag", flag: "code", on: false }]);
     expect(doorProposals(ANTARCTICA, { ...one, round: 4 })).toEqual(["sas", "fouiller"]);
   });
 
-  it("the first entry into the archives opens their terminal on log 2; the search finds badge 2 and the tapes", () => {
-    const s = run([...lit, ...quiet(), ...door("archives-fouille")]);
-    expect(s).toMatchObject({ terminal: "beta", playing: "log2" });
+  it("the first entry into the archives opens their terminal on log 2; the search finds badge 2 (red folder) or the tapes (unlabelled box)", () => {
+    const s = run([...lit, ...quiet(), ...door("archives-fouille"), { t: "gesture", key: "classeur.fouiller", on: true }]);
+    // V1.4: the archives' terminal wakes up, but behind its password (LYSSA): no log 2 until then.
+    expect(s).toMatchObject({ terminal: "beta", playing: null, at: "archives" });
+    expect(run([...lit, ...quiet(), ...door("archives-fouille"), { t: "play", file: "log2" }]).playing).toBeNull();
+    expect(run([...lit, ...quiet(), ...door("archives-fouille"), { t: "password", prop: "beta", text: "LYSSA" }, { t: "play", file: "log2" }]).playing).toBe("log2");
     expect(s.flags.badge2).toBe(true);
-    expect(s.found).toContain("bandes");
     expect(s.doors.beta).toBe(true);
+    expect(run([...lit, ...quiet(), ...door("archives-fouille"), { t: "gesture", key: "carton.fouiller", on: true }]).found).toContain("bandes");
   });
 
   it("imposes the laboratory on loop 2 day 3, and Marga forces it without the badge", () => {
@@ -453,6 +475,9 @@ describe("V1.2: the reboot", () => {
     const s = run([
       ...lit,
       { t: "dayAction", id: "infirmerie" },
+      { t: "gesture", key: "trousse.fouiller", on: true },
+      { t: "dayAction", id: "infirmerie" },
+      { t: "gesture", key: "armoire.fouiller", on: true },
       { t: "giveItem", item: "seringues", player: "p4" },
       { t: "night" },
       { t: "victim", player: "p5" },

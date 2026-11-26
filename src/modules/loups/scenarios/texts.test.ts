@@ -30,13 +30,13 @@ const arrival: Action[] = [{ t: "start" }, { t: "arrive" }, { t: "light", on: tr
 const elected: Action[] = [...arrival, { t: "vote", kind: "chief", options: ["p9", "p10"] }, { t: "voteResult", choice: "p10" }, { t: "patientZero", player: "p1" }, { t: "giveItem", item: "seringues", player: "p4" }];
 const night1: Action[] = [...elected, { t: "night" }];
 const day1: Action[] = [...night1, { t: "infect", player: "p2" }, { t: "victim", player: "p3" }, { t: "skip", step: "items" }, { t: "dawn" }];
-const door1: Action[] = [...day1, { t: "vote", kind: "door", options: ["accueil", "sas"] }, { t: "voteResult", choice: "sas" }, { t: "giveItem", item: "pistolet", player: "p5" }];
+const door1: Action[] = [...day1, { t: "vote", kind: "door", options: ["accueil", "sas"] }, { t: "voteResult", choice: "sas" }, { t: "gesture", key: "coffre.fouiller", on: true }, { t: "giveItem", item: "pistolet", player: "p5" }];
 const shot: Action[] = [...door1, { t: "shoot", target: "p6" }];
 const exile1: Action[] = [...door1, { t: "exile", player: "p10" }];
 const night2: Action[] = [...exile1, { t: "night" }];
 const dead: Action[] = [...night2, { t: "skip", step: "infect" }, { t: "victim", player: "p7" }, { t: "skip", step: "items" }];
 const day2: Action[] = [...dead, { t: "vote", kind: "dead", options: ["blizzard", "delestage"] }, { t: "voteResult", choice: "delestage" }, { t: "dawn" }];
-const archives: Action[] = [...day2, { t: "dayAction", id: "accueil" }, { t: "exile", player: null }, { t: "night" }, { t: "victim", player: null }, { t: "dawn" }, { t: "dayAction", id: "archives-fouille" }];
+const archives: Action[] = [...day2, { t: "dayAction", id: "accueil" }, { t: "exile", player: null }, { t: "night" }, { t: "victim", player: null }, { t: "dawn" }, { t: "dayAction", id: "archives-fouille" }, { t: "gesture", key: "carton.fouiller", on: true }];
 
 describe("Textes à lire: the mapping table, row by row", () => {
   it("Avant le jeu, prologue", () => {
@@ -143,7 +143,7 @@ describe("Textes à lire: the file", () => {
     const summary = importSummary(DEFAULT_TEXTS.textes, next.textes);
     expect(summary.added).toEqual(["NEW-01"]);
     expect(summary.changed).toEqual(["OUV-01"]);
-    expect(summary.removed).toHaveLength(69);
+    expect(summary.removed).toHaveLength(DEFAULT_TEXTS.textes.length - 1);
     expect(resolveTexts(next, { "NEW-01": "Retouché." }).find((t) => t.id === "NEW-01")?.texte).toBe("Retouché.");
     expect(parseTextFile("{").ok).toBe(false);
     expect(parseTextFile(JSON.stringify({ textes: [{ id: "A", texte: "" }, { id: "A", texte: "" }] })).ok).toBe(false);
@@ -186,8 +186,8 @@ describe("V1.3: FAILLE-01", () => {
     .map((b) => b.label!);
   const picks = (moments: string[]) => moments.map((_, i) => faultVariant(labels, moments.slice(0, i + 1).map((at) => ({ at }))));
 
-  it("the file 0.2 has six variants", () => {
-    expect(DEFAULT_TEXTS.version).toBe("0.2");
+  it("the file 0.3 keeps its six variants", () => {
+    expect(DEFAULT_TEXTS.version).toBe("0.3");
     expect(labels).toEqual(["Variante a", "Variante b", "Variante c", "Variante d", "Variante e", "Variante f"]);
   });
 

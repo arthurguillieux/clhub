@@ -68,7 +68,7 @@ export function GroupCard({ def, view, busy, act, onProp }: Props & { onProp: (i
         <p className="text-xs text-[var(--scn-muted)]">Rien à fouiller ici pour l&apos;instant.</p>
       )}
       {s.inventory.length > 0 && (
-        <p className="text-xs text-[var(--scn-ok)]">Objets du groupe : {s.inventory.map((id) => def.sandbox?.stash.find((x) => x.id === id)?.name ?? id).join(", ")}.</p>
+        <p className="text-xs text-[var(--scn-ok)]">Objets du groupe : {s.inventory.map((id) => def.sandbox?.objets[id]?.name ?? id).join(", ")}.</p>
       )}
     </section>
   );
@@ -81,7 +81,7 @@ function DoorRow({ d, def, view, busy, act, open, onToggle }: Props & { d: Stati
   const dest = otherSide(d, s.at);
   const isOpen = !!s.doors[door.id];
   const has = !door.requires || !!s.flags[door.requires];
-  const thing = door.requires ? (def.sandbox?.stash.find((x) => x.flag === door.requires)?.name ?? door.hint) : null;
+  const thing = door.requires ? (Object.values(def.sandbox?.objets ?? {}).find((x) => x.flag === door.requires)?.name ?? door.hint) : null;
   const [cls, tag] = isOpen
     ? ["text-[var(--scn-ice)] border-[var(--scn-ice)]", "ouverte"]
     : door.locked
@@ -144,75 +144,91 @@ function DoorRow({ d, def, view, busy, act, open, onToggle }: Props & { d: Stati
   );
 }
 
-/** A piece of furniture, close up: its gestures, a computer's password, what was found. */
-export function PropSheet({ def, view, busy, act, id, onClose }: Props & { id: string; onClose: () => void }) {
+/**
+ * A piece of furniture, close up (V1.4): its gestures; for the meneur only, what each hiding place holds
+ * (after any secret swap) and the swap itself; the visit's count; the text of what was found opens in the reader.
+ */
+export function PropSheet({ def, view, busy, act, id, onClose, onRead }: Props & { id: string; onClose: () => void; onRead: (textId: string) => void }) {
   const s = view.state;
   const prop = PROPS.find((p) => p.id === id);
-  const [typed, setTyped] = useState("");
+  const [swapWith, setSwapWith] = useState("");
   if (!prop) return null;
   const on = (g: string) => s.gestures.includes(`${prop.id}.${g}`);
-  const hidden = Object.entries(def.sandbox?.hides ?? {}).filter(([key]) => key.startsWith(`${prop.id}.`));
-  const password = def.sandbox?.passwords[prop.id];
-  const powered = prop.computer ? on(prop.computer.gesture) : false;
+  const box = def.sandbox?.cachettes ?? {};
+  const holds = (key: string) => box[s.swaps?.[key] ?? key];
+  const limit = view.setup.params.searchesPerVisit ?? 1;
+  const live = view.status === "live";
+  const facesOff = def.faults.every((f) => s.faultsOff.includes(f.id));
+  // The other hiding places of the room, not opened yet: what this one can be swapped with.
+  const others = PROPS.filter((p) => p.space === prop.space)
+    .flatMap((p) => p.gestures.map((g) => ({ key: `${p.id}.${g.id}`, label: g.on })))
+    .filter((x) => !x.key.startsWith(`${prop.id}.`) && !s.opened[x.key] && (box[x.key] || box[s.swaps?.[x.key] ?? ""]));
   const close = () => {
     void act({ t: "prop", id: null });
     onClose();
   };
   return (
-    <SheetFrame title={prop.name.replace(/^L'|^Le |^La /, "").toUpperCase()} sub="La salle voit la scène en gros plan. Les joueurs demandent, tu exécutes." color="var(--scn-amber)" onClose={close}>
-      <div className="grid grid-cols-1 gap-1.5">
-        {prop.gestures.map((g) => (
-          <button key={g.id} type="button" className={`scn-btn ${on(g.id) ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "gesture", key: `${prop.id}.${g.id}`, on: !on(g.id) })}>
-            {on(g.id) ? g.off : g.on}
-          </button>
-        ))}
-      </div>
-      {hidden.length > 0 && (
+    <SheetFrame title={prop.name.replace(/^L'|^Le |^La |^Les /, "").toUpperCase()} sub="La salle voit la scène en gros plan. Les joueurs choisissent, tu touches le geste." color="var(--scn-amber)" onClose={close}>
+      {live && limit > 0 && (
         <p className="text-xs text-[var(--scn-muted)]">
-          Pour toi : {hidden.map(([key, thing]) => `${def.sandbox?.stash.find((x) => x.id === thing)?.name ?? thing} ${prop.gestures.find((g) => `${prop.id}.${g.id}` === key)?.on.toLowerCase().replace(/^soulever/, "sous").replace(/^ouvrir/, "dans")}`).join(", ")}
-          {hidden.every(([, thing]) => s.inventory.includes(thing)) ? " — trouvé." : "."}
+          Cette visite : {s.visitSearched.length} / {limit} cachette{limit > 1 ? "s" : ""} ouverte{s.visitSearched.length > 1 ? "s" : ""}.
         </p>
       )}
-      {prop.computer && powered && password && (
-        <div className="flex flex-col gap-1.5">
-          {s.unlocked.includes(prop.id) ? (
-            <>
-              <p className="text-sm text-[var(--scn-ok)]">✓ Session ouverte : la salle voit ses fichiers.</p>
+      <div className="grid grid-cols-1 gap-1.5">
+        {prop.gestures.map((g) => {
+          const key = `${prop.id}.${g.id}`;
+          const content = s.opened[key] ?? holds(key);
+          if (content && box[s.swaps?.[key] ?? key]?.faille && facesOff) return null;
+          return (
+            <div key={g.id} className="flex flex-col gap-1">
               <button
                 type="button"
-                className="scn-btn scn-btn-amber"
+                className={`scn-btn ${on(g.id) ? "scn-btn-on" : ""}`}
                 disabled={busy}
-                onClick={() => {
-                  void act({ t: "terminal", id: prop.computer!.terminal });
-                  onClose();
+                onClick={async () => {
+                  const fresh = !on(g.id) && !s.opened[key] && content;
+                  if (!(await act({ t: "gesture", key, on: !on(g.id) })) && fresh && live) onRead(content.texte);
                 }}
               >
-                Ouvrir ses fichiers<small>la caméra zoome sur l&apos;écran</small>
+                {on(g.id) ? g.off : g.on}
               </button>
-            </>
-          ) : (
-            <>
-              <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">MOT DE PASSE DICTÉ PAR LES JOUEURS</span>
-              <form
-                className="flex gap-1.5"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!typed.trim()) return;
-                  if (!(await act({ t: "password", prop: prop.id, text: typed }))) setTyped("");
-                }}
-              >
-                <input value={typed} onChange={(e) => setTyped(e.target.value.toUpperCase())} maxLength={24} autoComplete="off" aria-label="Mot de passe dicté par les joueurs" placeholder="tape ici" className="scn-field min-w-0 flex-1" />
-                <button type="submit" className="scn-btn scn-btn-primary" disabled={busy || !typed.trim()}>
-                  Taper
-                </button>
-              </form>
-              <p className="text-xs text-[var(--scn-muted)]">
-                Le bon, pour toi : <b className="text-[#ffcf7a]">{password}</b>
-                {s.pwTries ? ` · ${s.pwTries} essai${s.pwTries > 1 ? "s" : ""} raté${s.pwTries > 1 ? "s" : ""}` : ""}
-              </p>
-            </>
-          )}
-        </div>
+              {content && (
+                <p className="px-1 text-xs text-[var(--scn-muted)]">
+                  {s.opened[key] ? "✓ trouvé : " : "Pour toi : "}
+                  {content.contenu}
+                  {content.objet ? ` → ${def.sandbox?.objets[content.objet]?.name ?? content.objet}` : ""} · {content.texte}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {others.length > 0 && prop.gestures.some((g) => !s.opened[`${prop.id}.${g.id}`]) && (
+        <details className="text-sm">
+          <summary className="cursor-pointer py-1 text-[var(--scn-muted)]">Échanger en secret avec une autre cachette de la pièce</summary>
+          <p className="mt-1 text-xs text-[var(--scn-muted)]">Si la salle choisit ici alors que l&apos;objet est ailleurs : échange avant de toucher le geste. Noté au journal, invisible pour la salle.</p>
+          <div className="mt-1.5 flex gap-1.5">
+            <select value={swapWith} onChange={(e) => setSwapWith(e.target.value)} aria-label="Cachette à échanger" className="scn-field min-w-0 flex-1">
+              <option value="">Avec…</option>
+              {others.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label} ({holds(o.key)?.objet ? def.sandbox?.objets[holds(o.key)!.objet!]?.name : "histoire"})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="scn-btn"
+              disabled={busy || !swapWith}
+              onClick={async () => {
+                const key = `${prop.id}.${prop.gestures.find((g) => !s.opened[`${prop.id}.${g.id}`])!.id}`;
+                if (!(await act({ t: "swap", a: key, b: swapWith }))) setSwapWith("");
+              }}
+            >
+              Échanger
+            </button>
+          </div>
+        </details>
       )}
       <button type="button" className="scn-btn" onClick={close}>
         Revenir au plan

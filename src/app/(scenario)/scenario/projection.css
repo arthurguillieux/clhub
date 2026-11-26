@@ -859,3 +859,30 @@
     animation-duration: 1ms;
   }
 }
+
+.pj-inv span.used {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+.pj-inv span i {
+  font-style: normal;
+  font-size: 0.6cqw;
+  letter-spacing: 0.05em;
+  color: var(--scn-muted);
+}
+.pj-scene-found {
+  position: absolute;
+  left: 50%;
+  bottom: 22%;
+  width: 70%;
+  transform: translateX(-50%);
+  text-align: center;
+  font-family: var(--scn-font-vt);
+  font-size: 1.9cqw;
+  color: var(--scn-amber);
+  text-shadow: 0 0 0.6cqw rgba(255, 178, 62, 0.6);
+}
+.pj-scene-found.muted {
+  color: #8fa6b6;
+  text-shadow: none;
+}

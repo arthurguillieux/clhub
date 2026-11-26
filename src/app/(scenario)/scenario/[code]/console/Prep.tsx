@@ -18,7 +18,7 @@ export function Prep({ def, view, members, busy, send }: { def: PublicScenario; 
     .map((n) => n.replace(/\s+/g, " ").trim())
     .filter(Boolean);
   const params = setup.params;
-  type Key = "loops" | "contagionNights" | "packMax" | "eventsProposed" | "gaugeSeconds" | "voteDoorSeconds" | "voteDeadSeconds" | "voteChiefSeconds" | "confinementSeconds";
+  type Key = "loops" | "contagionNights" | "packMax" | "eventsProposed" | "gaugeSeconds" | "searchesPerVisit" | "voteDoorSeconds" | "voteDeadSeconds" | "voteChiefSeconds" | "confinementSeconds";
   const inMinutes = (key: Key) => key === "gaugeSeconds" || key === "confinementSeconds";
   const number = (key: Key, label: string, min: number, max: number, unit = "") => (
     <label className="flex items-center justify-between gap-3 text-sm">
@@ -73,6 +73,7 @@ export function Prep({ def, view, members, busy, send }: { def: PublicScenario; 
         {number("packMax", "Taille maximale de la meute", 1, 20)}
         {number("eventsProposed", "Événements proposés aux morts", 1, 5)}
         {number("gaugeSeconds", "Durée de la jauge des générateurs", 1, 20, "min")}
+        {number("searchesPerVisit", "Cachettes par visite (0 : illimité)", 0, 3)}
         {number("voteDoorSeconds", "Vote de la porte", 10, 600, "s")}
         {number("voteDeadSeconds", "Moment des morts", 10, 600, "s")}
         {number("voteChiefSeconds", "Élection du chef", 10, 900, "s")}

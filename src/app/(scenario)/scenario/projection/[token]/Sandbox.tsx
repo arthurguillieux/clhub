@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PROPS, SPACES, type SpaceId } from "@/modules/loups/scenarios/station";
+export { useTyped };
 
 /**
  * The sandbox on the room's screen (the mockup of 23/11): the group's things in their slots, a piece of
@@ -21,20 +22,25 @@ const KeyIcon = ({ className = "" }: { className?: string }) => (
   </svg>
 );
 
-/** The group's things, bottom right: six slots, filled as they find them. */
-export function Inventory({ items }: { items: { id: string; name: string }[] }) {
+/**
+ * The group's things, bottom right (V1.4 §4): everything the village found. The pistol with its holder's
+ * name (it's public); the secret things (tapes, syringes) always « porteur inconnu »; used up: greyed.
+ */
+export function Inventory({ items }: { items: { id: string; name: string; who?: string | null; used?: boolean }[] }) {
+  const slots = Math.max(6, Math.ceil(items.length / 3) * 3);
   return (
     <div className="pj-inv" aria-label="Objets du groupe">
       <p>OBJETS DU GROUPE</p>
       <div>
-        {Array.from({ length: 6 }, (_, i) => {
+        {Array.from({ length: slots }, (_, i) => {
           const it = items[i];
           return (
-            <span key={i} className={it ? "full" : ""} data-slot={it?.id}>
+            <span key={i} className={it ? `full ${it.used ? "used" : ""}` : ""} data-slot={it?.id}>
               {it ? (
                 <>
                   <KeyIcon />
                   <b>{it.name.toUpperCase()}</b>
+                  {it.who !== undefined && <i>{it.who ? it.who.toUpperCase() : "PORTEUR INCONNU"}</i>}
                 </>
               ) : (
                 "—"
@@ -57,117 +63,56 @@ export function FlyingKey({ to }: { to: "slot" | "lock" }) {
 }
 
 /**
- * A piece of furniture close up: what the gestures change (the screen on, the keyboard lifted, the mouse,
- * the drawer, the cushions), what was hidden there while it's still there, the post-it, a password being typed.
+ * A piece of furniture close up, as the players search it: the gestures done (the keyboard lifted, the
+ * mouse moved, a drawer, a box opened), and what was found there — a line of story, or the thing that
+ * then flies to the group's slots; the post-it with its hint.
  */
-export function PropScene({
-  prop,
-  gestures,
-  hides,
-  notes,
-  inventory,
-  unlocked,
-  typing,
-  boot,
-  files,
-}: {
-  prop: string;
-  gestures: string[];
-  hides: Record<string, string>;
-  notes: Record<string, string>;
-  inventory: string[];
-  unlocked: boolean;
-  typing: { text: string; ok: boolean } | null;
-  boot: string;
-  files: string[];
-}) {
+export function PropScene({ prop, gestures, opened, hint }: { prop: string; gestures: string[]; opened: Record<string, { contenu: string; objet: string | null }>; hint: string | null }) {
   const on = (g: string) => gestures.includes(`${prop}.${g}`);
-  const keyUnder = (g: string) => {
-    const thing = hides[`${prop}.${g}`];
-    return !!thing && !inventory.includes(thing) && on(g);
-  };
-  const note = (g: string) => (on(g) ? notes[`${prop}.${g}`] : undefined);
-  const typed = useTyped(typing?.text ?? "");
   const p = PROPS.find((x) => x.id === prop);
   if (!p) return null;
+  const found = (g: string) => opened[`${prop}.${g}`];
+  const story = (g: string) => found(g) && !found(g)!.objet ? found(g)!.contenu.replace(/ \((histoire|faille)\)$/, "") : null;
 
   if (prop === "ordi") {
-    const power = on("allume");
-    const done = typing && typed.length >= typing.text.length;
-    let screen;
-    if (!power)
-      screen = (
-        <text x="400" y="160" textAnchor="middle" fontFamily="var(--scn-font-vt)" fontSize="20" fill="#24394a">
-          — ÉTEINT —
-        </text>
-      );
-    else if (unlocked && (!typing || done))
-      screen = (
-        <>
-          <text x="290" y="96" fontFamily="var(--scn-font-vt)" fontSize="21" fill="#5fe39a">
-            ACCÈS AUTORISÉ
-          </text>
-          {files.slice(0, 5).map((f, i) => (
-            <text key={f} x="290" y={128 + i * 24} fontFamily="var(--scn-font-vt)" fontSize="19" fill={AMBER}>
-              {f}
-            </text>
-          ))}
-        </>
-      );
-    else
-      screen = (
-        <>
-          {boot
-            .split("\n")
-            .slice(0, 2)
-            .map((l, i) => (
-              <text key={i} x="290" y={100 + i * 26} fontFamily="var(--scn-font-vt)" fontSize="20" fill={AMBER}>
-                {l}
-              </text>
-            ))}
-          <text x="290" y="168" fontFamily="var(--scn-font-vt)" fontSize="24" fill="#ffcf7a">
-            MOT DE PASSE : {typed}_
-          </text>
-          {done && !typing!.ok && (
-            <text x="290" y="204" fontFamily="var(--scn-font-vt)" fontSize="22" fill="#ff6b6b">
-              MOT DE PASSE INCORRECT
-            </text>
-          )}
-        </>
-      );
     const kb = on("clavier");
     const ms = on("souris");
+    const postit = found("souris")?.objet === "postit_mdp" || found("clavier")?.objet === "postit_mdp";
     return (
       <div className="pj-scene">
         <svg viewBox="0 0 800 450" role="img" aria-label={p.name}>
           <rect x="0" y="330" width="800" height="120" fill="#0d1820" />
           <line x1="0" y1="330" x2="800" y2="330" stroke="#24394a" strokeWidth="3" />
           <rect x="250" y="40" width="300" height="220" rx="14" fill="#1a2630" stroke="#3f6f88" strokeWidth="4" />
-          <rect x="272" y="62" width="256" height="176" rx="8" fill={power ? "#130d03" : "#05080c"} />
-          {screen}
+          <rect x="272" y="62" width="256" height="176" rx="8" fill="#130d03" />
+          <text x="290" y="100" fontFamily="var(--scn-font-vt)" fontSize="20" fill={AMBER}>
+            NORDATA  BIOS v1.04
+          </text>
+          <text x="290" y="128" fontFamily="var(--scn-font-vt)" fontSize="20" fill={AMBER}>
+            C:\&gt; _
+          </text>
           <rect x="370" y="260" width="60" height="50" fill="#1a2630" />
           <rect x="320" y="305" width="160" height="22" rx="4" fill="#1a2630" stroke="#3f6f88" strokeWidth="3" />
-          {keyUnder("clavier") && <g transform="translate(300 360) scale(1.6)">{KEY_PATH}</g>}
+          {kb && story("clavier") && (
+            <text x="335" y="390" textAnchor="middle" fontFamily="var(--scn-font-vt)" fontSize="20" fill="#8fa6b6">
+              {story("clavier")}
+            </text>
+          )}
           <g style={{ transition: "transform .6s cubic-bezier(.4,0,.2,1)", transform: kb ? "translate(0px,-70px) rotate(-8deg)" : "none", transformOrigin: "330px 375px" }}>
             <rect x="170" y="350" width="330" height="62" rx="8" fill="#22313c" stroke="#3f6f88" strokeWidth="3" />
             {Array.from({ length: 39 }, (_, i) => (
               <rect key={i} x={182 + (i % 13) * 24} y={358 + Math.floor(i / 13) * 17} width="19" height="12" rx="2" fill="#2f4352" />
             ))}
           </g>
-          {note("souris") && (
-            <g transform="rotate(-6 600 390)">
-              <rect x="548" y="352" width="110" height="80" fill="#f3e27a" />
-              {note("souris")!
-                .split(/(?<=:) /)
-                .map((l, i) => (
-                  <text key={i} x="603" y={384 + i * 26} textAnchor="middle" fontFamily="var(--scn-font-vt)" fontSize={i ? 22 : 17} fill="#3a3210">
-                    {l}
-                  </text>
-                ))}
+          {ms && postit && (
+            <g transform="rotate(-4 640 395)">
+              <rect x="540" y="345" width="220" height="96" fill="#f3e27a" />
+              <foreignObject x="548" y="350" width="204" height="88">
+                <p style={{ fontFamily: "var(--scn-font-vt)", fontSize: 17, lineHeight: 1.1, color: "#3a3210", margin: 0 }}>{hint ?? "…"}</p>
+              </foreignObject>
             </g>
           )}
-          {keyUnder("souris") && <g transform="translate(680 380) scale(1.1)">{KEY_PATH}</g>}
-          <g style={{ transition: "transform .5s ease", transform: ms ? "translate(70px,-60px)" : "none" }}>
+          <g style={{ transition: "transform .5s ease", transform: ms ? "translate(-90px,-50px)" : "none" }}>
             <ellipse cx="590" cy="385" rx="26" ry="36" fill="#22313c" stroke="#3f6f88" strokeWidth="3" />
             <line x1="590" y1="352" x2="590" y2="372" stroke="#3f6f88" strokeWidth="3" />
           </g>
@@ -179,27 +124,23 @@ export function PropScene({
     );
   }
 
-  // A drawer, cushions: something that opens, and what lies inside.
+  // A drawer, a box, a locker, a body: something that opens, and what lies inside.
   const g = p.gestures[0]!;
-  const opened = on(g.id);
-  const keyHere = keyUnder(g.id);
-  const label = p.name.replace(/^L'|^Le |^La /, "").toUpperCase();
+  const isOpen = on(g.id);
+  const label = p.name.replace(/^L'|^Le |^La |^Les /, "").toUpperCase();
+  const what = found(g.id);
   return (
     <div className="pj-scene">
       <svg viewBox="0 0 800 450" role="img" aria-label={p.name}>
         <rect x="0" y="330" width="800" height="120" fill="#0d1820" />
         <rect x="200" y="140" width="400" height="200" rx="10" fill="#1a2630" stroke="#3f6f88" strokeWidth="4" />
-        <rect x="250" y={opened ? 250 : 230} width="300" height={opened ? 110 : 80} rx="6" fill="#22313c" stroke="#3f6f88" strokeWidth="3" style={{ transition: "all .5s ease" }} />
-        {keyHere && <g transform="translate(350 290) scale(1.6)">{KEY_PATH}</g>}
-        {opened && !keyHere && (
-          <text x="400" y="315" textAnchor="middle" fontFamily="var(--scn-font-vt)" fontSize="22" fill="#8fa6b6">
-            {prop === "comptoir" ? "des stylos, un tampon, un vieux ticket" : "des miettes, une pièce de 1 franc"}
-          </text>
-        )}
+        <rect x="250" y={isOpen ? 250 : 230} width="300" height={isOpen ? 110 : 80} rx="6" fill="#22313c" stroke="#3f6f88" strokeWidth="3" style={{ transition: "all .5s ease" }} />
         <text x="400" y="110" textAnchor="middle" fontFamily="var(--scn-font-vt)" fontSize="34" letterSpacing="4" fill="#bfeaff">
           {label}
         </text>
       </svg>
+      {isOpen && what && <p className="pj-scene-found">{what.objet ? what.contenu : what.contenu.replace(/ \((histoire|faille|objet secret)\)$/, "")}</p>}
+      {isOpen && !what && <p className="pj-scene-found muted">Rien.</p>}
     </div>
   );
 }

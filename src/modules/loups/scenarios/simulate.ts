@@ -2,6 +2,7 @@
  * « Simuler une partie »: twenty fictive players and a journal written up to a chosen moment, through
  * the engine like a real evening (no shortcut: the console can undo it action by action).
  */
+import { SPOTS_TO_SEARCH } from "./station";
 import { alive, apply, doorProposals, initialState, nightSteps, pack, proposals, type Action, type Setup, type State } from "./engine";
 import type { ScenarioDef } from "./types";
 
@@ -96,6 +97,10 @@ export function simulatedJournal(def: ScenarioDef, setup: Setup, start: StartPoi
     if (doors.length) {
       go({ t: "vote", kind: "door", options: doors });
       go({ t: "voteResult", choice: (s.round === 2 ? doors[1] : doors[0]) ?? doors[0]! });
+      // V1.4: the group searches one hiding place of the room, the one with a thing to hand out first.
+      const spots = SPOTS_TO_SEARCH.filter((x) => x.prop.space === s.at && def.sandbox?.cachettes[x.key]?.objet && !s.inventory.includes(def.sandbox.cachettes[x.key]!.objet!));
+      const best = spots.find((x) => def.sandbox?.objets[def.sandbox.cachettes[x.key]!.objet!]?.items?.length) ?? spots[0];
+      if (best) go({ t: "gesture", key: best.key, on: true });
     }
     for (const item of handOut()) go({ t: "giveItem", item, player: pick(healthy(), random)!.id });
     if (exile) go({ t: "exile", player: pick(healthy(), random)?.id ?? null });

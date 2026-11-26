@@ -65,7 +65,7 @@ export function screenLabel(view: ConsoleView): string {
   const s = view.state;
   if (s.neutral === "black") return "en attente";
   if (s.neutral === "plan") return "plan seul";
-  if (s.phase === "welcome") return s.loadingAt !== null ? "chargement" : s.screen === "plan" ? "plan" : "accueil";
+  if (s.phase === "welcome") return s.screen === "loading" ? "chargement" : s.screen === "plan" ? "plan" : "accueil";
   if (s.terminal) return "terminal";
   return momentOf(s).toLowerCase();
 }
@@ -335,7 +335,9 @@ export function ZoneSheet({ def, view, busy, act, id, onClose, onRoom }: Props &
             {s.terminal === term.id ? `Fermer le ${term.label.toLowerCase()}` : `Afficher le ${term.label.toLowerCase()}`}
             <small>{s.terminal === term.id ? "retour au plan" : "la caméra zoome sur l'écran"}</small>
           </button>
+          {def.sandbox?.passwords[term.id] && !s.unlocked.includes(term.id) && <PasswordBlock def={def} view={view} busy={busy} act={act} terminal={term.id} />}
           {s.terminal === term.id &&
+            (!def.sandbox?.passwords[term.id] || s.unlocked.includes(term.id)) &&
             term.files
               .filter((f) => !f.fault || done.has(f.fault))
               .map((f) => (
@@ -634,6 +636,7 @@ export function ScreenSheet({ view, busy, act, qrSvg, onClose }: Props & { qrSvg
           <>
             {choice(!s.neutral && s.screen === "accueil", "Accueil", "la photo de la station", { t: "screen", mode: "accueil" })}
             {choice(!s.neutral && s.screen === "plan", "Plan", "la base, en direct", { t: "screen", mode: "plan" })}
+            {view.state.loadingAt !== null && choice(!s.neutral && s.screen === "loading", "Chargement", "« chargement du scénario » : à montrer seulement si tu le veux", { t: "screen", mode: "loading" })}
           </>
         ) : (
           <>
@@ -686,6 +689,66 @@ export function ProtocolStrip({ def, view, protocol, progress, onOpen }: { def: 
       {protocol === "loading" && (
         <div className="mx-0.5 h-1 rounded-sm bg-[#2a210d]">
           <div className="h-1 rounded-sm bg-[var(--scn-amber)] transition-[width] duration-500" style={{ width: `${progress * 100}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A terminal behind its password (the archives', V1.4 §3): the players dictate, the meneur types, the room
+ * sees the letters. The three aids, by hand only, in order: the briefing's line (a reminder for the
+ * meneur), then Marga's intrusions.
+ */
+function PasswordBlock({ def, view, busy, act, terminal }: Props & { terminal: string }) {
+  const s = view.state;
+  const lock = def.sandbox!.passwords[terminal]!;
+  const [typed, setTyped] = useState("");
+  const [aid, setAid] = useState(0);
+  const aids = lock.aids ?? [];
+  // « Intrusion de Marga : « L _ _ _ A » » → the words between the last quotes.
+  const intrusionOf = (line: string) => line.match(/«\s*([^«»]+?)\s*»\s*$/)?.[1] ?? null;
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg border border-[var(--scn-amber)] p-2">
+      <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">VERROUILLÉ · MOT DE PASSE DICTÉ PAR LES JOUEURS</span>
+      <form
+        className="flex gap-1.5"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!typed.trim()) return;
+          if (!(await act({ t: "password", prop: terminal, text: typed }))) setTyped("");
+        }}
+      >
+        <input value={typed} onChange={(e) => setTyped(e.target.value.toUpperCase())} maxLength={24} autoComplete="off" aria-label="Mot de passe dicté par les joueurs" placeholder="tape ici" className="scn-field min-w-0 flex-1" />
+        <button type="submit" className="scn-btn scn-btn-primary" disabled={busy || !typed.trim()}>
+          Taper
+        </button>
+      </form>
+      <p className="text-xs text-[var(--scn-muted)]">
+        Le bon, pour toi : <b className="text-[#ffcf7a]">{lock.word}</b>
+        {s.pwTries ? ` · ${s.pwTries} essai${s.pwTries > 1 ? "s" : ""} raté${s.pwTries > 1 ? "s" : ""}` : ""}
+      </p>
+      {aids.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[0.62rem] font-bold tracking-[0.14em] text-[var(--scn-muted)]">AIDES, DANS L&apos;ORDRE, SEULEMENT SI ÇA BLOQUE</span>
+          {aids.map((line, i) => {
+            const words = intrusionOf(line);
+            return (
+              <button
+                key={i}
+                type="button"
+                className={`scn-btn text-left ${i < aid ? "scn-btn-on" : ""} ${words ? "scn-btn-fault" : ""}`}
+                disabled={busy || i > aid}
+                onClick={async () => {
+                  if (words) await act({ t: "intrusion", text: words });
+                  setAid(Math.max(aid, i + 1));
+                }}
+              >
+                {i + 1}. {line}
+                {!words && <small>à dire à voix haute ; rien à l&apos;écran</small>}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

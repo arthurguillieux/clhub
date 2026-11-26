@@ -44,7 +44,7 @@ describe("Simuler une partie", () => {
       expect(s.players.filter((p) => p.status === "exiled")).toHaveLength(2);
       expect(s.players.filter((p) => p.status === "dead").length).toBeGreaterThanOrEqual(2);
       expect(s.doors).toMatchObject({ dortoir: true, beta: true });
-      expect(s.flags).toMatchObject({ key: true, badge2: true });
+      expect(s.flags).toMatchObject({ key: true }); // V1.4: one hiding place per visit, the tapes were chosen over badge 2
       expect(s.actionsDone).toEqual(["accueil", "archives-fouille"]);
       expect(s.items.bandes?.holder).not.toBeNull();
       expect(s.locked).toBe(false);

@@ -103,17 +103,18 @@ export const otherSide = (d: StationDoor, from: SpaceId): SpaceId => (d.a === fr
 export const doorsFrom = (space: SpaceId) => STATION_DOORS.filter((d) => d.a === space || d.b === space);
 
 /**
- * The furniture one can search, with its gestures (each one on/off: « Soulever le clavier » /
- * « Reposer le clavier »). A gesture's key is `prop.gesture` (« ordi.clavier »): the scenario hides
- * its things behind those keys. A `computer` asks for a password before showing its files.
+ * The furniture one can search, room by room (three hiding places at most per room, V1.4): each one
+ * with its gestures (on/off: « Soulever le clavier » / « Reposer le clavier »). A gesture's key is
+ * `prop.gesture` (« ordi.clavier »): the scenario puts its things behind those keys (or nothing).
  */
 export interface Prop {
   id: string;
   space: SpaceId;
   name: string;
   gestures: { id: string; on: string; off: string }[];
-  computer?: { terminal: string; gesture: string };
 }
+
+const one = (id: string, space: SpaceId, name: string, on: string, off = "Remettre en place"): Prop => ({ id, space, name, gestures: [{ id: "fouiller", on, off }] });
 
 export const PROPS: Prop[] = [
   {
@@ -121,13 +122,27 @@ export const PROPS: Prop[] = [
     space: "hall",
     name: "L'ordinateur de l'accueil",
     gestures: [
-      { id: "allume", on: "Allumer l'écran", off: "Éteindre l'écran" },
-      { id: "clavier", on: "Soulever le clavier", off: "Reposer le clavier" },
+      { id: "clavier", on: "Soulever le clavier de l'ordinateur", off: "Reposer le clavier" },
       { id: "souris", on: "Soulever la souris", off: "Reposer la souris" },
     ],
-    computer: { terminal: "accueil", gesture: "allume" },
   },
-  { id: "comptoir", space: "hall", name: "Le comptoir", gestures: [{ id: "tiroir", on: "Ouvrir le tiroir", off: "Fermer le tiroir" }] },
-  { id: "detente", space: "hall", name: "Le coin détente", gestures: [{ id: "coussins", on: "Soulever les coussins", off: "Remettre les coussins" }] },
+  one("comptoir", "hall", "Le comptoir", "Ouvrir le tiroir du comptoir", "Fermer le tiroir"),
+  one("coffre", "sas", "Le coffre de survie", "Ouvrir le coffre de survie", "Refermer le coffre"),
+  one("casiers", "sas", "Les casiers des combinaisons", "Fouiller les casiers des combinaisons"),
+  one("motoneige", "sas", "La motoneige", "Soulever la bâche de la motoneige", "Remettre la bâche"),
+  one("classeur", "archives", "Le classeur rouge", "Ouvrir le classeur rouge", "Refermer le classeur"),
+  one("carton", "archives", "Le carton sans étiquette", "Ouvrir le carton sans étiquette", "Refermer le carton"),
+  one("noel", "archives", "Le carton « Noël »", "Ouvrir le carton « Noël »", "Refermer le carton"),
+  one("armoire", "infirmerie", "L'armoire à pharmacie", "Ouvrir l'armoire à pharmacie", "Refermer l'armoire"),
+  one("trousse", "infirmerie", "La trousse sous le lit", "Tirer la trousse sous le lit", "Remettre la trousse"),
+  one("lit", "infirmerie", "Le lit défait", "Fouiller le lit défait"),
+  one("caisse", "generateurs", "La caisse à outils", "Ouvrir la caisse à outils", "Refermer la caisse"),
+  one("carburant", "generateurs", "Le registre de carburant", "Lire le registre de carburant", "Refermer le registre"),
+  one("corps", "securite", "Le corps dans le fauteuil", "S'approcher du corps", "S'écarter"),
+  one("cameras", "securite", "Le registre des caméras", "Lire le registre des caméras", "Refermer le registre"),
 ];
 export const propsIn = (space: SpaceId) => PROPS.filter((p) => p.space === space);
+/** Every hiding place's key, its piece of furniture, and its gesture. */
+export const SPOTS_TO_SEARCH = PROPS.flatMap((p) => p.gestures.map((g) => ({ key: `${p.id}.${g.id}`, prop: p, gesture: g })));
+/** The space a scenario's zone (its door id) leads to, for « the day's door » moving the group. */
+export const spaceOfZone = (zone: string): SpaceId => (zone === "beta" ? "archives" : zone === "gamma" ? "infirmerie" : (SPACES.find((x) => x.id === zone)?.id ?? "hall"));

@@ -13,6 +13,10 @@ export interface ReadText {
   titre: string;
   quand: string;
   texte: string;
+  /** V0.3: what the meneur does in the base at that moment (« Écran : plan, hall dans le noir »), in order. */
+  gestes?: string[];
+  /** V0.3: what the meneur asks the room (« Que faites-vous ? »). */
+  questions?: string[];
 }
 
 export interface TextFile {
@@ -21,6 +25,12 @@ export interface TextFile {
   date?: string;
   conventions?: unknown;
   textes: ReadText[];
+  /** V0.3: what the scenario puts in the station (hiding places, passwords, the inventory rule). */
+  station?: {
+    cachettes?: { piece: string; geste: string; contenu: string; objet: string | null; texte: string }[];
+    mots_de_passe?: { terminal: string; mot_de_passe: string; indice?: string; aides?: string[]; boucle_2?: string; textes?: string[] }[];
+    inventaire?: string;
+  };
 }
 
 export const DEFAULT_TEXTS: TextFile = defaults as TextFile;
@@ -55,11 +65,12 @@ export function parseTextFile(raw: string): { ok: true; file: TextFile } | { ok:
   const clean: ReadText[] = [];
   for (const t of textes as Record<string, unknown>[]) {
     if (typeof t?.id !== "string" || typeof t.texte !== "string") return { ok: false, error: "Un texte n'a pas d'« id » ou de « texte »." };
-    clean.push({ id: t.id.trim(), partie: String(t.partie ?? ""), titre: String(t.titre ?? ""), quand: String(t.quand ?? ""), texte: t.texte });
+    const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : undefined);
+    clean.push({ id: t.id.trim(), partie: String(t.partie ?? ""), titre: String(t.titre ?? ""), quand: String(t.quand ?? ""), texte: t.texte, gestes: list(t.gestes), questions: list(t.questions) });
   }
   if (new Set(clean.map((t) => t.id)).size !== clean.length) return { ok: false, error: "Deux textes ont le même identifiant." };
   const d = data as Record<string, unknown>;
-  return { ok: true, file: { scenario: d.scenario as string | undefined, version: d.version as string | undefined, date: d.date as string | undefined, conventions: d.conventions, textes: clean } };
+  return { ok: true, file: { scenario: d.scenario as string | undefined, version: d.version as string | undefined, date: d.date as string | undefined, conventions: d.conventions, textes: clean, station: d.station as TextFile["station"] } };
 }
 
 // ───────── Reading ─────────

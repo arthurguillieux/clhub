@@ -66,10 +66,16 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
   await expect(page.getByText("JOUEURS ET CHAMBRES")).toBeVisible();
   // The texts come with the scenario: 70 of them, editable before the evening.
   await page.locator("summary", { hasText: /^TEXTES À LIRE/ }).click();
-  await expect(page.getByText(/Fichier du scénario, version 0\.2 · 70 textes/)).toBeVisible();
+  await expect(page.getByText(/Fichier du scénario, version 0\.3 · 88 textes/)).toBeVisible();
   await page.getByRole("button", { name: /Charger Sang-froid dans la station/ }).click();
+  // V1.4: loading sends nothing to the room — its screen comes only by hand, from « Écran ».
+  await page.waitForTimeout(2500);
+  await expect(screen.getByText("CHARGEMENT DU SCÉNARIO :")).toHaveCount(0);
+  await bar.getByRole("button", { name: /Écran/ }).click();
+  await page.getByRole("button", { name: /^Chargement/ }).click();
   await expect(screen.getByText("CHARGEMENT DU SCÉNARIO :")).toBeVisible({ timeout: 10_000 });
   await expect(screen.getByText("SANG-FROID")).toBeVisible();
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
   await page.getByRole("button", { name: /▶ Lancer la partie/ }).click({ timeout: 20_000 });
   await page.getByRole("button", { name: "▶ Lancer la partie", exact: true }).click();
 
@@ -137,10 +143,17 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
   // Day 1: the two doors of the plan, the vote by moving, the airlock and its pistol.
   await tap(/Lancer le vote · 60 s/);
   await expect(screen.getByText("CHOIX DE LA PORTE")).toBeVisible();
-  await expect(screen.getByText("FOUILLER L'ACCUEIL")).toBeVisible();
+  await expect(screen.getByText("FOUILLER LE HALL")).toBeVisible();
+  await expect(screen.getByText("FOUILLER LE SAS")).toBeVisible();
   await tap(/\+30 s/);
-  await page.getByRole("button", { name: "Le sas et le hangar", exact: true }).click();
-  await expect(page.getByText("3. Porte du jour : Le sas et le hangar.")).toBeVisible();
+  await page.getByRole("button", { name: "Fouiller le sas", exact: true }).click();
+  await expect(page.getByText("3. Porte du jour : Fouiller le sas.")).toBeVisible();
+  // The search: one hiding place, the survival chest, and its pistol.
+  await page.getByRole("region", { name: "Le groupe" }).getByRole("button", { name: /Le coffre de survie/ }).click();
+  await page.getByRole("button", { name: "Ouvrir le coffre de survie" }).click();
+  await expect(page.getByRole("dialog", { name: "Texte à lire" }).getByText("FOU-04", { exact: false }).first()).toBeVisible();
+  await page.getByRole("dialog", { name: "Texte à lire" }).getByRole("button", { name: "Masquer" }).click();
+  await page.getByRole("button", { name: "Revenir au plan" }).click();
   await page.getByLabel("Porteur : Pistolet de détresse", { exact: true }).selectOption({ label: "Joueur05 · ch. 5" });
   await tap("Confier");
   await expect(page.getByText("Pistolet de détresse : Joueur05 · remis devant tous")).toBeVisible();
@@ -239,25 +252,30 @@ test("antarctica: the station's sandbox — search the reception computer, the k
   await group.getByRole("button", { name: "Ils tentent d'ouvrir" }).click();
   await expect(screen.getByText("PORTE VERROUILLÉE")).toBeVisible();
   await group.getByRole("button", { name: /Porte Β/ }).click(); // folds the door's row again
-  // The reception computer: switched on, the password dictated (wrong, then right), the keyboard lifted.
+  // The reception computer: under the keyboard, the key of Bêta; under the mouse, the post-it of the password.
   await group.getByRole("button", { name: /L'ordinateur de l'accueil/ }).click();
-  await page.getByRole("button", { name: "Allumer l'écran" }).click();
-  await expect(screen.getByText(/MOT DE PASSE :/)).toBeVisible();
-  await page.getByLabel("Mot de passe dicté par les joueurs").fill("hiver");
-  await page.getByRole("button", { name: "Taper" }).click();
-  await expect(screen.getByText("MOT DE PASSE INCORRECT")).toBeVisible();
-  await page.getByLabel("Mot de passe dicté par les joueurs").fill("blizzard");
-  await page.getByRole("button", { name: "Taper" }).click();
-  await expect(screen.getByText("ACCÈS AUTORISÉ")).toBeVisible();
-  await page.getByRole("button", { name: "Soulever le clavier" }).click();
-  await expect(screen.getByText("CLÉ DE BÊTA")).toBeVisible();
+  await expect(page.getByText(/Pour toi : La clé de l'aile Bêta/)).toBeVisible();
+  await page.getByRole("button", { name: "Soulever le clavier de l'ordinateur" }).click();
+  await expect(screen.getByText("CLÉ DE L'AILE BÊTA")).toBeVisible();
+  await page.getByRole("button", { name: "Soulever la souris" }).click();
+  await expect(screen.getByText(/ce qu'on vous a dit d'oublier/)).toBeVisible();
   await page.getByRole("button", { name: "Revenir au plan" }).click();
   // With the key, Bêta opens, and the group goes in.
   await group.getByRole("button", { name: /Porte Β/ }).click();
-  await group.getByRole("button", { name: "Utiliser : Clé de Bêta" }).click();
+  await group.getByRole("button", { name: "Utiliser : Clé de l'aile Bêta" }).click();
   await expect(screen.getByLabel("La porte Β s'ouvre")).toBeVisible();
   await group.getByRole("button", { name: "Entrer : Aile bêta" }).click();
   await expect(group.getByText("AILE BÊTA", { exact: true })).toBeVisible();
+  // The archives' terminal, behind LYSSA: a wrong word is refused in front of the room, the right one opens it.
+  await page.getByRole("button", { name: /^ARCHIVES|^AILE BÊTA, ouvert/ }).first().click();
+  await page.getByRole("button", { name: /Afficher le terminal des archives/ }).click();
+  await page.getByLabel("Mot de passe dicté par les joueurs").fill("hiver");
+  await page.getByRole("button", { name: "Taper" }).click();
+  await expect(screen.getByText("ACCÈS REFUSÉ")).toBeVisible();
+  await page.getByLabel("Mot de passe dicté par les joueurs").fill("lyssa");
+  await page.getByRole("button", { name: "Taper" }).click();
+  await expect(page.getByLabel("Mot de passe dicté par les joueurs")).toHaveCount(0);
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
   // Restarting the station puts everything back.
   await page.getByRole("button", { name: /Toute la base/ }).click();
   await page.getByRole("button", { name: /Redémarrer la station/ }).click();

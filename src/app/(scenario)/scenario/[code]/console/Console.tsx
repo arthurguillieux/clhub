@@ -56,6 +56,8 @@ export function Console({
     }
   };
   const act: Act = (action) => send({ type: "act", action });
+  // The BASE face during the game: décor or correction, noted as such, no rule runs on it (V1.4 §1.2).
+  const actDecor: Act = (action) => send({ type: "act", action, decor: true });
 
   // The projection's heartbeat and the co-organizer's gestures show up by themselves.
   useEffect(() => {
@@ -78,6 +80,8 @@ export function Console({
   const [face, setFace] = useState<"base" | "proto">(() => (view.status === "setup" ? "base" : "proto"));
   const [sheet, setSheet] = useState<Sheet>(null);
   const live = view.status === "live";
+  // The sheets act as décor when opened from the BASE face during the game.
+  const sheetAct = live && face === "base" ? actDecor : act;
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-3 px-3 pt-3 pb-36">
       <header className="flex flex-col gap-2 border-b border-[var(--scn-line)] pb-2.5">
@@ -107,7 +111,7 @@ export function Console({
 
       {face === "base" && (
         <>
-          <StationFace def={def} view={view} busy={busy} act={act} sheet={sheet} onSheet={setSheet} />
+          <StationFace def={def} view={view} busy={busy} act={live ? actDecor : act} sheet={sheet} onSheet={setSheet} />
           <ProtocolStrip def={def} view={view} protocol={protocol} progress={progress} onOpen={() => setFace("proto")} />
         </>
       )}
@@ -138,12 +142,12 @@ export function Console({
         </>
       )}
 
-      {sheet?.kind === "zone" && <ZoneSheet def={def} view={view} busy={busy} act={act} id={sheet.id} onClose={() => setSheet(null)} onRoom={(room) => setSheet({ kind: "room", room })} />}
-      {sheet?.kind === "prop" && <PropSheet def={def} view={view} busy={busy} act={act} id={sheet.id} onClose={() => setSheet(null)} />}
-      {sheet?.kind === "room" && <RoomSheet def={def} view={view} busy={busy} act={act} room={sheet.room} onClose={() => setSheet(null)} />}
-      {sheet?.kind === "global" && <GlobalSheet def={def} view={view} busy={busy} act={act} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "zone" && <ZoneSheet def={def} view={view} busy={busy} act={sheetAct} id={sheet.id} onClose={() => setSheet(null)} onRoom={(room) => setSheet({ kind: "room", room })} />}
+      {sheet?.kind === "prop" && <PropSheet def={def} view={view} busy={busy} act={sheetAct} id={sheet.id} onClose={() => setSheet(null)} onRead={(start) => setReading({ start })} />}
+      {sheet?.kind === "room" && <RoomSheet def={def} view={view} busy={busy} act={sheetAct} room={sheet.room} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "global" && <GlobalSheet def={def} view={view} busy={busy} act={sheetAct} onClose={() => setSheet(null)} />}
       {sheet?.kind === "screen" && <ScreenSheet def={def} view={view} busy={busy} act={act} qrSvg={qrSvg} code={code} onClose={() => setSheet(null)} />}
-      {live && reading && <Reader def={def} view={view} start={reading.start} variant={reading.variant} onClose={() => setReading(null)} />}
+      {live && reading && <Reader def={def} view={view} start={reading.start} variant={reading.variant} onClose={() => setReading(null)} act={actDecor} />}
       {live && !reading && <FaultHint view={view} onRead={(variant) => setReading({ start: "FAILLE-01", variant })} />}
       {view.status !== "done" && (
         <CommandBar
@@ -650,15 +654,16 @@ function DayPlan({ def, view, busy, act, onGood }: Props & { onGood: () => void 
           3. Le village vote contre le meneur
         </button>
       ) : s.lastAction ? (
-        <p className="text-sm text-[var(--scn-ok)]">3. Porte du jour : {labelOf(s.lastAction)}.</p>
-      ) : (
         <>
-          {s.loop === 1 && s.round === 1 && (
+          <p className="text-sm text-[var(--scn-ok)]">3. Porte du jour : {labelOf(s.lastAction)}.</p>
+          {s.lastAction !== "archives-panic" && s.lastAction !== "fouiller" && (
             <p className="rounded-lg border border-[var(--scn-amber)] px-3 py-2 text-sm">
-              <b className="text-[var(--scn-amber)]">D&apos;abord la fouille libre.</b> Le groupe explore le hall depuis le plan (« À fouiller » : l&apos;ordinateur, le comptoir, le coin détente). Quand la fouille s&apos;éternise, arrête-la, puis lance le choix de la porte.
-              {s.flags.key ? " La clé est trouvée : l'aile Bêta fait partie des choix." : ""}
+              <b className="text-[var(--scn-amber)]">La fouille.</b> Lis le texte de la pièce : il décrit ses cachettes. La salle choisit à main levée, puis touche le geste dans « À fouiller », plus haut ({view.setup.params.searchesPerVisit === 0 ? "autant de cachettes qu'ils veulent" : `${view.setup.params.searchesPerVisit ?? 1} cachette${(view.setup.params.searchesPerVisit ?? 1) > 1 ? "s" : ""} par visite`}). Si l&apos;objet est ailleurs, échange en secret avant de toucher.
             </p>
           )}
+        </>
+      ) : (
+        <>
           <VoteControl
             key={doors.join()}
             def={def}

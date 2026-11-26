@@ -3,7 +3,7 @@
  * state is rebuilt from the list. « Annuler » removes the last action; nothing else can go stale.
  * Pure functions on plain values: the console proposes, the meneur confirms (and can force anything).
  */
-import { PROPS, SPACES, type SpaceId } from "./station";
+import { PROPS, SPACES, spaceOfZone, type SpaceId } from "./station";
 import type { DayEvent, Fault, Flag, ScenarioDef, ScenarioParams } from "./types";
 
 export interface Setup {
@@ -27,7 +27,8 @@ export type Action =
   // The station before any game: the scenario is loaded (the room sees it load), or put away; the room's screen.
   | { t: "load" }
   | { t: "unload" }
-  | { t: "screen"; mode: "accueil" | "plan" }
+  // « loading »: the scenario's loading screen, shown by hand only (V1.4 §1.1: the room never sees it by itself).
+  | { t: "screen"; mode: "accueil" | "plan" | "loading" }
   // « Redémarrer la station »: before the game, everything back as at the start (players and journal kept).
   | { t: "reset" }
   // The sandbox: where the group is, the furniture it searches, a computer's password, a door opened with
@@ -35,6 +36,9 @@ export type Action =
   | { t: "go"; space: string }
   | { t: "prop"; id: string | null }
   | { t: "gesture"; key: string; on: boolean }
+  // The meneur swaps, in secret, what two hiding places of a room hold (V1.4 §2.2).
+  | { t: "swap"; a: string; b: string }
+  // A locked terminal's password, as the players dictate it (the archives', V1.4 §3).
   | { t: "password"; prop: string; text: string }
   | { t: "unlock"; door: string }
   | { t: "overview"; on: boolean }
@@ -45,7 +49,7 @@ export type Action =
   | { t: "cut" }
   | { t: "door"; door: string; open: boolean; force?: boolean }
   | { t: "terminal"; id: string | null }
-  | { t: "play"; file: string }
+  | { t: "play"; file: string; force?: boolean }
   | { t: "circuit"; show: boolean }
   | { t: "switch"; index: number; up: boolean }
   | { t: "power" }
@@ -164,10 +168,15 @@ export interface State {
   unlocked: string[];
   pwTries: number;
   overview: boolean;
+  /** What each hiding place opened gave (after any secret swap), and what this visit has opened. */
+  opened: Record<string, { contenu: string; objet: string | null; texte: string }>;
+  visitSearched: string[];
+  /** The meneur's secret swaps: hiding place → the one whose content it now holds. Never on the projection. */
+  swaps: Record<string, string>;
   /** When the scenario started loading into the station (null: the station runs on its own). */
   loadingAt: number | null;
   /** Before the game, what the room's screen shows: the welcome image, or the base's plan. */
-  screen: "accueil" | "plan";
+  screen: "accueil" | "plan" | "loading";
   loop: number;
   /** Nights (and days) of this loop: night n is followed by day n. */
   round: number;
@@ -276,6 +285,9 @@ export function initialState(def: ScenarioDef, setup: Setup): State {
     unlocked: [],
     pwTries: 0,
     overview: false,
+    opened: {},
+    visitSearched: [],
+    swaps: {},
     loadingAt: null,
     screen: "accueil",
     loop: 1,
@@ -452,11 +464,14 @@ const nameOf = (s: State, id: string | null) => s.players.find((p) => p.id === i
 export const flagName = (f: Flag) => ({ key: "la clé de Bêta", badge2: "le badge de niveau 2", badge3: "le badge de niveau 3", code: "le code des générateurs", power: "le courant" })[f];
 
 /** The meneur's choice of a day action, its effects on the base: doors, flags, items found. */
-function doDayAction(def: ScenarioDef, s: State, id: string, at: string): State {
-  const log = (text: string): State["log"] => [...s.log, { at, text }];
-  if (id === "fouiller") return { ...s, lastAction: "fouiller", log: log("Le village fouille ce qu'il connaît déjà.") };
+function doDayAction(def: ScenarioDef, s0: State, id: string, at: string): State {
+  const log = (text: string): State["log"] => [...s0.log, { at, text }];
+  if (id === "fouiller") return { ...s0, lastAction: "fouiller", visitSearched: [], log: log("Le village fouille ce qu'il connaît déjà.") };
   const a = def.dayActions.find((x) => x.id === id);
-  if (!a) return s;
+  if (!a) return s0;
+  // The day's door leads the group into its room: a new visit (V1.4: one hiding place per visit).
+  // The day the panic room is repaired (SALLE-04), the repair replaces the search.
+  const s = { ...s0, at: spaceOfZone(a.zone), prop: null, visitSearched: id === "archives-panic" ? ["réparation"] : [] };
   const firstArchives = a.zone === "beta" && !s.actionsDone.some((x) => def.dayActions.find((y) => y.id === x)?.zone === "beta");
   const flags = { ...s.flags };
   for (const f of a.gives ?? []) flags[f] = true;
@@ -469,9 +484,9 @@ function doDayAction(def: ScenarioDef, s: State, id: string, at: string): State 
     doors: a.zone === "hall" || !(a.zone in s.doors) ? s.doors : { ...s.doors, [a.zone]: true },
     actionsDone: [...new Set([...s.actionsDone, id])],
     lastAction: id,
-    // The first entry into the archives wakes their terminal (log 2).
+    // The first entry into the archives wakes their terminal (log 2) — behind its password if it has one (V1.4 §3).
     terminal: firstArchives ? "beta" : s.terminal,
-    playing: firstArchives ? "log2" : s.playing,
+    playing: firstArchives && !(def.sandbox?.passwords.beta && !s.unlocked.includes("beta")) ? "log2" : s.playing,
     circuitShown: id === "archives-panic" && !firstArchives ? true : s.circuitShown,
     log: log(`Le village choisit : ${a.label}.${a.finds?.length ? ` Trouvé : ${a.finds.map(itemName).join(", ")}.` : ""}${a.gives?.length ? ` Acquis : ${a.gives.map(flagName).join(", ")}.` : ""}`),
   };
@@ -483,11 +498,22 @@ const SHOWN_ON_PLAN = new Set<Action["t"]>(["light", "cut", "door", "terminal", 
 /** One action applied. Unknown or impossible actions leave the state as it was. */
 export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when = 0): State {
   let next = applyAction(def, setup, s, a, when);
-  if (next.phase === "welcome" && next.loadingAt === null && next.screen === "accueil" && SHOWN_ON_PLAN.has(a.t)) next = { ...next, screen: "plan" };
+  // Touching the base shows its plan to the room (loaded scenario or not: its loading is never shown by itself, V1.4 §1.1).
+  if (next.phase === "welcome" && next.screen === "accueil" && SHOWN_ON_PLAN.has(a.t)) next = { ...next, screen: "plan" };
   return s.chief && !next.chief && next !== s ? { ...next, formerChief: s.chief } : next;
 }
 
+/** A gesture made from the BASE face during the game: décor or correction, it validates nothing (V1.4 §1.2). */
+const decorOf = (a: Action) => (a as { decor?: boolean }).decor === true;
+
 function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: number): State {
+  const next = applyActionRaw(def, setup, s, a, when);
+  // Noted as such in the journal; the rules of the game don't run on it.
+  if (!decorOf(a) || s.phase === "welcome" || next.log.length === s.log.length) return next;
+  return { ...next, log: [...s.log, ...next.log.slice(s.log.length).map((l) => ({ ...l, text: `${l.text} (décor)` }))] };
+}
+
+function applyActionRaw(def: ScenarioDef, setup: Setup, s: State, a: Action, when: number): State {
   const at = momentOf(s);
   const log = (text: string): State["log"] => [...s.log, { at, text }];
   const setPlayer = (id: string, change: Partial<PlayerState>) => s.players.map((p) => (p.id === id ? { ...p, ...change } : p));
@@ -503,7 +529,7 @@ function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: 
     case "go": {
       const space = SPACES.find((x) => x.id === a.space);
       if (!space) return s;
-      return { ...s, at: space.id, prop: null, screen: s.phase === "welcome" ? "plan" : s.screen, log: log(`Le groupe va : ${space.name.toLowerCase()}.`) };
+      return { ...s, at: space.id, prop: null, visitSearched: space.id === s.at ? s.visitSearched : [], screen: s.phase === "welcome" ? "plan" : s.screen, log: log(`Le groupe va : ${space.name.toLowerCase()}.`) };
     }
     case "prop": {
       if (a.id === null) return { ...s, prop: null };
@@ -516,26 +542,46 @@ function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: 
       const g = prop?.gestures.find((x) => x.id === gesture);
       if (!prop || !g) return s;
       const gestures = a.on ? [...new Set([...s.gestures, a.key])] : s.gestures.filter((x) => x !== a.key);
-      const next = { ...s, gestures, log: log(`${prop.name} : ${(a.on ? g.on : g.off).charAt(0).toLowerCase()}${(a.on ? g.on : g.off).slice(1)}.`) };
-      // Something hidden there, found the first time: into the group's inventory, with what it unlocks.
-      const hidden = a.on ? def.sandbox?.hides[a.key] : undefined;
-      const thing = hidden ? def.sandbox?.stash.find((x) => x.id === hidden) : undefined;
-      if (!thing || s.inventory.includes(thing.id)) return next;
+      const said = (a.on ? g.on : g.off).charAt(0).toLowerCase() + (a.on ? g.on : g.off).slice(1);
+      const next = { ...s, gestures, log: log(`${prop.name} : ${said}.`) };
+      // Putting back, a hiding place already opened, or nothing there: just the gesture.
+      const content = a.on && !s.opened[a.key] ? def.sandbox?.cachettes[s.swaps[a.key] ?? a.key] : undefined;
+      if (!content || decorOf(a)) return next;
+      // In the game, one hiding place per visit (the setting says how many; 0: no limit).
+      const limit = params.searchesPerVisit ?? 1;
+      if (s.phase !== "welcome" && limit > 0 && s.visitSearched.length >= limit)
+        return { ...s, log: log(`${prop.name} : ${limit === 1 ? "une seule cachette" : `${limit} cachettes`} par visite, déjà fouillée${limit > 1 ? "s" : ""} aujourd'hui.`) };
+      const thing = content.objet ? def.sandbox?.objets[content.objet] : undefined;
+      const fresh = !!content.objet && !s.inventory.includes(content.objet);
+      const items = fresh ? (thing?.items ?? []) : [];
       return {
         ...next,
-        inventory: [...s.inventory, thing.id],
-        flags: thing.flag ? { ...s.flags, [thing.flag]: true } : s.flags,
-        actionsDone: thing.action ? [...new Set([...s.actionsDone, thing.action])] : s.actionsDone,
-        log: [...next.log, { at, text: `Trouvé : ${thing.name} (${g.on.charAt(0).toLowerCase()}${g.on.slice(1)}).` }],
+        opened: { ...s.opened, [a.key]: content },
+        visitSearched: [...s.visitSearched, a.key],
+        inventory: fresh ? [...s.inventory, content.objet!] : s.inventory,
+        flags: fresh && thing?.flag ? { ...s.flags, [thing.flag]: true } : s.flags,
+        found: items.length ? [...new Set([...s.found, ...items])] : s.found,
+        foundToday: items.length ? [...new Set([...s.foundToday, ...items])] : s.foundToday,
+        log: [...next.log, { at, text: `Fouille (${content.texte}) : ${content.contenu}.` }],
       };
     }
+    case "swap": {
+      const [pa] = a.a.split(".");
+      const [pb] = a.b.split(".");
+      const ra = PROPS.find((p) => p.id === pa);
+      const rb = PROPS.find((p) => p.id === pb);
+      if (!ra || !rb || ra.space !== rb.space || a.a === a.b || s.opened[a.a] || s.opened[a.b]) return s;
+      const holdsA = s.swaps[a.a] ?? a.a;
+      const holdsB = s.swaps[a.b] ?? a.b;
+      return { ...s, swaps: { ...s.swaps, [a.a]: holdsB, [a.b]: holdsA }, log: log(`(Secret) Contenus échangés : ${ra.name.toLowerCase()} et ${rb.name.toLowerCase()}.`) };
+    }
     case "password": {
-      const prop = PROPS.find((p) => p.id === a.prop);
-      const expected = def.sandbox?.passwords[a.prop];
-      if (!prop?.computer || !expected) return s;
-      const ok = a.text.trim().toUpperCase() === expected.trim().toUpperCase();
-      if (!ok) return { ...s, pwTries: s.pwTries + 1, log: log(`${prop.name} : mot de passe refusé (« ${a.text.trim().toUpperCase()} »).`) };
-      return { ...s, unlocked: [...new Set([...s.unlocked, prop.id])], pwTries: 0, log: log(`${prop.name} : mot de passe accepté.`) };
+      const lock = def.sandbox?.passwords[a.prop];
+      const term = def.terminals.find((t) => t.id === a.prop);
+      if (!lock || !term) return s;
+      const typed = a.text.trim().toUpperCase();
+      if (typed !== lock.word.trim().toUpperCase()) return { ...s, pwTries: s.pwTries + 1, log: log(`${term.label} : mot de passe refusé (« ${typed} »).`) };
+      return { ...s, unlocked: [...new Set([...s.unlocked, a.prop])], pwTries: 0, log: log(`${term.label} : mot de passe accepté.`) };
     }
     case "unlock": {
       const door = def.doors.find((d) => d.id === a.door);
@@ -580,7 +626,9 @@ function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: 
     case "play": {
       const term = def.terminals.find((x) => x.id === s.terminal);
       const file = term?.files.find((f) => f.id === a.file);
-      if (!file) return s;
+      if (!file || !term) return s;
+      // A locked terminal shows its files only once its password is given (the archives', V1.4 §3).
+      if (def.sandbox?.passwords[term.id] && !s.unlocked.includes(term.id) && !a.force) return { ...s, log: log(`${term.label} : verrouillé, mot de passe d'abord.`) };
       return { ...s, playing: file.id, log: log(`Fichier lancé : ${setup.files?.[file.id]?.name || file.name}.`) };
     }
     case "circuit":
@@ -675,6 +723,7 @@ function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: 
         ...s,
         phase: "night",
         round,
+        lastExile: null,
         terminal: null,
         playing: null,
         circuitShown: false,

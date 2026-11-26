@@ -9,7 +9,7 @@ import type { Fault, PublicScenario, Terminal } from "@/modules/loups/scenarios/
 import { projectionReportAction } from "../../actions";
 import { forgetFiles, keepFiles, keyOf, loadFiles, MEDIA_FORMATS } from "./media";
 import { SPOTS, STATION_DOORS, STATION_H, STATION_W } from "@/modules/loups/scenarios/station";
-import { DoorOpening, FlyingKey, Inventory, PropScene } from "./Sandbox";
+import { DoorOpening, FlyingKey, Inventory, PropScene, useTyped } from "./Sandbox";
 import { Plan } from "./Plan";
 import { SFX, audio, cassette } from "./sfx";
 
@@ -91,7 +91,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
     [urlOf, def.media],
   );
   // The welcome screen comes with its own ambiance (the wind on the station's sign), as long as it's shown.
-  const welcomeShown = s.phase === "welcome" && s.loadingAt === null && s.screen === "accueil" && !s.neutral;
+  const welcomeShown = s.phase === "welcome" && s.screen === "accueil" && !s.neutral;
   useEffect(() => {
     for (const m of def.media.filter((x) => x.loop)) {
       const el = soundOf(m.id);
@@ -439,7 +439,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   const night = s.phase === "night";
   // Before the game, the station on its own: its welcome image, or its plan; then the scenario loading.
   const protocol = protocolOf(s, now + offset);
-  const stationPlan = s.phase === "welcome" && protocol === "none" && s.screen === "plan";
+  const stationPlan = s.phase === "welcome" && s.screen === "plan";
   const mapPhase = s.phase === "arrival" || s.phase === "day" || s.phase === "loopEnd" || stationPlan;
   // Arriving on the plan (the station's, or the base at the arrival): a short electronic chirp.
   const planArrived = (stationPlan || s.phase === "arrival") && !s.neutral && !s.terminal;
@@ -461,7 +461,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   return (
     <div className="pj" onMouseMove={() => document.body.dataset.cursor !== "on" && (document.body.dataset.cursor = "on")}>
       <div className={`pj-screen ${glitch ? "glitch" : ""}`}>
-        {s.phase === "welcome" && protocol === "none" && s.screen === "accueil" && (
+        {s.phase === "welcome" && s.screen === "accueil" && (
           <div className="pj-full" style={{ zIndex: 12, background: "#05080c" }}>
             {urlOf("image-accueil") && (
               // eslint-disable-next-line @next/next/no-img-element -- a local file of the projection computer
@@ -470,7 +470,8 @@ export function Projection({ token, def, initial }: { token: string; def: Public
             <p className="scn-vt relative text-[7cqw] tracking-[0.15em] text-[var(--scn-ice)] drop-shadow-[0_0_24px_rgba(127,216,255,.6)]">{def.base.name.toUpperCase()}</p>
           </div>
         )}
-        {s.phase === "welcome" && protocol !== "none" && <Loading def={def} players={view.players.length} progress={Math.min(1, (now + offset - (s.loadingAt ?? 0)) / LOADING_MS)} ready={protocol === "ready"} />}
+        {/* The loading screen only when the meneur shows it (V1.4 §1.1): « Charger » sends nothing to the room. */}
+        {s.phase === "welcome" && s.screen === "loading" && protocol !== "none" && <Loading def={def} players={view.players.length} progress={Math.min(1, (now + offset - (s.loadingAt ?? 0)) / LOADING_MS)} ready={protocol === "ready"} />}
 
         {s.phase === "bus" && (
           <div className="pj-full" style={{ background: "radial-gradient(ellipse at 50% 120%, #10161f 0, #000 60%)" }}>
@@ -534,6 +535,8 @@ export function Projection({ token, def, initial }: { token: string; def: Public
                 urlOf={urlOf}
                 recording={recording}
                 recordedAt={recordedAt}
+                locked={!!def.sandbox?.passwords[term.id] && !s.unlocked.includes(term.id)}
+                typing={typing}
                 files={view.files}
                 registryLines={registry({ loop: s.loop, players: view.players, past: s.past })}
                 onMedia={(el) => {
@@ -547,20 +550,21 @@ export function Projection({ token, def, initial }: { token: string; def: Public
               />
             )}
             {s.prop && !term && !night && (
-              <PropScene
-                key={s.prop}
-                prop={s.prop}
-                gestures={s.gestures}
-                hides={def.sandbox?.hides ?? {}}
-                notes={def.sandbox?.notes ?? {}}
-                inventory={s.inventory}
-                unlocked={s.unlocked.includes(s.prop)}
-                typing={typing}
-                boot={def.terminals.find((t) => t.id === "accueil")?.boot ?? ""}
-                files={(def.terminals.find((t) => t.id === "accueil")?.files ?? []).filter((f) => !f.fault).map((f) => view.files[f.id]?.name || f.name)}
+              <PropScene key={s.prop} prop={s.prop} gestures={s.gestures} opened={s.opened} hint={hintOf(def)} />
+            )}
+            {def.sandbox && !night && (
+              <Inventory
+                items={s.inventory.map((id) => {
+                  const o = def.sandbox!.objets[id];
+                  // The syringes are one slot: greyed once both (life and death) are used.
+                  const items = id === "seringues" ? ["vie", "mort"] : (o?.items ?? []);
+                  const used = items.length > 0 && items.every((x) => s.usedItems.includes(x));
+                  // The pistol: its holder, public. The secret things: never who holds them.
+                  const who = id === "pistolet" ? (view.players.find((pl) => pl.id === s.pistol)?.name ?? null) : o?.secret ? null : undefined;
+                  return { id, name: o?.name ?? id, who, used };
+                })}
               />
             )}
-            {def.sandbox && !night && <Inventory items={s.inventory.map((id) => ({ id, name: def.sandbox!.stash.find((x) => x.id === id)?.name ?? id }))} />}
             {s.circuitShown && !term && !night && <CircuitBox switches={s.switches} ready={s.panicReady} sparks={sparks} />}
             {!night && (
               <div className="pj-ticker">
@@ -1012,6 +1016,8 @@ function Crt({
   urlOf,
   recording,
   recordedAt,
+  locked,
+  typing,
   files: shown,
   registryLines,
   subtitlesOf,
@@ -1025,6 +1031,9 @@ function Crt({
   urlOf: (slot: string | undefined) => string | null;
   recording: React.RefObject<string | null>;
   recordedAt: React.RefObject<number | null>;
+  /** A terminal behind its password (the archives'): the prompt, the letters as dictated, « ACCÈS REFUSÉ ». */
+  locked: boolean;
+  typing: { text: string; ok: boolean; key: number } | null;
   files: ProjectionView["files"];
   registryLines: string[];
   subtitlesOf: (slot: string | undefined) => string | null;
@@ -1053,7 +1062,13 @@ function Crt({
     <div className="pj-crt">
       <div className="pj-bezel">
         <div className="pj-tube">
-          {!file && (
+          {locked && (
+            <div className="pj-txt">
+              {term.boot.slice(0, typed)}
+              {typed >= term.boot.length && <Password key={typing?.key ?? 0} text={typing?.text ?? ""} ok={!!typing?.ok} />}
+            </div>
+          )}
+          {!locked && !file && (
             <div className="pj-txt">
               {term.boot.slice(0, typed)}
               {typed >= term.boot.length && (
@@ -1065,10 +1080,10 @@ function Crt({
               )}
             </div>
           )}
-          {file && (file.kind === "text" || file.kind === "registry") && (
+          {!locked && file && (file.kind === "text" || file.kind === "registry") && (
             <TypedFile key={`${term.id}-${file.id}`} lines={file.kind === "registry" ? registryLines : (shown[file.id]?.text || "[Rapport du protocole Alpha — à écrire]").split("\n")} byLine={file.kind === "registry"} />
           )}
-          {file && file.kind !== "text" && file.kind !== "registry" && (
+          {!locked && file && file.kind !== "text" && file.kind !== "registry" && (
             <Tape
               key={`${term.id}-${file.id}`}
               file={file}
@@ -1554,4 +1569,31 @@ function Snowfield() {
     return () => cancelAnimationFrame(raf);
   }, []);
   return <canvas ref={ref} className="pj-snowfield" aria-hidden />;
+}
+
+/** The post-it's words (« Mot de passe des archives : ce qu'on vous a dit d'oublier. »), from the scenario's hint. */
+function hintOf(def: PublicScenario): string | null {
+  const hint = Object.values(def.sandbox?.passwords ?? {})[0]?.hint;
+  if (!hint) return null;
+  const quoted = hint.match(/«\s*([^»]+?)\s*»/);
+  return quoted ? quoted[1]! : hint;
+}
+
+/** A locked terminal's prompt: the letters as the players dictate them, then « ACCÈS REFUSÉ » and the cursor back. */
+function Password({ text, ok }: { text: string; ok: boolean }) {
+  const typed = useTyped(text);
+  const done = typed.length >= text.length;
+  return (
+    <>
+      {"MOT DE PASSE : "}
+      {done && text && !ok ? "" : typed}
+      <span className="pj-cursor" />
+      {done && text && !ok && (
+        <>
+          {"\n\n"}
+          <span style={{ color: "#ff6b6b" }}>ACCÈS REFUSÉ</span>
+        </>
+      )}
+    </>
+  );
 }

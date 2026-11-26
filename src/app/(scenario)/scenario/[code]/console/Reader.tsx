@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ConsoleView } from "@/modules/loups/scenarios/data";
 import type { PublicScenario } from "@/modules/loups/scenarios/types";
+import { gestureAction } from "@/modules/loups/scenarios/guide";
+import type { Act } from "./controls";
 import { blocks, faultVariant, fromPhrase, inline, pickVariant, resolveTexts, suggestTexts, textVars, type ReadText } from "@/modules/loups/scenarios/texts";
 
 const SIZE_KEY = "scn-reader-size";
@@ -27,7 +29,7 @@ export function useTexts(view: ConsoleView): ReadText[] {
  * in the evening and writes nothing in the journal; the projection never sees it. The command bar
  * stays above it.
  */
-export function Reader({ def, view, start, variant, onClose }: { def: PublicScenario; view: ConsoleView; start?: string; variant?: string | null; onClose: () => void }) {
+export function Reader({ def, view, start, variant, onClose, act }: { def: PublicScenario; view: ConsoleView; start?: string; variant?: string | null; onClose: () => void; act?: Act }) {
   const texts = useTexts(view);
   const s = view.state;
   const suggestion = useMemo(() => suggestTexts(def, view.setup, s), [def, view.setup, s]);
@@ -128,7 +130,10 @@ export function Reader({ def, view, start, variant, onClose }: { def: PublicScen
         ) : !text ? (
           <p className="scn-vt text-2xl text-[var(--scn-amber)]">Texte à écrire : {id}</p>
         ) : (
-          <Text text={text} view={view} size={size} force={forced} />
+          <>
+            <Text text={text} view={view} size={size} force={forced} />
+            <Guide key={text.id} text={text} def={def} view={view} act={act} />
+          </>
         )}
       </div>
 
@@ -282,5 +287,61 @@ export function FaultHint({ view, onRead }: { view: ConsoleView; onRead: (varian
         ✕
       </button>
     </div>
+  );
+}
+
+/**
+ * « Le meneur guidé » (V1.4 §5): under the text, what to ask the room (big, to read without looking for it),
+ * then what to do in the base, in order — a button when the console knows how (it acts as décor: no step
+ * of the protocol is validated by it), a box to tick otherwise.
+ */
+function Guide({ text, def, view, act }: { text: ReadText; def: PublicScenario; view: ConsoleView; act?: Act }) {
+  const [done, setDone] = useState<number[]>([]);
+  const vars = textVars(view.state, text.id);
+  const fill = (line: string) => line.replace(/\{(\w+)\}/g, (m, k: string) => vars[k] ?? m);
+  const questions = text.questions ?? [];
+  const gestes = text.gestes ?? [];
+  if (!questions.length && !gestes.length) return null;
+  return (
+    <section aria-label="Le guide du meneur" className="mt-6 flex flex-col gap-4 border-t border-[#1d2a33] pt-4">
+      {questions.length > 0 && (
+        <div>
+          <p className="text-[0.66rem] font-bold tracking-[0.2em] text-[var(--scn-magenta)]">À DEMANDER À LA SALLE</p>
+          {questions.map((q, i) => (
+            <p key={i} className="mt-1 text-2xl leading-tight font-semibold text-[#fff4fb]">
+              {fill(q)}
+            </p>
+          ))}
+        </div>
+      )}
+      {gestes.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[0.66rem] font-bold tracking-[0.2em] text-[var(--scn-amber)]">À FAIRE DANS LA BASE</p>
+          {gestes.map((g0, i) => {
+            const g = fill(g0);
+            const action = act ? gestureAction(def, view.setup.params, g) : null;
+            const ok = done.includes(i);
+            return action ? (
+              <button
+                key={i}
+                type="button"
+                className={`scn-btn text-left ${ok ? "scn-btn-on" : ""}`}
+                onClick={async () => {
+                  if (!(await act!(action))) setDone([...done, i]);
+                }}
+              >
+                {ok ? "✓ " : "▶ "}
+                {g}
+              </button>
+            ) : (
+              <label key={i} className="flex min-h-10 items-center gap-3 rounded-lg border border-[#2c4252] px-3 text-sm">
+                <input type="checkbox" checked={ok} onChange={() => setDone(ok ? done.filter((x) => x !== i) : [...done, i])} className="h-5 w-5 accent-[var(--scn-amber)]" />
+                <span className={ok ? "text-[var(--scn-muted)] line-through" : ""}>{g}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }

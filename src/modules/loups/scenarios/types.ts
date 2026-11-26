@@ -115,6 +115,8 @@ export interface ScenarioParams {
   hallLitLoop2: boolean;
   /** How long the generators' gauge lasts, in seconds. */
   gaugeSeconds: number;
+  /** Hiding places one may open per visit of a room (V1.4: 1 by default; 0 = as many as they like). */
+  searchesPerVisit?: number;
   /** The vote by moving: a door, the dead's moment, the election (seconds). */
   voteDoorSeconds?: number;
   voteDeadSeconds?: number;
@@ -167,15 +169,16 @@ export interface ScenarioDef {
   faults: Fault[];
   texts: { goodEnd: string; badEnd: string; reboot: string; welcome: string };
   /**
-   * What the scenario puts in the station's sandbox (modules/loups/scenarios/station.ts): behind which
-   * gestures its things are hidden (« ordi.clavier » → the key), what they unlock (a flag of the access
-   * chain, the day action they stand for), the computers' passwords, and what a gesture shows (a post-it).
+   * What the scenario puts in the station's sandbox (station.ts), V1.4: behind each hiding place (a
+   * gesture's key, « ordi.clavier ») what one finds — a line of story, maybe a thing for the group's
+   * inventory, the text to read; the things and what they unlock (a flag, the items to hand out); the
+   * locked terminals and their password, its hint and the meneur's aids; the codes (the generators').
    */
   sandbox?: {
-    hides: Record<string, string>;
-    stash: { id: string; name: string; flag?: Flag; action?: string }[];
-    passwords: Record<string, string>;
-    notes?: Record<string, string>;
+    cachettes: Record<string, { contenu: string; objet: string | null; texte: string; faille?: boolean }>;
+    objets: Record<string, { name: string; flag?: Flag; items?: string[]; secret?: boolean }>;
+    passwords: Record<string, { word: string; hint?: string; aids?: string[]; texts?: string[] }>;
+    codes?: Record<string, string>;
   };
 }
 

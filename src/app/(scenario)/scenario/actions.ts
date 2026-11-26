@@ -101,6 +101,7 @@ const setupSchema = z.object({
     eventsProposed: z.number().int().min(1).max(5),
     hallLitLoop2: z.boolean(),
     gaugeSeconds: z.number().int().min(30).max(1200),
+    searchesPerVisit: z.number().int().min(0).max(3).optional(),
     voteDoorSeconds: z.number().int().min(10).max(600).optional(),
     voteDeadSeconds: z.number().int().min(10).max(600).optional(),
     voteChiefSeconds: z.number().int().min(10).max(900).optional(),
@@ -131,11 +132,12 @@ const setupSchema = z.object({
 const actionSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("load") }),
   z.object({ t: z.literal("unload") }),
-  z.object({ t: z.literal("screen"), mode: z.enum(["accueil", "plan"]) }),
+  z.object({ t: z.literal("screen"), mode: z.enum(["accueil", "plan", "loading"]) }),
   z.object({ t: z.literal("reset") }),
   z.object({ t: z.literal("go"), space: z.string().max(40) }),
   z.object({ t: z.literal("prop"), id: z.string().max(40).nullable() }),
   z.object({ t: z.literal("gesture"), key: z.string().max(80), on: z.boolean() }),
+  z.object({ t: z.literal("swap"), a: z.string().max(80), b: z.string().max(80) }),
   z.object({ t: z.literal("password"), prop: z.string().max(40), text: z.string().max(40) }),
   z.object({ t: z.literal("unlock"), door: z.string().max(40) }),
   z.object({ t: z.literal("overview"), on: z.boolean() }),
@@ -159,7 +161,7 @@ const actionSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("jump"), phase: z.enum(["welcome", "bus", "arrival", "night", "day", "loopEnd", "good", "bad"]) }),
   z.object({ t: z.literal("room"), player, room: z.number().int().min(1).max(40) }),
   z.object({ t: z.literal("terminal"), id: id.nullable() }),
-  z.object({ t: z.literal("play"), file: id }),
+  z.object({ t: z.literal("play"), file: id, force: z.boolean().optional() }),
   z.object({ t: z.literal("circuit"), show: z.boolean() }),
   z.object({ t: z.literal("switch"), index: z.number().int().min(0).max(3), up: z.boolean() }),
   z.object({ t: z.literal("power") }),
@@ -211,7 +213,8 @@ const consoleSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("refresh") }),
   z.object({ type: z.literal("setup"), setup: setupSchema }),
   z.object({ type: z.literal("launch") }),
-  z.object({ type: z.literal("act"), action: actionSchema }),
+  // `decor`: a gesture from the BASE face during the game — décor or correction, no rule runs on it (V1.4 §1.2).
+  z.object({ type: z.literal("act"), action: actionSchema, decor: z.boolean().optional() }),
   z.object({ type: z.literal("undo") }),
   z.object({ type: z.literal("rewind"), seq: z.number().int().min(0) }),
   z.object({ type: z.literal("finish") }),
@@ -238,7 +241,7 @@ export async function consoleAction(code: string, input: unknown): Promise<Conso
       case "launch":
         return launch(game, def);
       case "act":
-        return act(game, a.action as Action);
+        return act(game, (a.decor ? { ...a.action, decor: true } : a.action) as Action);
       case "undo":
         return undo(game);
       case "rewind":

@@ -1,4 +1,41 @@
+import { SPOTS_TO_SEARCH } from "./station";
+import defaults from "./textes_antarctica.json";
 import type { ScenarioDef } from "./types";
+
+/**
+ * Sang-froid's things in the station (V1.4), read from the texts file's « station » section so the
+ * narration can move them: each hiding place is matched on its gesture's words (or its rank in the
+ * room). The things, what they unlock, and the code of the generators (provisional, one place: here).
+ */
+const OBJETS: NonNullable<ScenarioDef["sandbox"]>["objets"] = {
+  cle_beta: { name: "Clé de l'aile Bêta", flag: "key" },
+  postit_mdp: { name: "Post-it du mot de passe" },
+  pistolet: { name: "Pistolet de détresse", items: ["pistolet"] },
+  badge_2: { name: "Badge de niveau 2", flag: "badge2" },
+  bandes: { name: "Bandes de surveillance", items: ["bandes"], secret: true },
+  code_generateurs: { name: "Code des générateurs", flag: "code" },
+  seringues: { name: "Seringues", items: ["seringues"], secret: true },
+  badge_3: { name: "Badge de niveau 3", flag: "badge3" },
+};
+export const GENERATORS_CODE = "4-7-1-9";
+
+function sandboxFromTexts(): NonNullable<ScenarioDef["sandbox"]> {
+  const station = (defaults as { station?: { cachettes?: { piece: string; geste: string; contenu: string; objet: string | null; texte: string }[]; mots_de_passe?: { terminal: string; mot_de_passe: string; indice?: string; aides?: string[]; textes?: string[] }[] } }).station;
+  const norm = (x: string) => x.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z]+/g, " ").trim();
+  const room = (piece: string) => (piece === "pc_securite" ? "securite" : piece);
+  const cachettes: NonNullable<ScenarioDef["sandbox"]>["cachettes"] = {};
+  const rank: Record<string, number> = {};
+  for (const c of station?.cachettes ?? []) {
+    const space = room(c.piece);
+    const inRoom = SPOTS_TO_SEARCH.filter((x) => x.prop.space === space);
+    const spot = inRoom.find((x) => norm(x.gesture.on) === norm(c.geste)) ?? inRoom[rank[space] ?? 0];
+    rank[space] = (rank[space] ?? 0) + 1;
+    if (spot) cachettes[spot.key] = { contenu: c.contenu, objet: c.objet, texte: c.texte, faille: /\(faille\)/.test(c.contenu) };
+  }
+  const passwords: NonNullable<ScenarioDef["sandbox"]>["passwords"] = {};
+  for (const m of station?.mots_de_passe ?? []) passwords[m.terminal === "archives" ? "beta" : m.terminal] = { word: m.mot_de_passe, hint: m.indice, aids: m.aides, texts: m.textes };
+  return { cachettes, objets: OBJETS, passwords, codes: { generateurs: GENERATORS_CODE } };
+}
 
 /**
  * « Antarctica : Sang-froid » — the A.P.E. evening of 6 February 2027 (Lassy). A relief team arrives at a
@@ -26,6 +63,7 @@ export const ANTARCTICA: ScenarioDef = {
     eventsProposed: 2,
     hallLitLoop2: false,
     gaugeSeconds: 600,
+    searchesPerVisit: 1,
     voteDoorSeconds: 60,
     voteDeadSeconds: 60,
     voteChiefSeconds: 120,
@@ -34,7 +72,7 @@ export const ANTARCTICA: ScenarioDef = {
   doors: [
     { id: "dortoir", letter: "Δ", label: "Dortoir", hint: "libre" },
     { id: "sas", letter: "Θ", label: "Sas et hangar", hint: "libre" },
-    { id: "beta", letter: "Β", label: "Archives et réfectoire", hint: "clé", requires: "key" },
+    { id: "beta", letter: "Β", label: "Aile Bêta et archives", hint: "clé", requires: "key" },
     { id: "gamma", letter: "Γ", label: "Infirmerie", hint: "badge de niveau 2", requires: "badge2" },
     { id: "generateurs", letter: "Ε", label: "Générateurs", hint: "code", requires: "code" },
     { id: "securite", letter: "Ζ", label: "PC sécurité et radio", hint: "courant rétabli", requires: "power" },
@@ -42,13 +80,13 @@ export const ANTARCTICA: ScenarioDef = {
     { id: "alpha", letter: "Α", label: "Aile Alpha", hint: "ne s'ouvre jamais", locked: true },
   ],
   dayActions: [
-    { id: "accueil", label: "Fouiller l'accueil", sentence: "Le comptoir, les tiroirs, les deux terminaux.", zone: "hall", gives: ["key"], text: "SALLE-01" },
-    { id: "sas", label: "Le sas et le hangar", sentence: "Combinaisons, motoneige, le kit de survie.", zone: "sas", finds: ["pistolet"], text: "SALLE-02" },
+    { id: "accueil", label: "Fouiller le hall", sentence: "Le comptoir, l'ordinateur de l'accueil.", zone: "hall", text: "SALLE-01" },
+    { id: "sas", label: "Fouiller le sas", sentence: "Les casiers, la motoneige, le coffre de survie.", zone: "sas", text: "SALLE-02" },
     { id: "archives-panic", label: "Archives : réparer la panic room", sentence: "Le boîtier électrique, au fond des archives.", zone: "beta", requires: "key", text: "SALLE-04" },
-    { id: "archives-fouille", label: "Archives : fouiller", sentence: "Les cartons, les classeurs, les bureaux.", zone: "beta", requires: "key", gives: ["badge2"], finds: ["bandes"], text: "SALLE-05" },
-    { id: "infirmerie", label: "L'infirmerie", sentence: "Trois lits, l'armoire à pharmacie.", zone: "gamma", requires: "badge2", gives: ["code"], finds: ["seringues", "test"], text: "SALLE-06" },
+    { id: "archives-fouille", label: "Archives : fouiller", sentence: "Les cartons, le classeur rouge, le terminal.", zone: "beta", requires: "key", text: "SALLE-05" },
+    { id: "infirmerie", label: "L'infirmerie", sentence: "Trois lits, l'armoire à pharmacie.", zone: "gamma", requires: "badge2", finds: ["test"], text: "SALLE-06" },
     { id: "generateurs", label: "Les générateurs", sentence: "Remettre le courant dans toute la base.", zone: "generateurs", requires: "code", gives: ["power"], text: "SALLE-07" },
-    { id: "securite", label: "Le PC sécurité", sentence: "La radio, les écrans de surveillance.", zone: "securite", requires: "power", gives: ["badge3"], finds: ["radio"], text: "SALLE-08" },
+    { id: "securite", label: "Le PC sécurité", sentence: "La radio, les écrans de surveillance.", zone: "securite", requires: "power", finds: ["radio"], text: "SALLE-08" },
     { id: "labo", label: "Le laboratoire", sentence: "Ce que la base cache depuis le début.", zone: "labo", requires: "badge3", text: "SALLE-09" },
   ],
   dayPlan: {
@@ -166,14 +204,7 @@ export const ANTARCTICA: ScenarioDef = {
     { id: "noms", title: "Le document aux noms", loops: [2], kind: "terminalFile", terminal: "labo", file: "noms", zone: "labo", missed: "Un document avec les noms des deux chercheurs" },
     { id: "midwinter", title: "La vidéo de Midwinter", loops: [2], kind: "terminalFile", terminal: "labo", file: "midwinter", zone: "labo", missed: "La vidéo de Midwinter, où l'on voit les deux chercheurs" },
   ],
-  // The free search of the hall (day 1): the key of Bêta under the reception computer's keyboard (Arthur,
-  // 23/11; the socle doc said « sous le tiroir » — the narration settles it). Password: to be written.
-  sandbox: {
-    hides: { "ordi.clavier": "cle" },
-    stash: [{ id: "cle", name: "Clé de Bêta", flag: "key", action: "accueil" }],
-    passwords: { ordi: "BLIZZARD" },
-    notes: { "ordi.souris": "mdp : BLIZZARD" },
-  },
+  sandbox: sandboxFromTexts(),
   texts: {
     welcome: "ANTARCTICA : SANG-FROID",
     reboot: "SIMULATION ALPHA — SESSION",
