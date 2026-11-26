@@ -83,6 +83,8 @@ export const SFX = {
     noise(0.2, 0.015, 5200);
   },
   wind: () => noise(2.5, 0.05, 300),
+  /** A tape that runs out: the hiss of the snow. */
+  snow: () => noise(1, 0.07, 2600),
 };
 
 /**

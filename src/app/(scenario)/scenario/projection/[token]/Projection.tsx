@@ -981,6 +981,20 @@ function Tape({
   const audioEl = useRef<HTMLAudioElement>(null);
   const videoEl = useRef<HTMLVideoElement | null>(null);
   const [line, setLine] = useState("");
+  // The end of a tape, like a real VCR: a second of snow and its hiss, then the stopped tape's black
+  // screen (« ■ STOP », « FIN DE BANDE »), instead of a frozen last frame. Playing again brings it back.
+  const [end, setEnd] = useState<"no" | "snow" | "stop">("no");
+  const endTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => void (endTimer.current && clearTimeout(endTimer.current)), []);
+  const onEnded = () => {
+    setEnd("snow");
+    SFX.snow();
+    endTimer.current = setTimeout(() => setEnd("stop"), 1000);
+  };
+  const onPlay = () => {
+    if (endTimer.current) clearTimeout(endTimer.current);
+    setEnd("no");
+  };
   // A video that stalls (the decoder chokes now and then on a long file): when the picture hasn't moved
   // for about 1.5 s while it should play, step back a quarter of a second and play on — the meneur's
   // « −10 s » trick, done for them, without a visible jump.
@@ -1071,6 +1085,8 @@ function Tape({
           playsInline
           preload="auto"
           onTimeUpdate={follow}
+          onEnded={onEnded}
+          onPlay={onPlay}
         />
       )}
       {file.kind === "image" && (
@@ -1087,16 +1103,24 @@ function Tape({
             }}
             src={url}
             onTimeUpdate={follow}
+            onEnded={onEnded}
+            onPlay={onPlay}
           />
         </>
       )}
+      {end === "snow" && <Snowfield />}
+      {end === "stop" && (
+        <div className="pj-tapestop">
+          <span>FIN DE BANDE</span>
+        </div>
+      )}
       {file.kind !== "image" && (
         <div className="pj-vhs">
-          <div className="tl">{file.kind === "video" ? "▶ PLAY" : "▶ LECTURE AUDIO"}</div>
+          <div className="tl">{end !== "no" ? "■ STOP" : file.kind === "video" ? "▶ PLAY" : "▶ LECTURE AUDIO"}</div>
           <div className="tr">{file.date}</div>
           <div className="bl">{file.time}</div>
-          {(line || (!cues.length && file.subs[0])) && <div className="sub">{line || file.subs[0]}</div>}
-          <div className="track" />
+          {end === "no" && (line || (!cues.length && file.subs[0])) && <div className="sub">{line || file.subs[0]}</div>}
+          {end === "no" && <div className="track" />}
         </div>
       )}
     </>
@@ -1379,4 +1403,30 @@ function Waiting() {
       </p>
     </div>
   );
+}
+
+/** The snow of a tape that has run out: grey noise, redrawn every frame on a small canvas, scaled up. */
+function Snowfield() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = ref.current;
+    const ctx = c?.getContext("2d");
+    if (!c || !ctx) return;
+    c.width = 160;
+    c.height = 120;
+    const img = ctx.createImageData(160, 120);
+    let raf = 0;
+    const draw = () => {
+      for (let i = 0; i < img.data.length; i += 4) {
+        const v = Math.random() * 255;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+        img.data[i + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return <canvas ref={ref} className="pj-snowfield" aria-hidden />;
 }
