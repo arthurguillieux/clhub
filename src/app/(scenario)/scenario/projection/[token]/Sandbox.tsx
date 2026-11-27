@@ -23,6 +23,70 @@ const KeyIcon = ({ className = "" }: { className?: string }) => (
 );
 
 /**
+ * Each thing its own drawing, in the slots and when it flies there: the key, a yellow post-it (the
+ * password's, the generators' code), an access badge with its level, the flare pistol, a cassette for the
+ * tapes, the syringes. Anything else: a key.
+ */
+export function ObjectIcon({ id, className = "" }: { id: string; className?: string }) {
+  const stroke = { fill: "none", stroke: AMBER, strokeWidth: 3, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  if (id.startsWith("postit") || id.startsWith("code")) {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden className={className}>
+        <path d="M6 6h36v26l-10 10H6z" fill="#f3e27a" />
+        <path d="M42 32H32v10z" fill="#c9b84f" />
+        {id.startsWith("code") ? (
+          <text x="24" y="27" textAnchor="middle" fontFamily="var(--scn-font-vt)" fontSize="13" fill="#3a3210">
+            ••••
+          </text>
+        ) : (
+          <path d="M12 16h24M12 23h20M12 30h14" stroke="#3a3210" strokeWidth="2.5" strokeLinecap="round" />
+        )}
+      </svg>
+    );
+  }
+  if (id.startsWith("badge")) {
+    return (
+      <svg viewBox="0 0 48 48" aria-hidden className={className}>
+        <rect x="9" y="6" width="30" height="38" rx="4" {...stroke} />
+        <rect x="19" y="10" width="10" height="3" rx="1.5" fill={AMBER} />
+        <rect x="9" y="18" width="30" height="5" fill={AMBER} opacity=".5" />
+        <text x="24" y="38" textAnchor="middle" fontFamily="var(--scn-font-vt)" fontSize="14" fill={AMBER}>
+          {id.replace(/\D/g, "") || "?"}
+        </text>
+      </svg>
+    );
+  }
+  if (id === "bandes") {
+    return (
+      <svg viewBox="0 0 64 40" aria-hidden className={className}>
+        <rect x="4" y="5" width="56" height="30" rx="3" {...stroke} />
+        <circle cx="20" cy="19" r="5" {...stroke} />
+        <circle cx="44" cy="19" r="5" {...stroke} />
+        <path d="M14 35l4-7h28l4 7" {...stroke} />
+      </svg>
+    );
+  }
+  if (id === "seringues") {
+    return (
+      <svg viewBox="0 0 64 40" aria-hidden className={className}>
+        <path d="M8 32l6-6M14 26l24-24M38 2l6 6M44 8L20 32l-6-6" {...stroke} />
+        <path d="M30 10l6 6M24 16l3 3M19 21l3 3" {...stroke} />
+        <path d="M26 38l6-6M32 32l24-24" {...stroke} opacity=".55" />
+      </svg>
+    );
+  }
+  if (id === "pistolet") {
+    return (
+      <svg viewBox="0 0 64 40" aria-hidden className={className}>
+        <path d="M6 10h44a4 4 0 0 1 4 4v4H30l-4 18h-10l4-18H6z" {...stroke} />
+        <circle cx="54" cy="16" r="3" fill="#ff6b3e" />
+      </svg>
+    );
+  }
+  return <KeyIcon className={className} />;
+}
+
+/**
  * The group's things, bottom right (V1.4 §4): everything the village found. The pistol with its holder's
  * name (it's public); the secret things (tapes, syringes) always « porteur inconnu »; used up: greyed.
  */
@@ -38,7 +102,7 @@ export function Inventory({ items }: { items: { id: string; name: string; who?: 
             <span key={i} className={it ? `full ${it.used ? "used" : ""}` : ""} data-slot={it?.id}>
               {it ? (
                 <>
-                  <KeyIcon />
+                  <ObjectIcon id={it.id} />
                   <b>{it.name.toUpperCase()}</b>
                   {it.who !== undefined && <i>{it.who ? it.who.toUpperCase() : "PORTEUR INCONNU"}</i>}
                 </>
@@ -53,11 +117,11 @@ export function Inventory({ items }: { items: { id: string; name: string; who?: 
   );
 }
 
-/** The key that leaves its hiding place for the group's slots (or the slots for a lock). */
-export function FlyingKey({ to }: { to: "slot" | "lock" }) {
+/** A thing that leaves its hiding place for the group's slots (or the slots for a lock), in its own drawing. */
+export function FlyingKey({ to, object = "cle" }: { to: "slot" | "lock"; object?: string }) {
   return (
     <div className={`pj-flykey ${to === "slot" ? "to-slot" : "to-lock"}`} aria-hidden>
-      <KeyIcon />
+      <ObjectIcon id={object} />
     </div>
   );
 }
@@ -112,7 +176,7 @@ export function PropScene({ prop, gestures, opened, hint }: { prop: string; gest
               </foreignObject>
             </g>
           )}
-          <g style={{ transition: "transform .5s ease", transform: ms ? "translate(-90px,-50px)" : "none" }}>
+          <g style={{ transition: "transform .5s ease", transform: ms ? "translate(-150px,-30px)" : "none" }}>
             <ellipse cx="590" cy="385" rx="26" ry="36" fill="#22313c" stroke="#3f6f88" strokeWidth="3" />
             <line x1="590" y1="352" x2="590" y2="372" stroke="#3f6f88" strokeWidth="3" />
           </g>
@@ -160,7 +224,7 @@ function useTyped(text: string) {
 }
 
 /** A door opening on what's behind it, full screen: its two leaves part (after the key, if one was used). */
-export function DoorOpening({ letter, dest, withKey }: { letter: string; dest: SpaceId; withKey: boolean }) {
+export function DoorOpening({ letter, dest, withKey, object }: { letter: string; dest: SpaceId; withKey: boolean; object?: string }) {
   const name = SPACES.find((x) => x.id === dest)?.name ?? "";
   const corridor = dest === "couloir" || dest === "dortoir";
   return (
@@ -185,7 +249,7 @@ export function DoorOpening({ letter, dest, withKey }: { letter: string; dest: S
         </g>
         <rect x="150" y="20" width="500" height="420" fill="none" stroke="#2c4252" strokeWidth="10" />
       </svg>
-      {withKey && <FlyingKey to="lock" />}
+      {withKey && <FlyingKey to="lock" object={object} />}
     </div>
   );
 }

@@ -115,9 +115,9 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   const [eventBig, setEventBig] = useState(false);
   const [reboot, setReboot] = useState<string | null>(null);
   // The sandbox's moments: a key flying to the group's slots, a password being typed, a door opening.
-  const [flyKey, setFlyKey] = useState(0);
+  const [flyKey, setFlyKey] = useState<{ key: number; object: string } | null>(null);
   const [typing, setTyping] = useState<{ text: string; ok: boolean; key: number } | null>(null);
-  const [doorAnim, setDoorAnim] = useState<{ letter: string; dest: (typeof STATION_DOORS)[number]["b"]; withKey: boolean; key: number } | null>(null);
+  const [doorAnim, setDoorAnim] = useState<{ letter: string; dest: (typeof STATION_DOORS)[number]["b"]; withKey: boolean; object?: string; key: number } | null>(null);
   const lastInventory = useRef(initial.state.inventory.length);
   const [bootKey, setBootKey] = useState(0);
   const lastSeq = useRef<number | null>(null);
@@ -367,8 +367,8 @@ export function Projection({ token, def, initial }: { token: string; def: Public
             // Something found: it shows in its hiding place, then flies to the group's slots.
             later(() => {
               SFX.ok();
-              setFlyKey(Date.now());
-              later(() => setFlyKey(0), 1500);
+              setFlyKey({ key: Date.now(), object: s.inventory.at(-1) ?? "cle" });
+              later(() => setFlyKey(null), 1500);
             }, 700);
           } else SFX.click();
           break;
@@ -380,7 +380,9 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           const door = def.doors.find((d) => d.id === a.door);
           const sd = STATION_DOORS.find((d) => d.id === a.door);
           if (door && sd && s.doors[a.door]) {
-            setDoorAnim({ letter: sd.letter, dest: sd.b, withKey: !!door.requires, key: Date.now() });
+            // What opens it flies to the lock: the key, a badge, the code's post-it.
+            const opener = door.requires ? Object.entries(def.sandbox?.objets ?? {}).find(([, o]) => o.flag === door.requires)?.[0] : undefined;
+            setDoorAnim({ letter: sd.letter, dest: sd.b, withKey: !!door.requires, object: opener, key: Date.now() });
             later(() => SFX.door(), door.requires ? 1500 : 600);
             later(() => setDoorAnim(null), door.requires ? 4600 : 3700);
           } else {
@@ -651,8 +653,8 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           </div>
         )}
         {s.drawing && !s.neutral && <Drawing key={s.drawing.key} strokes={s.drawing.strokes} />}
-        {!!flyKey && <FlyingKey key={flyKey} to="slot" />}
-        {doorAnim && <DoorOpening key={doorAnim.key} letter={doorAnim.letter} dest={doorAnim.dest} withKey={doorAnim.withKey} />}
+        {flyKey && <FlyingKey key={flyKey.key} to="slot" object={flyKey.object} />}
+        {doorAnim && <DoorOpening key={doorAnim.key} letter={doorAnim.letter} dest={doorAnim.dest} withKey={doorAnim.withKey} object={doorAnim.object} />}
         {s.neutral === "black" && <Waiting />}
         {!!flash && <div key={flash} className="pj-flash" />}
         {overlay && (
