@@ -76,17 +76,13 @@ export function useConsoleMode(role: ConsoleView["role"]): [ConsoleMode, (m: Con
   return [local ?? stored ?? (wide && role === "cohost" ? "environnement" : "narration"), choose];
 }
 
+/** One small button to the other mode: the console's head stays a single line. */
 export function ModeSwitch({ mode, onChange }: { mode: ConsoleMode; onChange: (m: ConsoleMode) => void }) {
-  const option = (m: ConsoleMode, label: string, color: string) => (
-    <button type="button" aria-pressed={mode === m} onClick={() => onChange(m)} className="min-h-9 rounded-[8px] px-2 text-[0.7rem] font-bold tracking-[0.12em]" style={mode === m ? { background: color, color: "#05080c" } : { color: "#6f8796" }}>
-      {label}
-    </button>
-  );
+  const other = mode === "narration" ? "environnement" : "narration";
   return (
-    <div role="group" aria-label="Mode de la console" className="grid grid-cols-2 gap-[3px] rounded-[11px] border border-[#1f3a4b] p-[3px]">
-      {option("narration", "NARRATION", "#e8eef2")}
-      {option("environnement", "ENVIRONNEMENT", "#bfeaff")}
-    </div>
+    <button type="button" onClick={() => onChange(other)} aria-label={other === "environnement" ? "Passer en mode environnement" : "Passer en mode narration"} className="min-h-8 shrink-0 rounded-[10px] border border-[#1f3a4b] px-2.5 text-[0.66rem] font-bold tracking-[0.08em] text-[#6f8796]">
+      {other === "environnement" ? "ENVIRONNEMENT ›" : "NARRATION ›"}
+    </button>
   );
 }
 

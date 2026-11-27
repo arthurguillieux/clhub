@@ -12,7 +12,7 @@ import { GlobalSheet, ProtocolStrip, RoomSheet, ScreenSheet, StationFace, ZoneSh
 import { FaultHint, Reader } from "./Reader";
 import { PropSheet } from "./Group";
 import { BibleSheet } from "./Bible";
-import { EnvironmentFace, ModeSwitch, OnScreen, useConsoleMode } from "./Ambiance";
+import { EnvironmentFace, ModeSwitch, useConsoleMode } from "./Ambiance";
 
 export type Send = (input: Record<string, unknown>) => Promise<string | null>;
 
@@ -90,29 +90,29 @@ export function Console({
   const together = view.role === "cohost" || view.cohosts.length > 0;
   return (
     <div className={`mx-auto flex flex-col gap-3 px-3 pt-3 pb-36 ${env ? "max-w-lg lg:landscape:max-w-6xl" : "max-w-lg lg:landscape:max-w-5xl"}`}>
-      <header className="flex flex-col gap-2 border-b border-[var(--scn-line)] pb-2.5">
+      <header className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="scn-vt text-2xl leading-none tracking-wider text-[var(--scn-ice)]">{def.base.name.toUpperCase()}</h1>
-          <button type="button" className="flex items-center gap-1.5 text-right text-[0.7rem] text-[var(--scn-muted)]" onClick={() => setSheet({ kind: "screen" })}>
+          <h1 className="scn-vt text-xl leading-none tracking-wider text-[var(--scn-ice)]">{def.base.name.toUpperCase()}</h1>
+          <button type="button" className="flex items-center gap-1.5 text-right text-[0.68rem] text-[var(--scn-muted)]" onClick={() => setSheet({ kind: "screen" })} aria-label={`${p.connected ? "Projection connectée" : "Projection déconnectée"}, salle : ${screenLabel(view)}`}>
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: p.connected ? "var(--scn-ok)" : "var(--scn-bad)" }} />
-            {p.connected ? "Projection connectée" : "Projection déconnectée"} · salle : {screenLabel(view)}
+            salle : {screenLabel(view)}
           </button>
         </div>
-        <ModeSwitch mode={mode} onChange={setMode} />
-        {!env && (
-        <div role="group" aria-label="Face de la console" className="grid grid-cols-2 gap-[3px] rounded-xl border border-[#1f3a4b] bg-[#0c141b] p-[3px]">
-          <button type="button" aria-pressed={face === "base"} onClick={() => setFace("base")} className="min-h-10 rounded-[9px] text-sm font-bold tracking-[0.12em]" style={face === "base" ? { background: "var(--scn-ice)", color: "#05080c" } : { color: "#6f8796" }}>
-            BASE
-          </button>
-          <button type="button" aria-pressed={face === "proto"} onClick={() => setFace("proto")} className={`min-h-10 rounded-[9px] font-bold whitespace-nowrap ${protocol === "none" ? "text-sm tracking-[0.12em]" : "text-[0.74rem] tracking-[0.03em]"}`} style={face === "proto" ? { background: "var(--scn-amber)", color: "#05080c" } : { color: "#6f8796" }}>
-            {protocol === "none" ? "PROTOCOLE" : `PROTOCOLE · ${(def.short ?? def.title).toUpperCase()}`}
-          </button>
+        <div className="flex items-center gap-1.5">
+          {!env && (
+            <div role="group" aria-label="Face de la console" className="grid flex-1 grid-cols-2 gap-[2px] rounded-[10px] border border-[#1f3a4b] bg-[#0c141b] p-[2px]">
+              <button type="button" aria-pressed={face === "base"} onClick={() => setFace("base")} className="min-h-8 rounded-[8px] text-xs font-bold tracking-[0.12em]" style={face === "base" ? { background: "var(--scn-ice)", color: "#05080c" } : { color: "#6f8796" }}>
+                BASE
+              </button>
+              <button type="button" aria-pressed={face === "proto"} onClick={() => setFace("proto")} className="min-h-8 truncate rounded-[8px] px-1 text-[0.68rem] font-bold tracking-[0.04em] whitespace-nowrap" style={face === "proto" ? { background: "var(--scn-amber)", color: "#05080c" } : { color: "#6f8796" }}>
+                {protocol === "none" ? "PROTOCOLE" : `PROTOCOLE · ${(def.short ?? def.title).toUpperCase()}`}
+              </button>
+            </div>
+          )}
+          {env && <p className="flex-1 text-xs font-bold tracking-[0.14em] text-[#bfeaff]">ENVIRONNEMENT</p>}
+          <ModeSwitch mode={mode} onChange={setMode} />
         </div>
-        )}
-        {/* Whatever is on, wherever it was switched on from: switched off here. */}
-        {!env && <OnScreen def={def} view={view} busy={busy} act={live && face === "base" ? actDecor : act} compact />}
-        {view.simulated && <p className="scn-vt rounded-lg border border-[var(--scn-magenta)] py-1 text-center text-xl tracking-[0.3em] text-[var(--scn-magenta)]">SIMULATION</p>}
-        {live && !view.simulated && <p className="text-[0.68rem] text-[var(--scn-amber)]">Partie en cours : aucune mise à jour du CLHUB d&apos;ici la fin.</p>}
+        {view.simulated && <p className="scn-vt rounded-lg border border-[var(--scn-magenta)] py-0.5 text-center text-lg tracking-[0.3em] text-[var(--scn-magenta)]">SIMULATION</p>}
       </header>
       {error && (
         <p role="alert" className="rounded-xl border border-[var(--scn-bad)] p-3 text-sm text-[var(--scn-bad)]">

@@ -214,13 +214,13 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
 
   // SUJETS.DAT, built from the players: last loop's dead are written down, no side ever.
   await page.getByRole("button", { name: /Toute la base/ }).first().click();
-  await page.getByRole("dialog", { name: "TOUTE LA BASE" }).getByRole("button", { name: /Les dossiers sujets/ }).click();
+  await page.getByRole("dialog", { name: "TOUTE LA BASE" }).getByRole("button", { name: /^[■▶] Les dossiers sujets/ }).click();
   await expect(screen.getByText(/REGISTRE DES SUJETS — SESSION 02/)).toBeVisible({ timeout: 10_000 });
   await expect(screen.getByText(/SESSION 01 : EXCLU/).first()).toBeVisible({ timeout: 15_000 });
   // FAILLE-01, small, without hiding the console.
   await expect(page.getByText("FAILLE-01")).toBeVisible();
   // A fault stays until it is taken away: touched again, it goes, and its terminal closes.
-  await page.getByRole("dialog", { name: "TOUTE LA BASE" }).getByRole("button", { name: /Les dossiers sujets/ }).click();
+  await page.getByRole("dialog", { name: "TOUTE LA BASE" }).getByRole("button", { name: /^[■▶] Les dossiers sujets/ }).click();
   await expect(screen.getByText(/REGISTRE DES SUJETS — SESSION 02/)).toHaveCount(0);
   await page.getByRole("button", { name: "Fermer la fiche" }).click();
 
@@ -351,14 +351,14 @@ test("antarctica: the meneur keeps control — faults off, Stop, black screen, b
   await base.getByText("Failles autorisées ce soir…").click();
   // The switch follows the journal: it flips once the server has written it down.
   await page.getByLabel("Toutes les failles").click();
-  await expect(base.getByRole("button", { name: /Glitch d'en-tête/ })).toBeDisabled();
+  await expect(base.getByRole("button", { name: /^[■▶] Glitch d.en-tête/ })).toBeDisabled();
   await page.getByLabel("Toutes les failles").click();
-  await expect(base.getByRole("button", { name: /Glitch d'en-tête/ })).toBeEnabled();
-  // A terminal opened here shows « À l'écran », and closes from there.
+  await expect(base.getByRole("button", { name: /^[■▶] Glitch d.en-tête/ })).toBeEnabled();
+  // A terminal opened here shows in « À l'écran », at the top of the same sheet, and closes from there.
   await base.getByRole("button", { name: /Afficher le terminal du hall/ }).click();
+  await base.getByRole("button", { name: /Retirer : Terminal/ }).click();
+  await expect(base.getByRole("button", { name: /Retirer : Terminal/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Fermer la fiche" }).click();
-  await page.getByLabel("À l'écran").getByRole("button", { name: /Retirer : Terminal/ }).click();
-  await expect(page.getByLabel("À l'écran").getByRole("button", { name: /Retirer : Terminal/ })).toHaveCount(0);
 
   await bar.getByRole("button", { name: /Écran/ }).click();
   await page.getByRole("button", { name: /^En attente/ }).click();
@@ -411,7 +411,7 @@ test("antarctica: two consoles — Rémi plays the base on his tablet (environme
   await page.getByRole("button", { name: /^Redémarrer/ }).first().click();
   await page.getByRole("button", { name: "Fermer la fiche" }).click();
   // The meneur's console opens on the narration, and Rémi joins the evening.
-  await expect(page.getByRole("group", { name: "Mode de la console" }).getByRole("button", { name: "NARRATION" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Passer en mode environnement" })).toBeVisible();
   await page.getByRole("group", { name: "Face de la console" }).getByRole("button", { name: /^PROTOCOLE/ }).click();
   if (await page.getByRole("button", { name: /Retirer le scénario|Décharger/ }).count()) await page.getByRole("button", { name: /Retirer le scénario|Décharger/ }).first().click();
   await page.locator("summary", { hasText: /^CO-ORGANISATEURS/ }).click();
@@ -427,8 +427,7 @@ test("antarctica: two consoles — Rémi plays the base on his tablet (environme
   // Rémi, on his tablet held sideways: the environment, wide, and where the game is.
   const tablet = await signInOnTablet(browser, baseURL!, "e2e-remi@example.com");
   await tablet.goto(new URL(page.url()).pathname);
-  const modes = tablet.getByRole("group", { name: "Mode de la console" });
-  await expect(modes.getByRole("button", { name: "ENVIRONNEMENT" })).toHaveAttribute("aria-pressed", "true");
+  await expect(tablet.getByRole("button", { name: "Passer en mode narration" })).toBeVisible();
   await expect(tablet.getByRole("region", { name: "Où en est la partie" })).toContainText(/STATION SEULE|CHARGÉ/);
   await expect(tablet.getByRole("group", { name: "Face de la console" })).toHaveCount(0);
   // Three columns side by side.
@@ -441,16 +440,18 @@ test("antarctica: two consoles — Rémi plays the base on his tablet (environme
   // The wind: the meneur's phone sees it play.
   await tablet.getByRole("region", { name: "Les sons" }).getByRole("button", { name: /Vent/ }).click();
   await expect(tablet.getByRole("region", { name: "À l'écran" })).toContainText("Vent");
-  await expect(page.getByLabel("À l'écran")).toContainText("Vent", { timeout: 10_000 });
+  await page.getByRole("button", { name: /Toute la base/ }).click();
+  await expect(page.getByRole("dialog", { name: "TOUTE LA BASE" }).getByRole("button", { name: /Retirer : ♪ Vent/ })).toBeVisible({ timeout: 10_000 });
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
   // Rémi's « Annuler » takes back the wind, not the meneur's light.
   await bar.getByRole("button", { name: /Annuler/ }).click();
   await expect(tablet.getByRole("region", { name: "À l'écran" })).not.toContainText("Vent");
   await expect(tablet.getByRole("region", { name: "À l'écran" })).toContainText("Hall allumé");
   await expect(bar.getByRole("button", { name: /Annuler/ })).toBeDisabled();
   // He may switch to the narration, and the tablet remembers it.
-  await modes.getByRole("button", { name: "NARRATION" }).click();
+  await tablet.getByRole("button", { name: "Passer en mode narration" }).click();
   await expect(tablet.getByRole("group", { name: "Face de la console" })).toBeVisible();
   await tablet.reload();
-  await expect(tablet.getByRole("group", { name: "Mode de la console" }).getByRole("button", { name: "NARRATION" })).toHaveAttribute("aria-pressed", "true");
+  await expect(tablet.getByRole("group", { name: "Face de la console" })).toBeVisible();
   await tablet.context().close();
 });

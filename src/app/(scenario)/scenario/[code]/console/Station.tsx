@@ -9,6 +9,7 @@ import { SPACES, STATION_DOORS, STATION_H, STATION_W, dormRooms, type SpaceId } 
 import { Furniture } from "../../StationFurniture";
 import { RoomContents } from "./Group";
 import { DrawPad } from "./DrawPad";
+import { OnScreen } from "./Ambiance";
 
 /**
  * The station, on its own: the base's plan, to pilot with a finger, whatever game is played in it
@@ -78,22 +79,12 @@ export function StationFace({ def, view, busy, act, onSheet, sheet }: Props & { 
   const rooms = Math.max(20, s.players.length);
   return (
     <div className="flex flex-col gap-2">
-      <button type="button" className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[#1f3a4b] bg-[#0c141b] px-3 text-left text-[0.8rem]" onClick={() => onSheet({ kind: "global" })}>
-        <span className="flex flex-wrap gap-x-3 text-[var(--scn-muted)]">
-          <span>
-            Hall <b className="text-[var(--scn-txt)]">{s.light ? "allumé" : "éteint"}</b>
-          </span>
-          <span>
-            Météo <b className="text-[var(--scn-txt)]">{s.blizzard ? "blizzard" : s.aurora ? "aurore" : "calme"}</b>
-          </span>
-          {s.dark && <b className="text-[var(--scn-amber)]">délestage</b>}
-          {s.ambiances.length > 0 && <span>♪ {s.ambiances.length}</span>}
-        </span>
-        <span className="font-bold whitespace-nowrap text-[var(--scn-ice)]">Toute la base ›</span>
-      </button>
-
-
-      <svg viewBox="20 18 960 726" className="mx-auto mt-2 w-full max-w-[560px] select-none" role="group" aria-label="Plan de la base">
+      {/* The home is the plan alone; everything the base does (and what is on, to switch it off) is one button away. */}
+      <div className="relative mx-auto w-full max-w-[560px]">
+        <button type="button" className="absolute top-0 right-0 z-10 min-h-9 rounded-full border border-[#2c4252] bg-[rgba(12,20,27,.92)] px-3 text-[0.74rem] font-bold text-[var(--scn-ice)]" onClick={() => onSheet({ kind: "global" })}>
+          Toute la base ›
+        </button>
+      <svg viewBox="20 18 960 726" className="w-full select-none" role="group" aria-label="Plan de la base">
         <defs>
           <pattern id="ph-red" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="14" height="14" fill="#0c0607" />
@@ -218,6 +209,7 @@ export function StationFace({ def, view, busy, act, onSheet, sheet }: Props & { 
           );
         })()}
       </svg>
+      </div>
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.7rem] text-[var(--scn-muted)]">
         <span className="flex items-center gap-1">
           <span className="inline-block h-1 w-4 bg-[#7fd8ff]" />
@@ -459,6 +451,9 @@ export function RoomSheet({ view, busy, act, room, onClose }: Props & { room: nu
 export function GlobalSheet({ def, view, busy, act, onClose }: Props & { onClose: () => void }) {
   return (
     <SheetFrame title="TOUTE LA BASE" sub="Tout ce que la station sait faire, au même endroit partout. Chaque chose s'allume et s'éteint." onClose={onClose}>
+      <div className="rounded-xl border border-[#1f3a4b] bg-[#0c141b] p-2.5">
+        <OnScreen def={def} view={view} busy={busy} act={act} />
+      </div>
       <BaseControls def={def} view={view} busy={busy} act={act} />
     </SheetFrame>
   );
