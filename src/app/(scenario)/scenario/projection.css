@@ -75,9 +75,9 @@
 .pj-mapbox {
   position: absolute;
   inset: 7% 0 6.5% 0;
-  transition:
-    transform 1.1s cubic-bezier(0.6, 0, 0.2, 1),
-    filter 1.1s;
+  /* Only the zoom glides: an animated blur behind a video that starts slowed its first frames down. */
+  transition: transform 1.1s cubic-bezier(0.6, 0, 0.2, 1);
+  will-change: transform;
 }
 .pj-mapbox svg {
   width: 100%;
@@ -371,6 +371,7 @@
 }
 /* The terminal of 1988. */
 .pj-crt {
+  will-change: transform;
   position: absolute;
   left: 50%;
   top: 51%;

@@ -534,7 +534,17 @@ function applyActionRaw(def: ScenarioDef, setup: Setup, s: State, a: Action, whe
     case "go": {
       const space = SPACES.find((x) => x.id === a.space);
       if (!space) return s;
-      return { ...s, at: space.id, prop: null, visitSearched: space.id === s.at ? s.visitSearched : [], screen: s.phase === "welcome" ? "plan" : s.screen, log: log(`Le groupe va : ${space.name.toLowerCase()}.`) };
+      // Another room: a new visit, and what was left open in the last one (a terminal, the panic room's box) closes.
+      const moved = space.id !== s.at;
+      return {
+        ...s,
+        at: space.id,
+        prop: null,
+        visitSearched: moved ? [] : s.visitSearched,
+        ...(moved ? { terminal: null, playing: null, circuitShown: false } : {}),
+        screen: s.phase === "welcome" ? "plan" : s.screen,
+        log: log(`Le groupe va : ${space.name.toLowerCase()}.`),
+      };
     }
     case "prop": {
       if (a.id === null) return { ...s, prop: null };

@@ -1060,6 +1060,11 @@ function Crt({
     const timer = setInterval(() => setTyped((x) => (x >= term.boot.length ? x : x + 2)), 18);
     return () => clearInterval(timer);
   }, [bootKey, term.boot.length]);
+  useEffect(() => {
+    // A file playing: the boot text is done (it keeps no timer running behind the video).
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- jump to the end of the boot once a file plays
+    if (playing) setTyped(term.boot.length);
+  }, [playing, term.boot.length]);
   const file = files.find((f) => f.id === playing) ?? null;
   return (
     <div className="pj-crt">
@@ -1138,23 +1143,24 @@ function Tape({
     if (endTimer.current) clearTimeout(endTimer.current);
     setEnd("no");
   };
-  // A video that stalls (the decoder chokes now and then on a long file): when the picture hasn't moved
-  // for about 1.5 s while it should play, step back a quarter of a second and play on — the meneur's
-  // « −10 s » trick, done for them, without a visible jump.
+  // A video truly frozen (its data is there, the decoder stuck) for 3 s: step back a quarter of a second
+  // and play on. Never while it's still loading (its first seconds, or waiting for data): that was the
+  // jumps at the start of a log (27/11/2026) — the browser was only buffering.
   useEffect(() => {
     if (!url || file.kind !== "video") return;
     let last = -1;
     let still = 0;
     const watch = setInterval(() => {
       const el = videoEl.current;
-      if (!el || el.paused || el.ended || el.seeking) {
+      const loading = !el || el.readyState < 3 || el.currentTime < 4;
+      if (!el || el.paused || el.ended || el.seeking || loading) {
         still = 0;
         last = el?.currentTime ?? -1;
         return;
       }
       if (el.currentTime === last) {
         still += 1;
-        if (still >= 2) {
+        if (still >= 4) {
           el.currentTime = Math.max(0, el.currentTime - 0.25);
           void el.play().catch(() => undefined);
           still = 0;

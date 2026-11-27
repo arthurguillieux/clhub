@@ -19,53 +19,50 @@ const spaceName = (id: SpaceId) => {
   return n.charAt(0) + n.slice(1).toLowerCase();
 };
 
-export function GroupCard({ def, view, busy, act, onProp }: Props & { onProp: (id: string) => void }) {
+/**
+ * What a room holds for the group (in the room's sheet, opened from the plan — the home is the plan only,
+ * Arthur 27/11): the group sent there, the doors one sees from it, the furniture one can search.
+ */
+export function RoomContents({ def, view, busy, act, space, onProp }: Props & { space: SpaceId; onProp: (id: string) => void }) {
   const s = view.state;
-  const here = SPACES.find((x) => x.id === s.at)!;
   const [sel, setSel] = useState<string | null>(null);
-  const props = propsIn(s.at);
+  const props = propsIn(space);
+  const here = s.at === space;
   return (
-    <section aria-label="Le groupe" className="flex flex-col gap-2 rounded-xl border border-[#1f3a4b] bg-[#0b1218] p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-[0.62rem] font-bold tracking-[0.16em] text-[var(--scn-muted)]">LE GROUPE EST DANS</p>
-          <p className="scn-vt text-3xl leading-none text-[var(--scn-ice)]">{here.name}</p>
-        </div>
-        <button type="button" aria-pressed={s.overview} className={`scn-btn min-h-9 px-2 text-[0.7rem] ${s.overview ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "overview", on: !s.overview })}>
-          {s.overview ? "Vue globale" : "Vue suivie"}
-          <small>salle</small>
+    <section aria-label="Dans cette pièce" className="flex flex-col gap-2">
+      {space !== "alpha" && (
+        <button type="button" className={`scn-btn ${here ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "go", space })}>
+          {here ? "Le groupe est ici" : "Le groupe va ici"}
+          <small>la salle suit le groupe</small>
         </button>
-      </div>
-      {here.desc && <p className="text-sm text-[var(--scn-muted)]">{here.desc}</p>}
-
-      <p className="mt-1 text-[0.62rem] font-bold tracking-[0.16em] text-[var(--scn-ice)]">LES PORTES QU&apos;ILS VOIENT</p>
+      )}
+      <p className="mt-1 text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-ice)]">LES PORTES QU&apos;ON Y VOIT</p>
       <div className="flex flex-col gap-1.5">
-        {doorsFrom(s.at).map((d) => (
-          <DoorRow key={d.id} d={d} {...{ def, view, busy, act }} open={sel === d.id} onToggle={() => setSel(sel === d.id ? null : d.id)} />
+        {doorsFrom(space).map((d) => (
+          <DoorRow key={d.id} d={d} from={space} {...{ def, view, busy, act }} open={sel === d.id} onToggle={() => setSel(sel === d.id ? null : d.id)} />
         ))}
       </div>
-
-      <p className="mt-1 text-[0.62rem] font-bold tracking-[0.16em] text-[var(--scn-amber)]">À FOUILLER</p>
-      {props.length ? (
-        <div className="flex flex-col gap-1.5">
-          {props.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-[#2c4252] bg-[#0f1a22] px-3 text-left text-sm"
-              disabled={busy}
-              onClick={() => {
-                void act({ t: "prop", id: p.id });
-                onProp(p.id);
-              }}
-            >
-              <span>{p.name}</span>
-              <span className="text-xs font-bold text-[var(--scn-amber)]">fouiller ›</span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <p className="text-xs text-[var(--scn-muted)]">Rien à fouiller ici pour l&apos;instant.</p>
+      {props.length > 0 && (
+        <>
+          <p className="mt-1 text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">À FOUILLER</p>
+          <div className="flex flex-col gap-1.5">
+            {props.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-[#2c4252] bg-[#0f1a22] px-3 text-left text-sm"
+                disabled={busy}
+                onClick={() => {
+                  void act({ t: "prop", id: p.id });
+                  onProp(p.id);
+                }}
+              >
+                <span>{p.name}</span>
+                <span className="text-xs font-bold text-[var(--scn-amber)]">fouiller ›</span>
+              </button>
+            ))}
+          </div>
+        </>
       )}
       {s.inventory.length > 0 && (
         <p className="text-xs text-[var(--scn-ok)]">Objets du groupe : {s.inventory.map((id) => def.sandbox?.objets[id]?.name ?? id).join(", ")}.</p>
@@ -74,11 +71,11 @@ export function GroupCard({ def, view, busy, act, onProp }: Props & { onProp: (i
   );
 }
 
-function DoorRow({ d, def, view, busy, act, open, onToggle }: Props & { d: StationDoor; open: boolean; onToggle: () => void }) {
+function DoorRow({ d, from, def, view, busy, act, open, onToggle }: Props & { d: StationDoor; from: SpaceId; open: boolean; onToggle: () => void }) {
   const s = view.state;
   const door = def.doors.find((x) => x.id === (d.follows ?? d.id));
   if (!door) return null;
-  const dest = otherSide(d, s.at);
+  const dest = otherSide(d, from);
   const isOpen = !!s.doors[door.id];
   const has = !door.requires || !!s.flags[door.requires];
   const thing = door.requires ? (Object.values(def.sandbox?.objets ?? {}).find((x) => x.flag === door.requires)?.name ?? door.hint) : null;
@@ -91,7 +88,7 @@ function DoorRow({ d, def, view, busy, act, open, onToggle }: Props & { d: Stati
           ? ["text-[var(--scn-ok)] border-[var(--scn-ok)]", `${thing} : vous l'avez`]
           : ["text-[#ff6b6b] border-[#ff6b6b]", `fermée · ${door.hint}`]
         : ["text-[var(--scn-muted)] border-[#2c4252]", "fermée"];
-  const known = isOpen || dest === "hall" || dest === "sas";
+  const known = true;
   return (
     <div className="flex flex-col gap-1.5">
       <button type="button" aria-expanded={open} className={`flex min-h-11 items-center justify-between gap-2 rounded-lg border bg-[#0f1a22] px-3 text-left text-sm ${open ? "border-[var(--scn-ice)]" : "border-[#2c4252]"}`} onClick={onToggle}>

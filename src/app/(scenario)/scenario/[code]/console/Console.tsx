@@ -11,6 +11,7 @@ import { Prep } from "./Prep";
 import { GlobalSheet, ProtocolStrip, RoomSheet, ScreenSheet, StationFace, ZoneSheet, screenLabel, useProtocol, type Sheet } from "./Station";
 import { FaultHint, Reader } from "./Reader";
 import { PropSheet } from "./Group";
+import { BibleSheet } from "./Bible";
 
 export type Send = (input: Record<string, unknown>) => Promise<string | null>;
 
@@ -142,11 +143,12 @@ export function Console({
         </>
       )}
 
-      {sheet?.kind === "zone" && <ZoneSheet def={def} view={view} busy={busy} act={sheetAct} id={sheet.id} onClose={() => setSheet(null)} onRoom={(room) => setSheet({ kind: "room", room })} />}
+      {sheet?.kind === "zone" && <ZoneSheet def={def} view={view} busy={busy} act={sheetAct} id={sheet.id} space={sheet.space} onClose={() => setSheet(null)} onRoom={(room) => setSheet({ kind: "room", room })} onProp={(id) => setSheet({ kind: "prop", id })} />}
       {sheet?.kind === "prop" && <PropSheet def={def} view={view} busy={busy} act={sheetAct} id={sheet.id} onClose={() => setSheet(null)} onRead={(start) => setReading({ start })} />}
       {sheet?.kind === "room" && <RoomSheet def={def} view={view} busy={busy} act={sheetAct} room={sheet.room} onClose={() => setSheet(null)} />}
       {sheet?.kind === "global" && <GlobalSheet def={def} view={view} busy={busy} act={sheetAct} onClose={() => setSheet(null)} />}
-      {sheet?.kind === "screen" && <ScreenSheet def={def} view={view} busy={busy} act={act} qrSvg={qrSvg} code={code} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "screen" && <ScreenSheet def={def} view={view} busy={busy} act={act} qrSvg={qrSvg} code={code} onClose={() => setSheet(null)} onBible={() => setSheet({ kind: "bible" })} />}
+      {sheet?.kind === "bible" && <BibleSheet def={def} view={view} onClose={() => setSheet(null)} />}
       {live && reading && <Reader def={def} view={view} start={reading.start} variant={reading.variant} onClose={() => setReading(null)} act={actDecor} />}
       {live && !reading && <FaultHint view={view} onRead={(variant) => setReading({ start: "FAILLE-01", variant })} />}
       {view.status !== "done" && (

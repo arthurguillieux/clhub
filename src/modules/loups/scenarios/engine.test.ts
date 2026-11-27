@@ -58,6 +58,12 @@ describe("the sandbox (V1.4)", () => {
     expect(run([search("comptoir.fouiller"), search("ordi.clavier")]).inventory).toEqual(["cle_beta"]);
   });
 
+  it("closes the terminal left open when the group changes room", () => {
+    const s = run([{ t: "terminal", id: "accueil" }, { t: "go", space: "dortoir" }]);
+    expect(s).toMatchObject({ at: "dortoir", terminal: null, playing: null });
+    expect(run([{ t: "terminal", id: "accueil" }, { t: "go", space: "hall" }]).terminal).toBe("accueil"); // same room
+  });
+
   it("unlocks the archives' terminal with LYSSA only, and Bêta with the key only", () => {
     expect(run([{ t: "password", prop: "beta", text: "hiver" }]).pwTries).toBe(1);
     expect(run([{ t: "password", prop: "beta", text: " lyssa " }]).unlocked).toEqual(["beta"]);
