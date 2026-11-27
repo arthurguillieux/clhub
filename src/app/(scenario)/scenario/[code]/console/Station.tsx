@@ -281,7 +281,6 @@ export function ZoneSheet({ def, view, busy, act, id, space, onClose, onRoom, on
   const z = [...ZONES, DORM_ZONE].find((x) => x.id === id)!;
   const door = z.door ? def.doors.find((d) => d.id === z.door) : null;
   const term = z.terminal ? def.terminals.find((t) => t.id === z.terminal) : null;
-  const done = new Set(s.faults.map((f) => f.id));
   const amb = z.ambiance ? def.media.find((m) => m.id === z.ambiance) : null;
   const ambOn = !!amb && s.ambiances.includes(amb.id);
   const live = view.status === "live";
@@ -322,27 +321,7 @@ export function ZoneSheet({ def, view, busy, act, id, space, onClose, onRoom, on
           </button>
         </Rows>
       )}
-      {term && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">TERMINAL</span>
-          <button type="button" className={`scn-btn ${s.terminal === term.id ? "scn-btn-on" : "scn-btn-amber"}`} disabled={busy} onClick={() => void act({ t: "terminal", id: s.terminal === term.id ? null : term.id })}>
-            {s.terminal === term.id ? `Fermer le ${term.label.toLowerCase()}` : `Afficher le ${term.label.toLowerCase()}`}
-            <small>{s.terminal === term.id ? "retour au plan" : "la caméra zoome sur l'écran"}</small>
-          </button>
-          {def.sandbox?.passwords[term.id] && !s.unlocked.includes(term.id) && <PasswordBlock def={def} view={view} busy={busy} act={act} terminal={term.id} />}
-          {s.terminal === term.id &&
-            (!def.sandbox?.passwords[term.id] || s.unlocked.includes(term.id)) &&
-            term.files
-              .filter((f) => !f.fault || done.has(f.fault))
-              .map((f) => (
-                <button key={f.id} type="button" className={`scn-btn text-left ${s.playing === f.id ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "play", file: f.id })}>
-                  ▶ {view.setup.files?.[f.id]?.name || f.name}
-                  <small>{view.setup.files?.[f.id]?.date || f.meta}</small>
-                </button>
-              ))}
-          {s.terminal === term.id && s.playing && <MediaControls busy={busy} act={act} />}
-        </div>
-      )}
+      {term && <TerminalBlock def={def} view={view} busy={busy} act={act} id={term.id} />}
       {(() => {
         // The room touched on the plan (the Bêta wing is two: its corridor and the archives).
         const room: SpaceId = space ?? (SPACES.find((x) => x.zone === z.id)?.id ?? "hall");
@@ -374,16 +353,7 @@ export function ZoneSheet({ def, view, busy, act, id, space, onClose, onRoom, on
           </p>
         </div>
       )}
-      {z.id === "generateurs" && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">LA JAUGE</span>
-          <button type="button" className={`scn-btn ${s.gauge ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "gauge", seconds: s.gauge ? null : view.setup.params.gaugeSeconds })}>
-            {s.gauge ? "Arrêter la jauge" : "Lancer la jauge"}
-            <small>{Math.round(view.setup.params.gaugeSeconds / 60)} min de carburant</small>
-          </button>
-          <TimerControls which="gauge" timer={s.gauge} busy={busy} act={act} />
-        </div>
-      )}
+      {z.id === "generateurs" && <GaugeBlock view={view} busy={busy} act={act} />}
       {amb && (
         <Rows label="AMBIANCE" color="#bfeaff">
           <button type="button" className={`scn-btn ${ambOn ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act(ambOn ? { t: "stopSound", slot: amb.id } : { t: "sound", slot: amb.id })}>
@@ -487,56 +457,225 @@ export function RoomSheet({ view, busy, act, room, onClose }: Props & { room: nu
 }
 
 export function GlobalSheet({ def, view, busy, act, onClose }: Props & { onClose: () => void }) {
+  return (
+    <SheetFrame title="TOUTE LA BASE" sub="Tout ce que la station sait faire, au même endroit partout. Chaque chose s'allume et s'éteint." onClose={onClose}>
+      <BaseControls def={def} view={view} busy={busy} act={act} />
+    </SheetFrame>
+  );
+}
+
+/**
+ * Everything the base does, in one order everywhere: the environment first (light, weather and effects,
+ * sounds, intrusion: what Rémi plays), then what the story uses (the room's recording, the terminals,
+ * the scenario's faults, the timers).
+ */
+export function BaseControls({ def, view, busy, act }: Props) {
+  const loaded = view.state.loadingAt !== null || view.status !== "setup";
+  return (
+    <>
+      <LightRows view={view} busy={busy} act={act} />
+      <EffectRows view={view} busy={busy} act={act} />
+      <SoundRows def={def} view={view} busy={busy} act={act} />
+      <CutSounds busy={busy} act={act} />
+      <IntrusionBlock view={view} busy={busy} act={act} />
+      <RecordBlock view={view} busy={busy} act={act} />
+      <div className="flex flex-col gap-2">
+        <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">TERMINAUX</span>
+        {def.terminals.map((t) => (
+          <TerminalBlock key={t.id} def={def} view={view} busy={busy} act={act} id={t.id} bare />
+        ))}
+      </div>
+      {loaded && <FaultRows def={def} view={view} busy={busy} act={act} />}
+      <TimerBlock view={view} busy={busy} act={act} />
+      <GaugeBlock view={view} busy={busy} act={act} />
+    </>
+  );
+}
+
+/** A terminal: shown or closed with one gesture, its password if it has one, its files, the player. */
+export function TerminalBlock({ def, view, busy, act, id, bare = false }: Props & { id: string; bare?: boolean }) {
   const s = view.state;
-  const [text, setText] = useState("");
+  const term = def.terminals.find((t) => t.id === id);
+  if (!term) return null;
+  const open = s.terminal === term.id;
+  const locked = !!def.sandbox?.passwords[term.id] && !s.unlocked.includes(term.id);
+  return (
+    <div className="flex flex-col gap-1.5">
+      {!bare && <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">TERMINAL</span>}
+      <button type="button" aria-pressed={open} className={`scn-btn ${open ? "scn-btn-on" : "scn-btn-amber"}`} disabled={busy} onClick={() => void act({ t: "terminal", id: open ? null : term.id })}>
+        {open ? `Fermer le ${term.label.toLowerCase()}` : `Afficher le ${term.label.toLowerCase()}`}
+        <small>{open ? "retour au plan" : `la caméra zoome sur l'écran${locked ? " · mot de passe" : ""}`}</small>
+      </button>
+      {open && locked && <PasswordBlock def={def} view={view} busy={busy} act={act} terminal={term.id} />}
+      {open &&
+        !locked &&
+        term.files
+          .filter((f) => !f.fault || s.faultsOn.includes(f.fault))
+          .map((f) => (
+            <button key={f.id} type="button" className={`scn-btn text-left ${s.playing === f.id ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "play", file: f.id })}>
+              ▶ {view.setup.files?.[f.id]?.name || f.name}
+              <small>{view.setup.files?.[f.id]?.date || f.meta}</small>
+            </button>
+          ))}
+      {open && s.playing && <MediaControls busy={busy} act={act} />}
+    </div>
+  );
+}
+
+/** The scenario's faults, switched on and off like a sound; which ones may go off this evening, folded. */
+export function FaultRows({ def, view, busy, act }: Props) {
+  const s = view.state;
+  const all = [...def.faults, ...view.setup.extraFaults];
+  const off = new Set(s.faultsOff);
+  const on = new Set(s.faultsOn);
+  const allOn = all.every((f) => !off.has(f.id));
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-magenta)]">
+        FAILLES DU SCÉNARIO{on.size ? ` · ${on.size} à l'écran` : ""}
+      </span>
+      <div className="grid grid-cols-2 gap-1.5">
+        {all
+          .slice()
+          .sort((a, b) => Number(!a.loops.includes(s.loop)) - Number(!b.loops.includes(s.loop)))
+          .map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              aria-pressed={on.has(f.id)}
+              className={`scn-btn text-left ${on.has(f.id) ? "scn-btn-on" : f.loops.includes(s.loop) ? "scn-btn-fault" : ""}`}
+              disabled={busy || off.has(f.id)}
+              onClick={() => void act({ t: "fault", id: f.id, on: !on.has(f.id) })}
+            >
+              {on.has(f.id) ? "■ " : "▶ "}
+              {f.title}
+              <small>
+                {off.has(f.id) ? "désactivée pour la soirée" : on.has(f.id) ? "à l'écran : toucher pour la retirer" : `boucle ${f.loops.join(" et ")}`}
+                {f.kind === "terminalFile" && f.id === "hallmic" && !on.has(f.id) ? (view.projection.mic ? " · l'enregistrement de la salle" : " · le fichier de secours") : ""}
+              </small>
+            </button>
+          ))}
+      </div>
+      <details className="text-sm">
+        <summary className="cursor-pointer py-2 text-[var(--scn-muted)]">Failles autorisées ce soir…</summary>
+        <div className="flex flex-col gap-1">
+          <label className="flex min-h-11 items-center justify-between gap-3">
+            <span>Toutes les failles</span>
+            <input type="checkbox" checked={allOn} disabled={busy} onChange={(e) => void act({ t: "faultToggle", id: null, on: e.target.checked })} className="h-6 w-6" />
+          </label>
+          {all.map((f) => (
+            <label key={f.id} className="flex min-h-10 items-center justify-between gap-3 text-[var(--scn-muted)]">
+              <span>{f.title}</span>
+              <input type="checkbox" aria-label={`${f.title} : autorisée`} checked={!off.has(f.id)} disabled={busy} onChange={(e) => void act({ t: "faultToggle", id: f.id, on: e.target.checked })} className="h-6 w-6" />
+            </label>
+          ))}
+        </div>
+      </details>
+    </div>
+  );
+}
+
+/** The evening's timer: the debate, a minute's chrono; paused, lengthened, stopped. */
+export function TimerBlock({ view, busy, act }: Env) {
+  const s = view.state;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">MINUTEUR{s.timer ? ` · ${s.timer.label || "en cours"}` : ""}</span>
+      {s.timer ? (
+        <TimerControls which="main" timer={s.timer} busy={busy} act={act} />
+      ) : (
+        <div className="grid grid-cols-2 gap-1.5">
+          {(
+            [
+              ["Débat", 300],
+              ["Chrono", 60],
+            ] as const
+          ).map(([label, seconds]) => (
+            <button key={label} type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "timer", which: "main", cmd: "start", seconds, label })}>
+              {label} · {seconds / 60} min
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The generators' fuel: started, stopped, paused. */
+export function GaugeBlock({ view, busy, act }: Env) {
+  const s = view.state;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">LA JAUGE DES GÉNÉRATEURS</span>
+      <button type="button" aria-pressed={!!s.gauge} className={`scn-btn ${s.gauge ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "gauge", seconds: s.gauge ? null : view.setup.params.gaugeSeconds })}>
+        {s.gauge ? "Arrêter la jauge" : "Lancer la jauge"}
+        <small>{Math.round(view.setup.params.gaugeSeconds / 60)} min de carburant</small>
+      </button>
+      <TimerControls which="gauge" timer={s.gauge} busy={busy} act={act} />
+    </div>
+  );
+}
+
+/** Thirty seconds of the room, by the projection computer's microphone: the file then waits on a terminal. */
+export function RecordBlock({ view, busy, act }: Env) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">LA SALLE</span>
+      <button type="button" className="scn-btn" disabled={busy || !view.projection.mic} onClick={() => void act({ t: "record" })}>
+        🎙️ Enregistrer la salle 30 s<small>{view.projection.mic ? "par le micro de l'ordinateur de projection" : "micro non autorisé sur la projection"}</small>
+      </button>
+    </div>
+  );
+}
+
+type Env = { view: ConsoleView; busy: boolean; act: Act };
+
+/** The hall's light, the generator that gives way, the load shedding. */
+export function LightRows({ view, busy, act }: Env) {
+  const s = view.state;
+  return (
+    <Rows label="ÉCLAIRAGE" color="#ffd76b">
+      <button type="button" className={`scn-btn ${s.light ? "scn-btn-on" : "scn-btn-primary"}`} disabled={busy} onClick={() => void act({ t: "light", on: !s.light })}>
+        {s.light ? "Éteindre le hall" : "Allumer le hall"}
+      </button>
+      <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "cut" })}>
+        Coupure 4 s<small>générateur qui lâche</small>
+      </button>
+      <button type="button" className={`scn-btn ${s.dark ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "dark", on: !s.dark })}>
+        {s.dark ? "Lever le délestage" : "Délestage"}
+        <small>{s.dark ? "l'éclairage revient" : "presque noir, une lampe"}</small>
+      </button>
+    </Rows>
+  );
+}
+
+/** The weather and the simulation's leaks. */
+export function EffectRows({ view, busy, act }: Env) {
+  const s = view.state;
+  return (
+    <Rows label="MÉTÉO ET EFFETS" color="#bfeaff">
+      <button type="button" className={`scn-btn ${s.blizzard ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "blizzard", on: !s.blizzard })}>
+        Blizzard<small>{s.blizzard ? "en cours : arrêter" : "la neige tombe"}</small>
+      </button>
+      <button type="button" className={`scn-btn ${s.aurora ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "aurora", on: !s.aurora })}>
+        Aurore<small>{s.aurora ? "en cours : arrêter" : "le ciel s'allume"}</small>
+      </button>
+      <button type="button" className="scn-btn scn-btn-fault" disabled={busy} onClick={() => void act({ t: "glitch" })}>
+        Glitch<small>l&apos;image saute, une fois</small>
+      </button>
+      <button type="button" className="scn-btn scn-btn-danger" disabled={busy} onClick={() => void act({ t: "sound", slot: "son-alarme" })}>
+        Alarme<small>une fois</small>
+      </button>
+    </Rows>
+  );
+}
+
+/** Every sound of the base, by family: a loop is switched on and off, a sound plays once. */
+export function SoundRows({ def, view, busy, act }: Env & { def: PublicScenario }) {
+  const s = view.state;
   const categories = [...new Set(def.media.filter((m) => m.category).map((m) => m.category!))];
   return (
-    <SheetFrame title="TOUTE LA BASE" sub="Ce qui touche la station entière." onClose={onClose}>
-      <Rows label="ÉCLAIRAGE" color="#ffd76b">
-        <button type="button" className={`scn-btn ${s.light ? "scn-btn-on" : "scn-btn-primary"}`} disabled={busy} onClick={() => void act({ t: "light", on: !s.light })}>
-          {s.light ? "Éteindre le hall" : "Allumer le hall"}
-        </button>
-        <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "cut" })}>
-          Coupure 4 s<small>générateur qui lâche</small>
-        </button>
-        <button type="button" className={`scn-btn ${s.dark ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "dark", on: !s.dark })}>
-          {s.dark ? "Lever le délestage" : "Délestage"}
-          <small>{s.dark ? "l'éclairage revient" : "presque noir, une lampe"}</small>
-        </button>
-      </Rows>
-      <Rows label="MÉTÉO ET EFFETS" color="#bfeaff">
-        <button type="button" className={`scn-btn ${s.blizzard ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "blizzard", on: !s.blizzard })}>
-          Blizzard<small>{s.blizzard ? "en cours : arrêter" : "la neige tombe"}</small>
-        </button>
-        <button type="button" className={`scn-btn ${s.aurora ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act({ t: "aurora", on: !s.aurora })}>
-          Aurore<small>{s.aurora ? "en cours : arrêter" : "le ciel s'allume"}</small>
-        </button>
-        <button type="button" className="scn-btn scn-btn-fault" disabled={busy} onClick={() => void act({ t: "glitch" })}>
-          Faille<small>la simulation fuit</small>
-        </button>
-        <button type="button" className="scn-btn scn-btn-danger" disabled={busy} onClick={() => void act({ t: "sound", slot: "son-alarme" })}>
-          Alarme<small>une fois</small>
-        </button>
-      </Rows>
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-amber)]">MINUTEUR</span>
-        {s.timer ? (
-          <TimerControls which="main" timer={s.timer} busy={busy} act={act} />
-        ) : (
-          <div className="grid grid-cols-2 gap-1.5">
-            {(
-              [
-                ["Débat", 300],
-                ["Chrono", 60],
-              ] as const
-            ).map(([label, seconds]) => (
-              <button key={label} type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "timer", which: "main", cmd: "start", seconds, label })}>
-                {label} · {seconds / 60} min
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    <>
       {categories.map((c) => (
         <Rows key={c} label={`SONS · ${c.toUpperCase()}`} color="#bfeaff">
           {def.media
@@ -553,48 +692,58 @@ export function GlobalSheet({ def, view, busy, act, onClose }: Props & { onClose
             })}
         </Rows>
       ))}
-      <MediaControls busy={busy} act={act} />
-      <button type="button" className="scn-btn scn-btn-danger" disabled={busy} onClick={() => void act({ t: "stopSound", slot: null })}>
-        Couper tous les sons
-      </button>
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-magenta)]">INTRUSION</span>
-        {s.intrusion ? (
-          <>
-            <p className="rounded-lg border border-[var(--scn-magenta)] p-2 text-sm text-[var(--scn-magenta)]">{s.intrusion}</p>
-            <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "intrusion", text: null })}>
-              Fermer l&apos;intrusion
-            </button>
-          </>
-        ) : (
-          <>
-            <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={600} placeholder="Ce qu'elle écrit s'affiche lettre par lettre…" aria-label="Texte de l'intrusion" className="scn-field py-2" />
-            <button
-              type="button"
-              className="scn-btn scn-btn-fault"
-              disabled={busy || !text.trim()}
-              onClick={async () => {
-                if (!(await act({ t: "intrusion", text: text.trim() }))) setText("");
-              }}
-            >
-              Intrusion
-            </button>
-          </>
-        )}
-        <details className="mt-1">
-          <summary className="cursor-pointer py-2 text-sm font-semibold text-[var(--scn-magenta)]">✎ Intrusion dessinée{s.drawing ? " · à l'écran" : ""}</summary>
-          <DrawPad busy={busy} act={act} shown={!!s.drawing} />
-        </details>
-      </div>
-    </SheetFrame>
+    </>
   );
 }
 
-/** The room's screen: what it shows, and the projection itself (its link, its QR code, its state). */
-export function ScreenSheet({ view, busy, act, qrSvg, onClose, onBible }: Props & { qrSvg: string; code: string; onClose: () => void; onBible: () => void }) {
+export function CutSounds({ busy, act }: { busy: boolean; act: Act }) {
+  return (
+    <button type="button" className="scn-btn scn-btn-danger" disabled={busy} onClick={() => void act({ t: "stopSound", slot: null })}>
+      Couper tous les sons
+    </button>
+  );
+}
+
+/** Marga writes on the room's screen, or draws on it. */
+export function IntrusionBlock({ view, busy, act }: Env) {
   const s = view.state;
-  const [resetAsked, setResetAsked] = useState(false);
-  const p = view.projection;
+  const [text, setText] = useState("");
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[0.66rem] font-bold tracking-[0.14em] text-[var(--scn-magenta)]">INTRUSION</span>
+      {s.intrusion ? (
+        <>
+          <p className="rounded-lg border border-[var(--scn-magenta)] p-2 text-sm text-[var(--scn-magenta)]">{s.intrusion}</p>
+          <button type="button" className="scn-btn" disabled={busy} onClick={() => void act({ t: "intrusion", text: null })}>
+            Fermer l&apos;intrusion
+          </button>
+        </>
+      ) : (
+        <>
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={600} placeholder="Ce qu'elle écrit s'affiche lettre par lettre…" aria-label="Texte de l'intrusion" className="scn-field py-2" />
+          <button
+            type="button"
+            className="scn-btn scn-btn-fault"
+            disabled={busy || !text.trim()}
+            onClick={async () => {
+              if (!(await act({ t: "intrusion", text: text.trim() }))) setText("");
+            }}
+          >
+            Intrusion
+          </button>
+        </>
+      )}
+      <details className="mt-1">
+        <summary className="cursor-pointer py-2 text-sm font-semibold text-[var(--scn-magenta)]">✎ Intrusion dessinée{s.drawing ? " · à l'écran" : ""}</summary>
+        <DrawPad busy={busy} act={act} shown={!!s.drawing} />
+      </details>
+    </div>
+  );
+}
+
+/** What the room's screen shows: before the game, the welcome or the plan; during it, the game or a neutral screen. */
+export function ScreenChoices({ view, busy, act }: Env) {
+  const s = view.state;
   const before = s.phase === "welcome";
   const choice = (on: boolean, label: string, sub: string, action: Parameters<Act>[0]) => (
     <button type="button" className={`scn-btn ${on ? "scn-btn-on" : ""}`} disabled={busy} onClick={() => void act(action)}>
@@ -603,22 +752,32 @@ export function ScreenSheet({ view, busy, act, qrSvg, onClose, onBible }: Props 
     </button>
   );
   return (
+    <Rows label="AFFICHER">
+      {before ? (
+        <>
+          {choice(!s.neutral && s.screen === "accueil", "Accueil", "la photo de la station", { t: "screen", mode: "accueil" })}
+          {choice(!s.neutral && s.screen === "plan", "Plan", "la base, en direct", { t: "screen", mode: "plan" })}
+          {view.state.loadingAt !== null && choice(!s.neutral && s.screen === "loading", "Chargement", "« chargement du scénario » : à montrer seulement si tu le veux", { t: "screen", mode: "loading" })}
+        </>
+      ) : (
+        <>
+          {choice(!s.neutral, "Le jeu", "ce que la partie montre", { t: "neutral", mode: null })}
+          {choice(s.neutral === "plan", "Plan seul", "écran neutre", { t: "neutral", mode: s.neutral === "plan" ? null : "plan" })}
+        </>
+      )}
+      {choice(s.neutral === "black", "En attente", s.neutral === "black" ? "toucher pour revenir" : "« en attente de connexion »", { t: "neutral", mode: s.neutral === "black" ? null : "black" })}
+    </Rows>
+  );
+}
+
+/** The room's screen: what it shows, and the projection itself (its link, its QR code, its state). */
+export function ScreenSheet({ view, busy, act, qrSvg, onClose, onBible }: Props & { qrSvg: string; code: string; onClose: () => void; onBible: () => void }) {
+  const s = view.state;
+  const [resetAsked, setResetAsked] = useState(false);
+  const p = view.projection;
+  return (
     <SheetFrame title="ÉCRAN DE LA SALLE" sub="Ce que montre la projection, quoi qu'il arrive." onClose={onClose}>
-      <Rows label="AFFICHER">
-        {before ? (
-          <>
-            {choice(!s.neutral && s.screen === "accueil", "Accueil", "la photo de la station", { t: "screen", mode: "accueil" })}
-            {choice(!s.neutral && s.screen === "plan", "Plan", "la base, en direct", { t: "screen", mode: "plan" })}
-            {view.state.loadingAt !== null && choice(!s.neutral && s.screen === "loading", "Chargement", "« chargement du scénario » : à montrer seulement si tu le veux", { t: "screen", mode: "loading" })}
-          </>
-        ) : (
-          <>
-            {choice(!s.neutral, "Le jeu", "ce que la partie montre", { t: "neutral", mode: null })}
-            {choice(s.neutral === "plan", "Plan seul", "écran neutre", { t: "neutral", mode: s.neutral === "plan" ? null : "plan" })}
-          </>
-        )}
-        {choice(s.neutral === "black", "En attente", s.neutral === "black" ? "toucher pour revenir" : "« en attente de connexion »", { t: "neutral", mode: s.neutral === "black" ? null : "black" })}
-      </Rows>
+      <ScreenChoices view={view} busy={busy} act={act} />
       <div className="flex flex-wrap gap-1.5 text-xs">
         <span className={`scn-chip ${p.connected ? "scn-chip-ok" : "scn-chip-bad"}`}>{p.connected ? "Projection connectée" : "Projection déconnectée"}</span>
         <span className={`scn-chip ${p.mediaTotal > 0 && p.mediaReady === p.mediaTotal ? "scn-chip-ok" : "scn-chip-warn"}`}>

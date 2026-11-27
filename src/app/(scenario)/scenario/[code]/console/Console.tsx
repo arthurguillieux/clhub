@@ -12,6 +12,7 @@ import { GlobalSheet, ProtocolStrip, RoomSheet, ScreenSheet, StationFace, ZoneSh
 import { FaultHint, Reader } from "./Reader";
 import { PropSheet } from "./Group";
 import { BibleSheet } from "./Bible";
+import { EnvironmentFace, ModeSwitch, OnScreen, useConsoleMode } from "./Ambiance";
 
 export type Send = (input: Record<string, unknown>) => Promise<string | null>;
 
@@ -83,8 +84,12 @@ export function Console({
   const live = view.status === "live";
   // The sheets act as décor when opened from the BASE face during the game.
   const sheetAct = live && face === "base" ? actDecor : act;
+  // Narration (the game) or environment (the base's sounds and lights, Rémi's tablet): each device chooses.
+  const [mode, setMode] = useConsoleMode(view.role);
+  const env = mode === "environnement";
+  const together = view.role === "cohost" || view.cohosts.length > 0;
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-3 px-3 pt-3 pb-36">
+    <div className={`mx-auto flex flex-col gap-3 px-3 pt-3 pb-36 ${env ? "max-w-lg lg:landscape:max-w-6xl" : "max-w-lg lg:landscape:max-w-5xl"}`}>
       <header className="flex flex-col gap-2 border-b border-[var(--scn-line)] pb-2.5">
         <div className="flex items-center justify-between gap-2">
           <h1 className="scn-vt text-2xl leading-none tracking-wider text-[var(--scn-ice)]">{def.base.name.toUpperCase()}</h1>
@@ -93,6 +98,8 @@ export function Console({
             {p.connected ? "Projection connectée" : "Projection déconnectée"} · salle : {screenLabel(view)}
           </button>
         </div>
+        <ModeSwitch mode={mode} onChange={setMode} />
+        {!env && (
         <div role="group" aria-label="Face de la console" className="grid grid-cols-2 gap-[3px] rounded-xl border border-[#1f3a4b] bg-[#0c141b] p-[3px]">
           <button type="button" aria-pressed={face === "base"} onClick={() => setFace("base")} className="min-h-10 rounded-[9px] text-sm font-bold tracking-[0.12em]" style={face === "base" ? { background: "var(--scn-ice)", color: "#05080c" } : { color: "#6f8796" }}>
             BASE
@@ -101,6 +108,9 @@ export function Console({
             {protocol === "none" ? "PROTOCOLE" : `PROTOCOLE · ${(def.short ?? def.title).toUpperCase()}`}
           </button>
         </div>
+        )}
+        {/* Whatever is on, wherever it was switched on from: switched off here. */}
+        {!env && <OnScreen def={def} view={view} busy={busy} act={live && face === "base" ? actDecor : act} compact />}
         {view.simulated && <p className="scn-vt rounded-lg border border-[var(--scn-magenta)] py-1 text-center text-xl tracking-[0.3em] text-[var(--scn-magenta)]">SIMULATION</p>}
         {live && !view.simulated && <p className="text-[0.68rem] text-[var(--scn-amber)]">Partie en cours : aucune mise à jour du CLHUB d&apos;ici la fin.</p>}
       </header>
@@ -110,56 +120,71 @@ export function Console({
         </p>
       )}
 
-      {face === "base" && (
-        <>
+      {env && <EnvironmentFace def={def} view={view} busy={busy} act={live ? actDecor : act} />}
+      {!env && face === "base" && (
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
           <StationFace def={def} view={view} busy={busy} act={live ? actDecor : act} sheet={sheet} onSheet={setSheet} />
           <ProtocolStrip def={def} view={view} protocol={protocol} progress={progress} onOpen={() => setFace("proto")} />
-        </>
+        </div>
       )}
-      {face === "proto" && (
+      {!env && face === "proto" && (
         <>
-          {view.status === "setup" && <Protocol code={code} def={def} view={view} members={members} busy={busy} send={send} act={act} protocol={protocol} progress={progress} />}
-          {live && (
-            <>
-              {/* By day (and on arrival), the game is played on the base itself: the same plan, the same gestures. */}
-              {view.state.phase === "arrival" || view.state.phase === "day" ? (
-                <StationFace def={def} view={view} busy={busy} act={act} sheet={sheet} onSheet={setSheet} />
-              ) : (
-                <button type="button" className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[#1f3a4b] bg-[#0c141b] px-3 text-left text-[0.8rem]" onClick={() => setSheet({ kind: "global" })}>
-                  <span className="text-[var(--scn-muted)]">Lumière, sons, effets, minuteur, intrusion</span>
-                  <span className="font-bold whitespace-nowrap text-[var(--scn-ice)]">Toute la base ›</span>
-                </button>
-              )}
-              <PhaseSection def={def} view={view} busy={busy} act={act} send={send} />
-              <Powers def={def} view={view} busy={busy} act={act} />
-              <Chief def={def} view={view} busy={busy} act={act} />
-              <Players def={def} view={view} busy={busy} act={act} />
-              <Faults def={def} view={view} busy={busy} act={act} />
-              <Journal view={view} send={send} />
-              {view.role === "host" && <DeleteEvening code={code} live />}
-            </>
+          {view.status === "setup" && (
+            <div className="mx-auto flex w-full max-w-lg flex-col gap-3">
+              <Protocol code={code} def={def} view={view} members={members} busy={busy} send={send} act={act} protocol={protocol} progress={progress} />
+            </div>
           )}
-          {view.status === "done" && <Done code={code} view={view} />}
+          {live && (
+            // On a tablet in landscape: the base and the step on the left, the table and the journal on the right.
+            <div className="grid gap-3 lg:landscape:grid-cols-2 lg:landscape:items-start">
+              <div className="flex min-w-0 flex-col gap-3">
+                {/* By day (and on arrival), the game is played on the base itself: the same plan, the same gestures. */}
+                {view.state.phase === "arrival" || view.state.phase === "day" ? (
+                  <StationFace def={def} view={view} busy={busy} act={act} sheet={sheet} onSheet={setSheet} />
+                ) : (
+                  <button type="button" className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[#1f3a4b] bg-[#0c141b] px-3 text-left text-[0.8rem]" onClick={() => setSheet({ kind: "global" })}>
+                    <span className="text-[var(--scn-muted)]">Lumière, sons, effets, minuteur, intrusion</span>
+                    <span className="font-bold whitespace-nowrap text-[var(--scn-ice)]">Toute la base ›</span>
+                  </button>
+                )}
+                <PhaseSection def={def} view={view} busy={busy} act={act} send={send} />
+              </div>
+              <div className="flex min-w-0 flex-col gap-3">
+                <Powers def={def} view={view} busy={busy} act={act} />
+                <Chief def={def} view={view} busy={busy} act={act} />
+                <Players def={def} view={view} busy={busy} act={act} />
+                <Journal view={view} send={send} />
+                {view.role === "host" && <DeleteEvening code={code} live />}
+              </div>
+            </div>
+          )}
+          {view.status === "done" && (
+            <div className="mx-auto flex w-full max-w-lg flex-col gap-3">
+              <Done code={code} view={view} />
+            </div>
+          )}
         </>
       )}
 
-      {sheet?.kind === "zone" && <ZoneSheet def={def} view={view} busy={busy} act={sheetAct} id={sheet.id} space={sheet.space} onClose={() => setSheet(null)} onRoom={(room) => setSheet({ kind: "room", room })} onProp={(id) => setSheet({ kind: "prop", id })} />}
-      {sheet?.kind === "prop" && <PropSheet def={def} view={view} busy={busy} act={sheetAct} id={sheet.id} onClose={() => setSheet(null)} onRead={(start) => setReading({ start })} />}
-      {sheet?.kind === "room" && <RoomSheet def={def} view={view} busy={busy} act={sheetAct} room={sheet.room} onClose={() => setSheet(null)} />}
-      {sheet?.kind === "global" && <GlobalSheet def={def} view={view} busy={busy} act={sheetAct} onClose={() => setSheet(null)} />}
-      {sheet?.kind === "screen" && <ScreenSheet def={def} view={view} busy={busy} act={act} qrSvg={qrSvg} code={code} onClose={() => setSheet(null)} onBible={() => setSheet({ kind: "bible" })} />}
-      {sheet?.kind === "bible" && <BibleSheet def={def} view={view} onClose={() => setSheet(null)} />}
-      {live && reading && <Reader def={def} view={view} start={reading.start} variant={reading.variant} onClose={() => setReading(null)} act={actDecor} />}
-      {live && !reading && <FaultHint view={view} onRead={(variant) => setReading({ start: "FAILLE-01", variant })} />}
+      {!env && sheet?.kind === "zone" && <ZoneSheet def={def} view={view} busy={busy} act={sheetAct} id={sheet.id} space={sheet.space} onClose={() => setSheet(null)} onRoom={(room) => setSheet({ kind: "room", room })} onProp={(id) => setSheet({ kind: "prop", id })} />}
+      {!env && sheet?.kind === "prop" && <PropSheet def={def} view={view} busy={busy} act={sheetAct} id={sheet.id} onClose={() => setSheet(null)} onRead={(start) => setReading({ start })} />}
+      {!env && sheet?.kind === "room" && <RoomSheet def={def} view={view} busy={busy} act={sheetAct} room={sheet.room} onClose={() => setSheet(null)} />}
+      {!env && sheet?.kind === "global" && <GlobalSheet def={def} view={view} busy={busy} act={sheetAct} onClose={() => setSheet(null)} />}
+      {!env && sheet?.kind === "screen" && <ScreenSheet def={def} view={view} busy={busy} act={act} qrSvg={qrSvg} code={code} onClose={() => setSheet(null)} onBible={() => setSheet({ kind: "bible" })} />}
+      {!env && sheet?.kind === "bible" && <BibleSheet def={def} view={view} onClose={() => setSheet(null)} />}
+      {!env && live && reading && <Reader def={def} view={view} start={reading.start} variant={reading.variant} onClose={() => setReading(null)} act={actDecor} />}
+      {!env && live && !reading && <FaultHint view={view} onRead={(variant) => setReading({ start: "FAILLE-01", variant })} />}
       {view.status !== "done" && (
         <CommandBar
           view={view}
           busy={busy}
-          act={act}
+          act={env && live ? actDecor : act}
           send={send}
           reading={!!reading}
+          env={env}
+          together={together}
           onScreen={() => setSheet(sheet?.kind === "screen" ? null : { kind: "screen" })}
-          onText={live ? () => setReading(reading ? null : {}) : null}
+          onText={live && !env ? () => setReading(reading ? null : {}) : null}
         />
       )}
     </div>
@@ -170,7 +195,27 @@ export function Console({
  * Always there, one gesture away, above everything (no sheet ever covers it): Stop, the room's screen,
  * Annuler, and the text to read once the game runs. The meneur is never stuck.
  */
-function CommandBar({ view, busy, act, send, reading, onScreen, onText }: { view: ConsoleView; busy: boolean; act: Act; send: Send; reading: boolean; onScreen: () => void; onText: (() => void) | null }) {
+function CommandBar({
+  view,
+  busy,
+  act,
+  send,
+  reading,
+  env,
+  together,
+  onScreen,
+  onText,
+}: {
+  view: ConsoleView;
+  busy: boolean;
+  act: Act;
+  send: Send;
+  reading: boolean;
+  env: boolean;
+  together: boolean;
+  onScreen: () => void;
+  onText: (() => void) | null;
+}) {
   const s = view.state;
   return (
     <nav aria-label="Commandes" className="fixed inset-x-0 bottom-0 z-[70] border-t border-[var(--scn-line)] bg-[rgba(10,17,23,.97)] px-2 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))]">
@@ -178,11 +223,19 @@ function CommandBar({ view, busy, act, send, reading, onScreen, onText }: { view
         <button type="button" className="scn-btn scn-btn-danger min-h-12 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "stop" })}>
           ■ Stop<small>tout ce qui joue</small>
         </button>
-        <button type="button" className={`scn-btn min-h-12 px-1 text-xs ${s.neutral ? "scn-btn-on" : ""}`} onClick={onScreen}>
-          Écran<small>{s.neutral === "black" ? "en attente" : s.neutral === "plan" ? "plan seul" : "de la salle"}</small>
-        </button>
+        {env ? (
+          // The environment's screen choices are on its face: here, the sounds, all at once.
+          <button type="button" className="scn-btn min-h-12 px-1 text-xs" disabled={busy} onClick={() => void act({ t: "stopSound", slot: null })}>
+            Silence<small>couper les sons</small>
+          </button>
+        ) : (
+          <button type="button" className={`scn-btn min-h-12 px-1 text-xs ${s.neutral ? "scn-btn-on" : ""}`} onClick={onScreen}>
+            Écran<small>{s.neutral === "black" ? "en attente" : s.neutral === "plan" ? "plan seul" : "de la salle"}</small>
+          </button>
+        )}
+        {/* Two consoles: each takes back its own gestures only. */}
         <button type="button" className="scn-btn min-h-12 px-1 text-xs" disabled={busy || !view.canUndo} onClick={() => void send({ type: "undo" })}>
-          ↶ Annuler<small>dernière action</small>
+          ↶ Annuler<small>{together ? "mon dernier geste" : "dernière action"}</small>
         </button>
         {onText && (
           <button type="button" className={`scn-btn min-h-12 px-1 text-xs ${reading ? "scn-btn-on" : "scn-btn-amber"}`} onClick={onText}>
@@ -1200,46 +1253,6 @@ function Players({ def, view, busy, act }: Props) {
 }
 
 // ───────── The base ─────────
-
-function Faults({ def, view, busy, act }: Props) {
-  const s = view.state;
-  const all = [...def.faults, ...view.setup.extraFaults];
-  const done = new Set(s.faults.map((f) => f.id));
-  const off = new Set(s.faultsOff);
-  const allOn = all.every((f) => !off.has(f.id));
-  return (
-    <Section title="FAILLES" chip={<span className="scn-chip">{s.faults.length} déclenchées · {all.length - off.size} actives</span>}>
-      <label className="flex min-h-11 items-center justify-between gap-3 text-sm">
-        <span>Toutes les failles</span>
-        <input type="checkbox" checked={allOn} disabled={busy} onChange={(e) => void act({ t: "faultToggle", id: null, on: e.target.checked })} className="h-6 w-6" />
-      </label>
-      {all
-        .slice()
-        .sort((a, b) => Number(!a.loops.includes(s.loop)) - Number(!b.loops.includes(s.loop)))
-        .map((f) => (
-          <div key={f.id} className="flex items-stretch gap-2">
-            <input type="checkbox" aria-label={`${f.title} : activée`} checked={!off.has(f.id)} disabled={busy} onChange={(e) => void act({ t: "faultToggle", id: f.id, on: e.target.checked })} className="h-6 w-6 shrink-0 self-center" />
-            <button
-              type="button"
-              className={`scn-btn flex-1 text-left ${done.has(f.id) ? "scn-btn-on" : f.loops.includes(s.loop) ? "scn-btn-fault" : ""}`}
-              disabled={busy || off.has(f.id)}
-              onClick={() => void act({ t: "fault", id: f.id })}
-            >
-              {done.has(f.id) ? "✓ " : ""}
-              {f.title}
-              <small>
-                {off.has(f.id) ? "désactivée" : `boucle ${f.loops.join(" et ")}`}
-                {f.kind === "terminalFile" && f.id === "hallmic" ? (view.projection.mic ? " · joue l'enregistrement de la salle" : " · joue le fichier de secours") : ""}
-              </small>
-            </button>
-          </div>
-        ))}
-      <button type="button" className="scn-btn scn-btn-danger" disabled={busy} onClick={() => void act({ t: "stop" })}>
-        Arrêter la faille en cours
-      </button>
-    </Section>
-  );
-}
 
 function Journal({ view, send }: { view: ConsoleView; send?: Send }) {
   const [target, setTarget] = useState<{ seq: number; label: string } | null>(null);

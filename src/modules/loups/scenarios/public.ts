@@ -35,5 +35,13 @@ export function publicState(def: Pick<ScenarioDef, "items">, setup: Pick<Setup, 
 
 /** The last gestures, for the effects played once, without the night's. */
 export function publicRecent<T extends { action: Action }>(rows: T[]): T[] {
-  return rows.slice(-12).filter((r) => !NIGHT_SECRETS.has(r.action.t));
+  return rows
+    .slice(-12)
+    .filter((r) => !NIGHT_SECRETS.has(r.action.t))
+    .map((r) => {
+      const { by, who, ...action } = r.action as Action & { by?: string; who?: string };
+      void by;
+      void who;
+      return { ...r, action: action as Action };
+    });
 }

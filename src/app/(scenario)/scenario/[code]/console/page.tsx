@@ -26,7 +26,7 @@ export default async function ConsolePage({ params }: { params: Promise<{ code: 
         </div>
       </main>
     );
-  const view = await getConsoleView(check.game, check.def, check.role);
+  const view = await getConsoleView(check.game, check.def, check.role, check.memberId);
   const { passwordSha256, ...def } = check.def;
   void passwordSha256;
   const [members, qrSvg] = await Promise.all([listMembers(), buzzerQrSvg(view.link)]);

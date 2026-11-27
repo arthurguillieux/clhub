@@ -1,3 +1,4 @@
+import { publicRecent } from "./public";
 import { describe, expect, it } from "vitest";
 import { ANTARCTICA } from "./antarctica";
 import { LOADING_MS, protocolOf, actionAvailable, alive, contagionActive, dawnDeaths, doorProposals, missedClues, nightSteps, pack, proposals, recap, registry, replay, suggestedWinner, timeLeft, type Action, type Setup } from "./engine";
@@ -56,6 +57,13 @@ describe("the sandbox (V1.4)", () => {
     expect(decor.log.at(-1)?.text).toMatch(/\(décor\)$/);
     // Before the game, the sandbox has no limit.
     expect(run([search("comptoir.fouiller"), search("ordi.clavier")]).inventory).toEqual(["cle_beta"]);
+  });
+
+  it("signs a co-organizer's gestures in the journal, and keeps the room from knowing who", () => {
+    const s = run([{ t: "light", on: true, by: "m-remi", who: "Rémi" } as unknown as Action]);
+    expect(s.log.at(-1)?.text).toMatch(/^Rémi · /);
+    const recent = publicRecent([{ seq: 1, action: { t: "light", on: true, by: "m-remi", who: "Rémi" } as unknown as Action }]);
+    expect(recent[0]?.action).toEqual({ t: "light", on: true });
   });
 
   it("closes the terminal left open when the group changes room", () => {
@@ -299,7 +307,20 @@ describe("full control for the meneur", () => {
 
   it("Stop silences everything that plays, the base stays as it is", () => {
     const s = run([...start, { t: "light", on: true }, { t: "sound", slot: "son-vent" }, { t: "intrusion", text: "Bonsoir." }, { t: "blizzard", on: true }, { t: "gauge", seconds: 120 }, { t: "fault", id: "hallmic" }, { t: "stop" }]);
-    expect(s).toMatchObject({ playing: null, ambiances: [], intrusion: null, blizzard: false, gauge: null, light: true });
+    expect(s).toMatchObject({ playing: null, terminal: null, faultsOn: [], ambiances: [], intrusion: null, blizzard: false, gauge: null, light: true });
+  });
+
+  it("a fault switches on and off like a sound: it stays on screen until taken away, and closes its terminal", () => {
+    const on = run([...start, { t: "fault", id: "suivi" }, { t: "fault", id: "hallmic" }]);
+    expect(on).toMatchObject({ faultsOn: ["suivi", "hallmic"], terminal: "beta", playing: "hallmic" });
+    // Touched again: taken away; its terminal closes, the other fault stays.
+    const off = run([...start, { t: "fault", id: "suivi" }, { t: "fault", id: "hallmic" }, { t: "fault", id: "hallmic", on: false }]);
+    expect(off).toMatchObject({ faultsOn: ["suivi"], terminal: null, playing: null });
+    // The bad ending still knows it went off.
+    expect(off.faults.map((f) => f.id)).toEqual(["suivi", "hallmic"]);
+    // Switching it on twice does nothing more; switching it off for the evening takes it off the screen.
+    expect(run([...start, { t: "fault", id: "suivi" }, { t: "fault", id: "suivi" }]).faults).toHaveLength(1);
+    expect(run([...start, { t: "fault", id: "suivi" }, { t: "faultToggle", id: "suivi", on: false }]).faultsOn).toEqual([]);
   });
 
   it("the neutral screen closes what's open; jump goes anywhere; rooms swap", () => {

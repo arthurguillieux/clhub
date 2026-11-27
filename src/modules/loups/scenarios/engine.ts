@@ -71,7 +71,8 @@ export type Action =
   | { t: "sound"; slot: string }
   | { t: "stopSound"; slot: string | null }
   | { t: "record" }
-  | { t: "fault"; id: string }
+  // A fault is switched on and off like a sound: it stays on the room's screen until it is taken away.
+  | { t: "fault"; id: string; on?: boolean }
   | { t: "night" }
   | { t: "panic"; player: string | null }
   | { t: "tapes"; target: string | null }
@@ -210,6 +211,8 @@ export interface State {
   timer: Timer | null;
   /** Faults switched off: they can't be triggered, even by mistake. */
   faultsOff: string[];
+  /** The faults on the room's screen right now (switched on, not yet taken away). */
+  faultsOn: string[];
   /** « Écran neutre »: the plan alone, or black, whatever was going on. */
   neutral: "plan" | "black" | null;
   intrusion: string | null;
@@ -316,6 +319,7 @@ export function initialState(def: ScenarioDef, setup: Setup): State {
     gauge: null,
     timer: null,
     faultsOff: [],
+    faultsOn: [],
     neutral: null,
     intrusion: null,
     ambiances: [],
@@ -511,11 +515,17 @@ export function apply(def: ScenarioDef, setup: Setup, s: State, a: Action, when 
 /** A gesture made from the BASE face during the game: décor or correction, it validates nothing (V1.4 §1.2). */
 const decorOf = (a: Action) => (a as { decor?: boolean }).decor === true;
 
+/** A co-organizer's first name, on the gestures sent from their console (Rémi at the sounds). */
+const whoOf = (a: Action) => (a as { who?: string }).who;
+
 function applyAction(def: ScenarioDef, setup: Setup, s: State, a: Action, when: number): State {
   const next = applyActionRaw(def, setup, s, a, when);
-  // Noted as such in the journal; the rules of the game don't run on it.
-  if (!decorOf(a) || s.phase === "welcome" || next.log.length === s.log.length) return next;
-  return { ...next, log: [...s.log, ...next.log.slice(s.log.length).map((l) => ({ ...l, text: `${l.text} (décor)` }))] };
+  if (next.log.length === s.log.length) return next;
+  // Noted as such in the journal; the rules of the game don't run on it. And signed, when it is a co-organizer's.
+  const decor = decorOf(a) && s.phase !== "welcome";
+  const who = whoOf(a);
+  if (!decor && !who) return next;
+  return { ...next, log: [...s.log, ...next.log.slice(s.log.length).map((l) => ({ ...l, text: `${who ? `${who} · ` : ""}${l.text}${decor ? " (décor)" : ""}` }))] };
 }
 
 function applyActionRaw(def: ScenarioDef, setup: Setup, s: State, a: Action, when: number): State {
@@ -676,11 +686,12 @@ function applyActionRaw(def: ScenarioDef, setup: Setup, s: State, a: Action, whe
       const all = [...def.faults, ...setup.extraFaults];
       const ids = a.id ? [a.id] : all.map((f) => f.id);
       const faultsOff = a.on ? s.faultsOff.filter((x) => !ids.includes(x)) : [...new Set([...s.faultsOff, ...ids])];
-      return { ...s, faultsOff, log: log(a.id ? `Faille ${a.on ? "activée" : "désactivée"} : ${all.find((f) => f.id === a.id)?.title ?? a.id}.` : `Toutes les failles ${a.on ? "activées" : "désactivées"}.`) };
+      return { ...s, faultsOff, faultsOn: s.faultsOn.filter((x) => !faultsOff.includes(x)), log: log(a.id ? `Faille ${a.on ? "activée" : "désactivée"} : ${all.find((f) => f.id === a.id)?.title ?? a.id}.` : `Toutes les failles ${a.on ? "activées" : "désactivées"}.`) };
     }
     case "stop":
-      // Everything that plays on the projection stops; the base itself stays as it is.
-      return { ...s, playing: null, ambiances: [], gauge: null, timer: null, intrusion: null, drawing: null, blizzard: false, aurora: false, vote: null, log: log("Stop : tout s'arrête sur la projection.") };
+      // Everything that plays or shows on the projection stops and closes (terminal, box, furniture,
+      // faults); the base itself stays as it is (light, doors, load shedding).
+      return { ...s, playing: null, terminal: null, circuitShown: false, prop: null, faultsOn: [], ambiances: [], gauge: null, timer: null, intrusion: null, drawing: null, blizzard: false, aurora: false, vote: null, log: log("Stop : tout s'arrête sur la projection.") };
     case "neutral":
       return { ...s, neutral: a.mode, ...(a.mode ? { terminal: null, playing: null, circuitShown: false, intrusion: null } : {}) };
     case "media":
@@ -726,9 +737,17 @@ function applyActionRaw(def: ScenarioDef, setup: Setup, s: State, a: Action, whe
       return { ...s, log: log("Enregistrement de la salle : 30 s.") };
     case "fault": {
       const fault = [...def.faults, ...setup.extraFaults].find((f) => f.id === a.id);
-      // A fault switched off never goes off, not even by mistake.
-      if (!fault || s.faultsOff.includes(fault.id)) return s;
-      const next = { ...s, neutral: null, faults: [...s.faults, { id: fault.id, at }], log: log(`Faille : ${fault.title.charAt(0).toLowerCase()}${fault.title.slice(1)}.`) };
+      if (!fault) return s;
+      const title = `${fault.title.charAt(0).toLowerCase()}${fault.title.slice(1)}`;
+      if (a.on === false) {
+        // Taken away: off the screen, and its terminal closes if it is still showing it.
+        if (!s.faultsOn.includes(fault.id)) return s;
+        const shown = fault.kind === "terminalFile" && s.terminal === fault.terminal && (s.playing === fault.file || s.playing === null);
+        return { ...s, faultsOn: s.faultsOn.filter((x) => x !== fault.id), ...(shown ? { terminal: null, playing: null } : {}), log: log(`Faille retirée : ${title}.`) };
+      }
+      // A fault switched off for the evening never goes off, not even by mistake.
+      if (s.faultsOff.includes(fault.id) || s.faultsOn.includes(fault.id)) return s;
+      const next = { ...s, neutral: null, faultsOn: [...s.faultsOn, fault.id], faults: [...s.faults, { id: fault.id, at }], log: log(`Faille : ${title}.`) };
       if (fault.kind === "terminalFile" && fault.terminal && fault.file) return { ...next, terminal: fault.terminal, playing: fault.file, circuitShown: false };
       return next;
     }

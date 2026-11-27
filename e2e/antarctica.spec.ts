@@ -1,4 +1,6 @@
-import { test, expect } from "@playwright/test";
+import { createTestMember } from "./helpers/db";
+import { waitForLoggedUrl } from "./helpers/log";
+import { test, expect, type Browser, type Page } from "@playwright/test";
 
 /**
  * Loups-garous › Scénarios spéciaux › Antarctica, the path of V1.2 §11: unlock with the password, prepare
@@ -211,12 +213,16 @@ test("antarctica V1.2: election, a door, a missed shot, the healthy chief exiled
   await expect(screen.getByText("ACCÈS FORCÉ · LABORATOIRE")).toBeVisible();
 
   // SUJETS.DAT, built from the players: last loop's dead are written down, no side ever.
-  await open("FAILLES");
-  await tap(/Les dossiers sujets/);
+  await page.getByRole("button", { name: /Toute la base/ }).first().click();
+  await page.getByRole("dialog", { name: "TOUTE LA BASE" }).getByRole("button", { name: /Les dossiers sujets/ }).click();
   await expect(screen.getByText(/REGISTRE DES SUJETS — SESSION 02/)).toBeVisible({ timeout: 10_000 });
   await expect(screen.getByText(/SESSION 01 : EXCLU/).first()).toBeVisible({ timeout: 15_000 });
   // FAILLE-01, small, without hiding the console.
   await expect(page.getByText("FAILLE-01")).toBeVisible();
+  // A fault stays until it is taken away: touched again, it goes, and its terminal closes.
+  await page.getByRole("dialog", { name: "TOUTE LA BASE" }).getByRole("button", { name: /Les dossiers sujets/ }).click();
+  await expect(screen.getByText(/REGISTRE DES SUJETS — SESSION 02/)).toHaveCount(0);
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
 
   await jump("La nuit");
   await jump("Le jour");
@@ -340,12 +346,19 @@ test("antarctica: the meneur keeps control — faults off, Stop, black screen, b
   await expect(page.getByText("QR code de la projection (autre appareil)")).toBeVisible();
   await page.getByRole("button", { name: "Fermer la fiche" }).click();
 
-  await page.locator("summary", { hasText: /^FAILLES/ }).click();
+  await page.getByRole("button", { name: /Toute la base/ }).first().click();
+  const base = page.getByRole("dialog", { name: "TOUTE LA BASE" });
+  await base.getByText("Failles autorisées ce soir…").click();
   // The switch follows the journal: it flips once the server has written it down.
   await page.getByLabel("Toutes les failles").click();
-  await expect(page.getByRole("button", { name: /Glitch d'en-tête/ })).toBeDisabled();
+  await expect(base.getByRole("button", { name: /Glitch d'en-tête/ })).toBeDisabled();
   await page.getByLabel("Toutes les failles").click();
-  await expect(page.getByRole("button", { name: /Glitch d'en-tête/ })).toBeEnabled();
+  await expect(base.getByRole("button", { name: /Glitch d'en-tête/ })).toBeEnabled();
+  // A terminal opened here shows « À l'écran », and closes from there.
+  await base.getByRole("button", { name: /Afficher le terminal du hall/ }).click();
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
+  await page.getByLabel("À l'écran").getByRole("button", { name: /Retirer : Terminal/ }).click();
+  await expect(page.getByLabel("À l'écran").getByRole("button", { name: /Retirer : Terminal/ })).toHaveCount(0);
 
   await bar.getByRole("button", { name: /Écran/ }).click();
   await page.getByRole("button", { name: /^En attente/ }).click();
@@ -366,4 +379,78 @@ test("antarctica: the meneur keeps control — faults off, Stop, black screen, b
   await expect(page).toHaveURL(/\/jeux\/loups\/scenarios$/);
   void browser;
   void baseURL;
+});
+
+/** A second session for a seeded member, through the real magic link — on a tablet held sideways. */
+async function signInOnTablet(browser: Browser, baseURL: string, email: string): Promise<Page> {
+  const context = await browser.newContext({ baseURL, viewport: { width: 1180, height: 820 }, hasTouch: true, storageState: { cookies: [], origins: [] } });
+  const tablet = await context.newPage();
+  await tablet.goto("/sign-in");
+  await tablet.getByLabel("Ton adresse mail").fill(email);
+  await tablet.getByRole("button", { name: "Recevoir mon lien de connexion" }).click();
+  await expect(tablet.getByText("Vérifie ta boîte mail")).toBeVisible();
+  await tablet.goto(await waitForLoggedUrl(`Magic link for ${email}:`));
+  await tablet.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
+  return tablet;
+}
+
+test("antarctica: two consoles — Rémi plays the base on his tablet (environment), signed in the journal, and undoes only his own gestures", async ({ page, browser, baseURL }) => {
+  test.setTimeout(120_000);
+  await createTestMember("Rémi Ambiance", "e2e-remi@example.com");
+  await page.goto("/jeux/loups/scenarios");
+  await page.getByRole("button", { name: /Ouvrir la station/ }).or(page.getByRole("link", { name: /Piloter la station/ })).or(page.getByLabel("Mot de passe du scénario")).first().waitFor();
+  if (await page.getByLabel("Mot de passe du scénario").count()) {
+    await page.getByLabel("Mot de passe du scénario").fill("ape26");
+    await page.getByRole("button", { name: "Ouvrir le scénario" }).click();
+  }
+  await page.getByRole("button", { name: /Ouvrir la station/ }).or(page.getByRole("link", { name: /Piloter la station/ })).first().click();
+  await page.waitForURL(/\/scenario\/[^/]+\/console/);
+  // A clean station (an earlier test may have played in it): Écran › Redémarrer.
+  await page.getByRole("navigation", { name: "Commandes" }).getByRole("button", { name: /Écran/ }).click();
+  await page.getByRole("button", { name: "Redémarrer la station" }).click();
+  await page.getByRole("button", { name: /^Redémarrer/ }).first().click();
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
+  // The meneur's console opens on the narration, and Rémi joins the evening.
+  await expect(page.getByRole("group", { name: "Mode de la console" }).getByRole("button", { name: "NARRATION" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("group", { name: "Face de la console" }).getByRole("button", { name: /^PROTOCOLE/ }).click();
+  if (await page.getByRole("button", { name: /Retirer le scénario|Décharger/ }).count()) await page.getByRole("button", { name: /Retirer le scénario|Décharger/ }).first().click();
+  await page.locator("summary", { hasText: /^CO-ORGANISATEURS/ }).click();
+  await page.getByLabel("Co-organisateur").selectOption({ label: "Rémi Ambiance" });
+  await page.getByRole("button", { name: "Ajouter" }).click();
+  await expect(page.getByText("Rémi Ambiance")).toBeVisible();
+  // The meneur lights the hall: a gesture of his own.
+  await page.getByRole("button", { name: "BASE", exact: true }).click();
+  await page.getByRole("button", { name: /^HALL, / }).click();
+  await page.getByRole("button", { name: "Allumer le hall" }).first().click();
+  await page.getByRole("button", { name: "Fermer la fiche" }).click();
+
+  // Rémi, on his tablet held sideways: the environment, wide, and where the game is.
+  const tablet = await signInOnTablet(browser, baseURL!, "e2e-remi@example.com");
+  await tablet.goto(new URL(page.url()).pathname);
+  const modes = tablet.getByRole("group", { name: "Mode de la console" });
+  await expect(modes.getByRole("button", { name: "ENVIRONNEMENT" })).toHaveAttribute("aria-pressed", "true");
+  await expect(tablet.getByRole("region", { name: "Où en est la partie" })).toContainText(/STATION SEULE|CHARGÉ/);
+  await expect(tablet.getByRole("group", { name: "Face de la console" })).toHaveCount(0);
+  // Three columns side by side.
+  const follow = await tablet.getByRole("region", { name: "Où en est la partie" }).boundingBox();
+  const sounds = await tablet.getByRole("region", { name: "Les sons" }).boundingBox();
+  expect(sounds!.x).toBeGreaterThan(follow!.x + follow!.width - 1);
+  // Nothing of his own yet: « Annuler » waits.
+  const bar = tablet.getByRole("navigation", { name: "Commandes" });
+  await expect(bar.getByRole("button", { name: /Annuler/ })).toBeDisabled();
+  // The wind: the meneur's phone sees it play.
+  await tablet.getByRole("region", { name: "Les sons" }).getByRole("button", { name: /Vent/ }).click();
+  await expect(tablet.getByRole("region", { name: "À l'écran" })).toContainText("Vent");
+  await expect(page.getByLabel("À l'écran")).toContainText("Vent", { timeout: 10_000 });
+  // Rémi's « Annuler » takes back the wind, not the meneur's light.
+  await bar.getByRole("button", { name: /Annuler/ }).click();
+  await expect(tablet.getByRole("region", { name: "À l'écran" })).not.toContainText("Vent");
+  await expect(tablet.getByRole("region", { name: "À l'écran" })).toContainText("Hall allumé");
+  await expect(bar.getByRole("button", { name: /Annuler/ })).toBeDisabled();
+  // He may switch to the narration, and the tablet remembers it.
+  await modes.getByRole("button", { name: "NARRATION" }).click();
+  await expect(tablet.getByRole("group", { name: "Face de la console" })).toBeVisible();
+  await tablet.reload();
+  await expect(tablet.getByRole("group", { name: "Mode de la console" }).getByRole("button", { name: "NARRATION" })).toHaveAttribute("aria-pressed", "true");
+  await tablet.context().close();
 });

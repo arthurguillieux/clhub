@@ -109,8 +109,11 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   const [denied, setDenied] = useState(false);
   const [darkOverride, setDarkOverride] = useState<number | null>(null);
   const [sparks, setSparks] = useState(0);
-  const [tracker, setTracker] = useState(false);
-  const [faultShow, setFaultShow] = useState<Fault | null>(null);
+  // The faults on screen follow the state: on until the meneur takes them away (or Stop).
+  const faultsOnScreen = [...def.faults, ...view.extraFaults].filter((f) => s.faultsOn.includes(f.id));
+  const tracker = faultsOnScreen.some((f) => f.kind === "tracker");
+  const headerLeak = faultsOnScreen.some((f) => f.kind === "glitch");
+  const faultShow: Fault | null = [...faultsOnScreen].reverse().find((f) => f.kind === "image" || f.kind === "text") ?? null;
   const [announce, setAnnounce] = useState<string[] | null>(null);
   const [eventBig, setEventBig] = useState(false);
   const [reboot, setReboot] = useState<string | null>(null);
@@ -122,6 +125,8 @@ export function Projection({ token, def, initial }: { token: string; def: Public
   const [bootKey, setBootKey] = useState(0);
   const lastSeq = useRef<number | null>(null);
   const wasLocked = useRef(initial.state.locked);
+  // The doors open at the last look: a door that opens with what it needs shows it, however it was opened.
+  const openDoors = useRef(new Set(Object.entries(initial.state.doors).filter(([, v]) => v).map(([k]) => k)));
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const later = (fn: () => void, ms: number) => timers.current.push(setTimeout(fn, ms));
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -166,10 +171,30 @@ export function Projection({ token, def, initial }: { token: string; def: Public
     const nameOf = (id: string | null | undefined) => view.players.find((p) => p.id === id)?.name.toUpperCase() ?? "—";
     const lockedNow = s.locked && !wasLocked.current;
     wasLocked.current = s.locked;
+    let doorShown = false;
     for (const { action: a } of fresh) {
       play(a);
     }
+    // Opened by the day's door, by the plan, by « Ouvrir la porte »: the key (or the badge) flies to the lock too.
+    const nowOpen = new Set(Object.entries(s.doors).filter(([, v]) => v).map(([k]) => k));
+    const opened = [...nowOpen].filter((id) => !openDoors.current.has(id));
+    openDoors.current = nowOpen;
+    if (fresh.length && !doorShown) {
+      const door = opened.map((id) => def.doors.find((d) => d.id === id)).find((d) => d?.requires);
+      const sd = door && STATION_DOORS.find((d) => d.id === door.id);
+      if (door && sd) showDoor(door, sd);
+    }
     lastInventory.current = s.inventory.length;
+    function showDoor(door: (typeof def.doors)[number], sd: (typeof STATION_DOORS)[number]) {
+      // What opens it flies to the lock: the key, a badge, the code's post-it.
+      // (Only if the group holds it: a door forced as décor simply opens.)
+      const withKey = !!door.requires && !!s.flags[door.requires];
+      const opener = withKey ? Object.entries(def.sandbox?.objets ?? {}).find(([, o]) => o.flag === door.requires)?.[0] : undefined;
+      setDoorAnim({ letter: sd.letter, dest: sd.b, withKey, object: opener, key: Date.now() });
+      later(() => SFX.door(), withKey ? 1500 : 600);
+      later(() => setDoorAnim(null), withKey ? 4600 : 3700);
+      doorShown = true;
+    }
     function play(a: Action) {
       switch (a.t) {
         case "light":
@@ -189,8 +214,8 @@ export function Projection({ token, def, initial }: { token: string; def: Public
             banner("ACCÈS REFUSÉ", "bad");
             setDenied(true);
             later(() => setDenied(false), 800);
-          } else if (a.open) SFX.door();
-          else SFX.click();
+          } else if (a.open && !def.doors.find((d) => d.id === a.door)?.requires) SFX.door();
+          else if (!a.open) SFX.click();
           break;
         case "terminal":
           if (a.id) {
@@ -237,8 +262,6 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           media.current?.pause();
           timers.current.forEach(clearTimeout);
           timers.current = [];
-          setTracker(false);
-          setFaultShow(null);
           setAnnounce(null);
           setEventBig(false);
           setReboot(null);
@@ -246,8 +269,6 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           setDarkOverride(null);
           break;
         case "neutral":
-          setTracker(false);
-          setFaultShow(null);
           setAnnounce(null);
           setEventBig(false);
           break;
@@ -268,17 +289,8 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           if (a.text) doGlitch();
           break;
         case "fault": {
-          const f = allFaults.find((x) => x.id === a.id);
-          if (!f) break;
-          doGlitch();
-          if (f.kind === "tracker") {
-            setTracker(true);
-            later(() => setTracker(false), 4000);
-          }
-          if (f.kind === "image" || f.kind === "text") {
-            setFaultShow(f);
-            later(() => setFaultShow(null), 10_000);
-          }
+          // Switched on: the simulation leaks (a glitch), and the fault stays until taken away.
+          if (a.on !== false && allFaults.some((x) => x.id === a.id)) doGlitch();
           break;
         }
         case "dawn":
@@ -312,7 +324,8 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           else if (s.lastAction && s.lastAction !== "fouiller") SFX.door();
           break;
         case "dayAction":
-          SFX.door();
+          // A door with a key: its animation brings its own sound.
+          if (!def.doors.find((d) => d.id === def.dayActions.find((x) => x.id === a.id)?.zone)?.requires) SFX.door();
           break;
         case "labForce":
           doGlitch();
@@ -380,11 +393,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           const door = def.doors.find((d) => d.id === a.door);
           const sd = STATION_DOORS.find((d) => d.id === a.door);
           if (door && sd && s.doors[a.door]) {
-            // What opens it flies to the lock: the key, a badge, the code's post-it.
-            const opener = door.requires ? Object.entries(def.sandbox?.objets ?? {}).find(([, o]) => o.flag === door.requires)?.[0] : undefined;
-            setDoorAnim({ letter: sd.letter, dest: sd.b, withKey: !!door.requires, object: opener, key: Date.now() });
-            later(() => SFX.door(), door.requires ? 1500 : 600);
-            later(() => setDoorAnim(null), door.requires ? 4600 : 3700);
+            showDoor(door, sd);
           } else {
             SFX.deny();
             setFlash(Date.now());
@@ -489,9 +498,9 @@ export function Projection({ token, def, initial }: { token: string; def: Public
           <>
             {!night && (
               <div className="pj-hud">
-                <span className={glitch ? "alt" : ""}>{glitch ? `SIMULATION ALPHA — SESSION 0${s.loop} — SUJETS ACTIFS : ${aliveCount}` : def.header}</span>
+                <span className={glitch || headerLeak ? "alt" : ""}>{glitch || headerLeak ? `SIMULATION ALPHA — SESSION 0${s.loop} — SUJETS ACTIFS : ${aliveCount}` : def.header}</span>
                 <span className="flex gap-[2.4em] opacity-85">
-                  <Clock date={glitch ? (view.dates.real ?? def.realDate) : (view.dates.world ?? def.worldDate)} />
+                  <Clock date={glitch || headerLeak ? (view.dates.real ?? def.realDate) : (view.dates.world ?? def.worldDate)} />
                   <Temperature around={def.temperature} />
                   {s.chief && <span>CHEF : {view.players.find((p) => p.id === s.chief)?.name.toUpperCase()}</span>}
                   <span className="pj-rec">● REC</span>
@@ -532,7 +541,7 @@ export function Projection({ token, def, initial }: { token: string; def: Public
               <Crt
                 term={term}
                 playing={s.playing}
-                faults={s.faults.map((f) => f.id)}
+                faults={s.faultsOn}
                 bootKey={bootKey}
                 urlOf={urlOf}
                 recording={recording}

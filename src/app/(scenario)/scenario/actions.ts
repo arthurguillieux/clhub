@@ -6,6 +6,7 @@ import { getSession } from "@/core/auth/session";
 import {
   act,
   checkConsole,
+  cohostsOf,
   createEvening,
   deleteEvening,
   deleteSimulations,
@@ -175,7 +176,7 @@ const actionSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("sound"), slot: id }),
   z.object({ t: z.literal("stopSound"), slot: id.nullable() }),
   z.object({ t: z.literal("record") }),
-  z.object({ t: z.literal("fault"), id }),
+  z.object({ t: z.literal("fault"), id, on: z.boolean().optional() }),
   z.object({ t: z.literal("night") }),
   z.object({ t: z.literal("panic"), player: player.nullable() }),
   z.object({ t: z.literal("tapes"), target: player.nullable() }),
@@ -241,10 +242,13 @@ export async function consoleAction(code: string, input: unknown): Promise<Conso
         return saveSetup(game, a.setup as Setup);
       case "launch":
         return launch(game, def);
-      case "act":
-        return act(game, (a.decor ? { ...a.action, decor: true } : a.action) as Action);
+      case "act": {
+        // Who did it: « Annuler » takes back one's own gestures only; a co-organizer's are signed in the journal.
+        const who = check.role === "cohost" ? (await cohostsOf(game)).find((c) => c.memberId === check.memberId)?.name.split(" ")[0] : undefined;
+        return act(game, { ...a.action, ...(a.decor ? { decor: true } : {}), by: check.memberId, ...(who ? { who } : {}) } as unknown as Action);
+      }
       case "undo":
-        return undo(game);
+        return undo(game, check.memberId, check.role);
       case "rewind":
         return rewind(game, a.seq);
       case "finish":
@@ -255,7 +259,7 @@ export async function consoleAction(code: string, input: unknown): Promise<Conso
   })();
   if (!result.ok) return result;
   const fresh = await checkConsole(code);
-  return fresh.ok ? { ok: true, view: await getConsoleView(fresh.game, fresh.def, fresh.role) } : { ok: false, error: "Cette soirée n'existe plus." };
+  return fresh.ok ? { ok: true, view: await getConsoleView(fresh.game, fresh.def, fresh.role, fresh.memberId) } : { ok: false, error: "Cette soirée n'existe plus." };
 }
 
 /** « Rejouer ce scénario »: a new evening with the same preparation. */

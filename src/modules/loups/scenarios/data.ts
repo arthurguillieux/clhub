@@ -203,7 +203,7 @@ async function currentState(g: ScenarioGame, def: ScenarioDef): Promise<State> {
 }
 
 /** The game's own moves wait for « Lancer la partie »; before it, the station is piloted on its own. */
-const GAME_ONLY = new Set<Action["t"]>(["start", "reveal", "arrive", "patientZero", "night", "panic", "tapes", "infect", "victim", "useItem", "giveItem", "propose", "deadChoose", "skip", "dawn", "exile", "setInfected", "endLoop", "reboot", "goodEnd", "badEnd", "vote", "voteResult", "dayAction", "labForce", "chief", "chiefConfirm", "shoot", "bloodTest", "radio", "quarantine", "confinement", "flag", "jump", "kill", "revive", "fault"]);
+const GAME_ONLY = new Set<Action["t"]>(["start", "reveal", "arrive", "patientZero", "night", "panic", "tapes", "infect", "victim", "useItem", "giveItem", "propose", "deadChoose", "skip", "dawn", "exile", "setInfected", "endLoop", "reboot", "goodEnd", "badEnd", "vote", "voteResult", "dayAction", "labForce", "chief", "chiefConfirm", "shoot", "bloodTest", "radio", "quarantine", "confinement", "flag", "jump", "kill", "revive"]);
 
 export async function act(g: ScenarioGame, action: Action): Promise<Result> {
   if (g.status === "done") return fail("La soirée est terminée.");
@@ -225,10 +225,23 @@ export async function rewind(g: ScenarioGame, seq: number): Promise<Result> {
   return { ok: true };
 }
 
-export async function undo(g: ScenarioGame): Promise<Result> {
+/**
+ * Whose gestures « Annuler » takes back: one's own only, so that two consoles never undo each other
+ * (Arthur's vote is not Rémi's wind). The journal's older rows, written before the authors were noted,
+ * are the creator's.
+ */
+const mine = (memberId: string, role: "host" | "cohost") =>
+  role === "host" ? sql`(${scenarioAction.action}->>'by' = ${memberId} or ${scenarioAction.action}->>'by' is null)` : sql`${scenarioAction.action}->>'by' = ${memberId}`;
+
+export async function undo(g: ScenarioGame, memberId: string, role: "host" | "cohost"): Promise<Result> {
   if (g.status === "done") return fail("La soirée est terminée.");
-  const [last] = await db.select({ seq: scenarioAction.seq }).from(scenarioAction).where(eq(scenarioAction.gameId, g.id)).orderBy(desc(scenarioAction.seq)).limit(1);
-  if (!last) return fail("Rien à annuler.");
+  const [last] = await db
+    .select({ seq: scenarioAction.seq })
+    .from(scenarioAction)
+    .where(and(eq(scenarioAction.gameId, g.id), mine(memberId, role)))
+    .orderBy(desc(scenarioAction.seq))
+    .limit(1);
+  if (!last) return fail("Rien à annuler de ton côté.");
   await db.delete(scenarioAction).where(eq(scenarioAction.seq, last.seq));
   await bump(g);
   return { ok: true };
@@ -244,7 +257,10 @@ export interface ConsoleView {
   role: "host" | "cohost";
   setup: Setup;
   state: State;
+  /** Whether this console has a gesture of its own to take back. */
   canUndo: boolean;
+  /** When « Lancer la partie » was pressed: the game's length, for the environment's panel. */
+  startedAt: number | null;
   projection: { connected: boolean; mediaReady: number; mediaTotal: number; mic: boolean };
   suggested: "village" | "meute" | null;
   clues: { at: string; text: string }[];
@@ -256,7 +272,7 @@ export interface ConsoleView {
   now: number;
 }
 
-export async function getConsoleView(g: ScenarioGame, def: ScenarioDef, role: "host" | "cohost"): Promise<ConsoleView> {
+export async function getConsoleView(g: ScenarioGame, def: ScenarioDef, role: "host" | "cohost", memberId: string): Promise<ConsoleView> {
   const setup = setupOf(g, def);
   const rows = await journal(g);
   let state = initialState(def, setup);
@@ -274,7 +290,8 @@ export async function getConsoleView(g: ScenarioGame, def: ScenarioDef, role: "h
     role,
     setup,
     state,
-    canUndo: rows.length > 0 && g.status !== "done",
+    canUndo: g.status !== "done" && rows.some((r) => ((r.action as { by?: string }).by ?? (role === "host" ? memberId : null)) === memberId),
+    startedAt: g.startedAt?.getTime() ?? null,
     projection: {
       connected: !!g.projectionSeenAt && Date.now() - g.projectionSeenAt.getTime() < PROJECTION_TIMEOUT_MS,
       mediaReady: g.mediaReady,

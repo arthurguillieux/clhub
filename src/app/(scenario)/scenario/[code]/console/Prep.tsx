@@ -386,7 +386,7 @@ function Team({ view, members, busy, send }: { view: ConsoleView; members: { id:
   const candidates = members.filter((m) => !view.cohosts.some((c) => c.memberId === m.id));
   return (
     <Section title="CO-ORGANISATEURS" chip={<span className="scn-chip">{view.cohosts.length}</span>}>
-      <p className="text-xs text-[var(--scn-muted)]">Ils ouvrent la même console (Rémi au piano, par exemple) et font tout, sauf supprimer la soirée.</p>
+      <p className="text-xs text-[var(--scn-muted)]">Ils ouvrent la même console et font tout, sauf supprimer la soirée. Chaque console choisit son mode : Narration (la partie, les textes) ou Environnement (sons, lumière, effets) ; sur une tablette en paysage, un co-organisateur arrive sur l&apos;environnement.</p>
       {view.cohosts.map((c) => (
         <div key={c.memberId} className="flex items-center justify-between text-sm">
           <span>{c.name}</span>
