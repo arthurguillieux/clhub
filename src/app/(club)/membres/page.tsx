@@ -32,7 +32,7 @@ export default async function MembresPage() {
         <Card className="flex items-center justify-between gap-4 p-5 transition-colors hover:border-primary">
           <div>
             <p className="glow-text-primary font-display text-2xl font-extrabold tracking-tight text-primary">CLHUB Wrapped</p>
-            <p className="mt-1 text-sm text-muted">L&apos;année du club en un coup d&apos;œil : l&apos;objet le plus convoité, le mois le plus animé, les duos.</p>
+            <p className="mt-1 text-sm text-muted">L&apos;année du club en un coup d&apos;œil : ce qu&apos;on a partagé, cuisiné, joué et fêté ensemble.</p>
           </div>
           <span aria-hidden="true" className="text-2xl text-muted">
             →

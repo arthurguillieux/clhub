@@ -1,111 +1,96 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { computeWrapped } from "@/core/achievements/wrapped";
+import { clubYear, statLabel, type PoleLife } from "@/core/achievements/club";
 import { Container } from "@/core/ui/components/Container";
 import { PageTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
+import { SectionTile } from "@/core/ui/components/SectionIcon";
+import { POLES } from "@/core/ui/sections";
+import { euros } from "@/core/money";
 import { today } from "@/core/date";
-import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "CLHUB Wrapped" };
 
-function euros(cents: number): string {
-  return `${(cents / 100).toFixed(0)} €`;
-}
-
-export default async function WrappedPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ year?: string }>;
-}) {
+/**
+ * The year of the club, pole by pole — what was shared, cooked, gathered, played and celebrated — and
+ * not only the Prêtothèque. No ranking: the club as a whole, never one member against another.
+ */
+export default async function WrappedPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
   const { year: yearParam } = await searchParams;
   const currentYear = Number(today().slice(0, 4));
-  const year = yearParam ? Number(yearParam) : currentYear;
+  const year = yearParam && /^\d{4}$/.test(yearParam) ? Number(yearParam) : currentYear;
 
-  const data = await computeWrapped(year);
-  const hasAnyData =
-    data.mostCovetedItem !== null || data.busiestMonth !== null || data.topDuo !== null;
+  const [club, loans] = await Promise.all([clubYear(year), computeWrapped(year)]);
+  const byPole = new Map(club.poles.map((p) => [p.pole, p]));
+  const extras: Partial<Record<PoleLife["pole"], string[]>> = {
+    partager: [
+      loans.mostCovetedItem ? `L'objet le plus demandé : ${loans.mostCovetedItem.name} (${loans.mostCovetedItem.requestCount} demande${loans.mostCovetedItem.requestCount > 1 ? "s" : ""}).` : null,
+      loans.totalItemDaysShared ? `${loans.totalItemDaysShared} jours-objets partagés${loans.totalSavingsCents > 0 ? `, environ ${euros(loans.totalSavingsCents)} d'achats évités` : ""}.` : null,
+      loans.topDuo ? `Le duo de l'année : ${loans.topDuo.ownerName} prête, ${loans.topDuo.borrowerName} emprunte (${loans.topDuo.count} fois).` : null,
+    ].filter((x): x is string => !!x),
+    retrouver: club.spentCents > 0 ? [`${euros(club.spentCents)} de dépenses partagées dans les caisses communes.`] : [],
+  };
+  const empty = club.poles.length === 0 && !extras.partager?.length;
 
   return (
     <Container>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <PageTitle>CLHUB Wrapped {year}</PageTitle>
         <div className="flex gap-3 text-sm font-medium text-muted">
-          <Link href={`/wrapped?year=${year - 1}`} className="hover:text-ink">
+          <Link href={`/wrapped?year=${year - 1}`} className="py-2 hover:text-ink">
             ← {year - 1}
           </Link>
           {year < currentYear && (
-            <Link href={`/wrapped?year=${year + 1}`} className="hover:text-ink">
+            <Link href={`/wrapped?year=${year + 1}`} className="py-2 hover:text-ink">
               {year + 1} →
             </Link>
           )}
         </div>
       </div>
 
-      {!hasAnyData ? (
+      {empty ? (
         <Card className="mt-6 p-6">
-          <p className="text-sm text-muted">
-            {`Pas encore assez d'activité en ${year} pour une rétrospective — reviens plus tard dans l'année !`}
-          </p>
+          <p className="text-sm text-muted">{`Pas encore assez d'activité en ${year} pour une rétrospective. Reviens plus tard dans l'année !`}</p>
         </Card>
       ) : (
-        <div className="mt-6 flex flex-col gap-4">
-          {data.mostCovetedItem && (
-            <Card className="p-6">
-              <p className="text-xs font-semibold tracking-wide text-muted uppercase">
-                L&apos;objet le plus convoité
-              </p>
-              <p className="mt-2 font-display text-2xl font-extrabold text-ink text-balance">
-                {data.mostCovetedItem.name}
-              </p>
-              <p className="mt-1 text-sm text-muted">
-                {data.mostCovetedItem.requestCount} demande
-                {data.mostCovetedItem.requestCount > 1 ? "s" : ""} cette année
-              </p>
-            </Card>
-          )}
-
-          {data.busiestMonth && (
-            <Card className="p-6">
-              <p className="text-xs font-semibold tracking-wide text-muted uppercase">
-                Le mois le plus chargé
-              </p>
-              <p className="mt-2 font-display text-2xl font-extrabold text-ink capitalize">
-                {data.busiestMonth.label}
-              </p>
-              <p className="mt-1 text-sm text-muted">
-                {data.busiestMonth.count} demande{data.busiestMonth.count > 1 ? "s" : ""}
-              </p>
-            </Card>
-          )}
-
-          {data.topDuo && (
-            <Card className="p-6">
-              <p className="text-xs font-semibold tracking-wide text-muted uppercase">
-                Le duo prêteur / emprunteur de l&apos;année
-              </p>
-              <p className="mt-2 font-display text-2xl font-extrabold text-ink text-balance">
-                {data.topDuo.ownerName} &amp; {data.topDuo.borrowerName}
-              </p>
-              <p className="mt-1 text-sm text-muted">
-                {data.topDuo.count} prêt{data.topDuo.count > 1 ? "s" : ""} ensemble
-              </p>
-            </Card>
-          )}
-
-          <Card className="p-6">
-            <p className="text-xs font-semibold tracking-wide text-muted uppercase">
-              Partagé cette année
-            </p>
-            <p className="mt-2 font-display text-2xl font-extrabold text-ink">
-              {data.totalItemDaysShared} jours-objets
-            </p>
-            {data.totalSavingsCents > 0 && (
-              <p className="mt-1 text-sm text-muted">
-                {`Grâce au club, environ ${euros(data.totalSavingsCents)} d'achats évités.`}
-              </p>
-            )}
-          </Card>
-        </div>
+        <>
+          <p className="mt-3 max-w-prose text-sm text-muted">
+            {year} au CLHUB, dans toute sa diversité
+            {club.newMembers > 0 ? ` : ${club.newMembers} nouveau${club.newMembers > 1 ? "x" : ""} membre${club.newMembers > 1 ? "s" : ""}` : ""}
+            {club.busiestMonth ? `${club.newMembers > 0 ? ", et" : " :"} le mois le plus vivant, c'était ${club.busiestMonth.label}` : ""}.
+          </p>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {POLES.map((pole) => {
+              const life = byPole.get(pole.id);
+              const more = extras[pole.id] ?? [];
+              if (!life && !more.length) return null;
+              return (
+                <Card key={pole.id} className="flex flex-col gap-4 p-6">
+                  <div className="flex items-center gap-3">
+                    <SectionTile id={pole.id} size={40} />
+                    <p className="font-display text-xl font-extrabold text-ink">{pole.name}</p>
+                  </div>
+                  {life && (
+                    <ul className="grid grid-cols-2 gap-x-4 gap-y-3">
+                      {life.stats.map((x) => (
+                        <li key={x.one}>
+                          <span className="block font-display text-3xl font-extrabold text-ink tabular-nums">{x.n}</span>
+                          <span className="block text-sm text-muted">{statLabel(x)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {more.map((line) => (
+                    <p key={line} className="text-sm text-ink">
+                      {line}
+                    </p>
+                  ))}
+                </Card>
+              );
+            })}
+          </div>
+        </>
       )}
     </Container>
   );

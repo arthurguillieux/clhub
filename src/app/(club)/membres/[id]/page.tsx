@@ -11,6 +11,9 @@ import { SectionTitle } from "@/core/ui/components/Heading";
 import { Card } from "@/core/ui/components/Card";
 import { MemberCard } from "@/core/ui/components/MemberCard";
 import { AdminProfileEditor } from "./AdminProfileEditor";
+import { memberLife, statLabel } from "@/core/achievements/club";
+import { SectionTile } from "@/core/ui/components/SectionIcon";
+import { POLES } from "@/core/ui/sections";
 import type { Metadata } from "next";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -32,12 +35,15 @@ export default async function MemberProfilePage({
   if (!profile) notFound();
 
   const isAdmin = await isAdminModeActive();
-  const [gaugeDays, badges, editable] = await Promise.all([
+  const [gaugeDays, badges, editable, life] = await Promise.all([
     computeGaugeDays(profile.id),
     listUnlockedBadges(profile.id),
     isAdmin ? getMemberProfileForEdit(profile.id) : Promise.resolve(null),
+    memberLife(profile.id),
   ]);
   const hasActivity = gaugeDays.lentDays > 0 || gaugeDays.borrowedDays > 0;
+  // The lender / borrower balance belongs to « Partager », among the rest of the member's club life.
+  const gauge = hasActivity ? gaugePosition(gaugeDays.lentDays, gaugeDays.borrowedDays) : null;
 
   return (
     <Container>
@@ -52,7 +58,6 @@ export default async function MemberProfilePage({
           image={profile.image}
           bio={profile.bio}
           joinedAt={profile.joinedAt}
-          gauge={hasActivity ? gaugePosition(gaugeDays.lentDays, gaugeDays.borrowedDays) : undefined}
           badges={badges}
         />
         {isAdmin && editable && (
@@ -67,6 +72,42 @@ export default async function MemberProfilePage({
           </div>
         )}
       </div>
+
+      <section className="mt-8">
+        <SectionTitle>Au CLHUB</SectionTitle>
+        {life.length === 0 ? (
+          <Card className="mt-3 p-5">
+            <p className="text-sm text-muted">Pas encore d&apos;activité au club : ça viendra !</p>
+          </Card>
+        ) : (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {POLES.map((pole) => {
+              const p = life.find((x) => x.pole === pole.id);
+              if (!p) return null;
+              return (
+                <Card key={pole.id} className="flex gap-3 p-4">
+                  <SectionTile id={pole.id} size={36} />
+                  <div className="min-w-0">
+                    <p className="font-display font-extrabold text-ink">{pole.name}</p>
+                    <ul className="mt-1 flex flex-col gap-0.5 text-sm text-muted">
+                      {p.stats.map((x) => (
+                        <li key={x.one}>
+                          <span className="font-semibold text-ink tabular-nums">{x.n}</span> {statLabel(x)}
+                        </li>
+                      ))}
+                      {pole.id === "partager" && gauge && (
+                        <li>
+                          {gauge.emoji} {gauge.label}
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       <section className="mt-8">
         <SectionTitle>Succès</SectionTitle>
