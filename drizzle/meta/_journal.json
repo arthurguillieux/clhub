@@ -470,6 +470,20 @@
       "when": 1795590423799,
       "tag": "0066_changelog_potlucks_allure",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1795785135929,
+      "tag": "0067_nouvel_an",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1795785959092,
+      "tag": "0068_changelog_nouvel_an",
+      "breakpoints": true
     }
   ]
 }

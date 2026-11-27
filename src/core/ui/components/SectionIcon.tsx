@@ -77,6 +77,12 @@ const PATHS: Record<SectionId | PoleId | "membres" | "tout" | "accueil", React.R
       <path d="M2 21h20M7 8v3M12 8v3M17 8v3M7 4h.01M12 4h.01M17 4h.01" />
     </>
   ),
+  nouvelan: (
+    <>
+      <path d="M8 22h8M12 15v7M5 3h14l-1.5 8a5.5 5.5 0 0 1-11 0z" />
+      <path d="M6 7h12" />
+    </>
+  ),
   membres: (
     <>
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />

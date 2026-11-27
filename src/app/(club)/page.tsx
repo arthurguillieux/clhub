@@ -101,6 +101,8 @@ function notificationHref(n: Notification): string | null {
   if (n.kind === "bug.report") return "/admin/bugs";
   const birthdayId = (n.payload as { birthdayId?: unknown }).birthdayId;
   if (n.kind.startsWith("birthday.") && typeof birthdayId === "string" && /^[0-9a-f-]{36}$/i.test(birthdayId)) return `/celebrer/anniversaires/${birthdayId}`;
+  const nyeCode = (n.payload as { code?: unknown }).code;
+  if (n.kind.startsWith("nye.") && typeof nyeCode === "string" && /^[A-Z0-9]{6}$/.test(nyeCode)) return `/celebrer/nouvel-an/${nyeCode}`;
   const mealId = (n.payload as { mealId?: unknown }).mealId;
   if (n.kind.startsWith("meal.") && typeof mealId === "string" && /^[0-9a-f-]{36}$/i.test(mealId)) return `/repas/${mealId}`;
   return n.kind.startsWith("lettre.") && typeof code === "string" && /^[A-Z0-9]{6}$/.test(code) ? `/lettre/${code}/panneau` : null;
@@ -190,6 +192,12 @@ function describeNotification(n: Notification): string {
     case "birthday.bought": {
       const p = n.payload as { text?: string; name?: string };
       return `🎂 ${p.text ?? `Anniversaire de ${p.name ?? "?"}`}`;
+    }
+    case "nye.invited":
+    case "nye.request":
+    case "nye.reminder": {
+      const p = n.payload as { text?: string; title?: string };
+      return `🥂 ${p.text ?? p.title ?? "Un nouvel an"}`;
     }
     case "meal.invited":
     case "meal.nudge":

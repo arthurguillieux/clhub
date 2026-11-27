@@ -34,6 +34,11 @@ export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
     description: "Un mail quand on t'invite à préparer un anniversaire, quand le cadeau est choisi, et quand il est acheté (avec ta part).",
   },
   {
+    key: "nouvelan",
+    label: "Le nouvel an",
+    description: "Un mail quand on t'invite à un nouvel an, avec la demande de participation et ses rappels. Sans compte, les invités par mail le reçoivent toujours.",
+  },
+  {
     key: "lettre",
     label: "Lettre au Père Noël",
     description: "Un mail quand quelqu'un réserve un cadeau ou promet une part de cagnotte sur une lettre que tu organises, ou se désiste.",

@@ -29,3 +29,4 @@ export * from "./loups";
 export * from "./scenario";
 export * from "./bugReport";
 export * from "./birthday";
+export * from "./nouvelAn";

@@ -5,7 +5,7 @@
  * each page's title.
  */
 export type PoleId = "partager" | "manger" | "retrouver" | "jouer" | "celebrer";
-export type SectionId = "pretotheque" | "dons" | "repas" | "recettes" | "agenda" | "caisse" | "jeux" | "santa" | "lettre" | "anniversaire";
+export type SectionId = "pretotheque" | "dons" | "repas" | "recettes" | "agenda" | "caisse" | "jeux" | "santa" | "lettre" | "anniversaire" | "nouvelan";
 
 export interface Pole {
   id: PoleId;
@@ -49,7 +49,7 @@ export const POLES: Pole[] = [
     { label: "Points", href: "/jeux/points" },
     { label: "Buzzer", href: "/jeux/buzzer" },
   ] },
-  { id: "celebrer", name: "Célébrer", href: "/celebrer", tagline: "Les fêtes du club : les anniversaires en secret, le Secret Santa, la lettre au Père Noël des enfants.", color: "#ff3ec9", ink: "#1a0512", icon: "celebrer" },
+  { id: "celebrer", name: "Célébrer", href: "/celebrer", tagline: "Les fêtes du club : les anniversaires en secret, le nouvel an, le Secret Santa, la lettre au Père Noël des enfants.", color: "#ff3ec9", ink: "#1a0512", icon: "celebrer" },
 ];
 
 export const poleById = (id: PoleId) => POLES.find((p) => p.id === id)!;
@@ -65,6 +65,7 @@ export const CLUB_SECTIONS: ClubSection[] = [
   { id: "jeux", pole: "jouer", name: "Jeux", short: "Jeux", description: "Loups-garous, Killer, dés, compteur de points, buzzer.", href: "/jouer", live: true, ...tint("jouer"), activity: ["jeux", "loups", "killer"] },
   { id: "santa", pole: "celebrer", name: "Secret Santa", short: "Secret Santa", description: "Le tirage au sort des cadeaux, un lien perso pour chacun.", href: "/jeux/santa", live: true, ...tint("celebrer"), activity: ["santa"] },
   { id: "anniversaire", pole: "celebrer", name: "Un anniversaire", short: "Anniversaires", description: "Le cadeau d'un ami, préparé à plusieurs dans son dos : idées, pouces, et le prix partagé.", href: "/celebrer/anniversaires", live: true, ...tint("celebrer"), action: { label: "Préparer un anniversaire", href: "/celebrer/anniversaires/nouveau" }, activity: [] },
+  { id: "nouvelan", pole: "celebrer", name: "Nouvel an", short: "Nouvel an", description: "Le réveillon à plusieurs : les invités, qui fait quoi, les listes qui se calculent selon le nombre, le budget et qui a payé.", href: "/celebrer/nouvel-an", live: true, ...tint("celebrer"), action: { label: "Préparer un nouvel an", href: "/celebrer/nouvel-an" }, activity: [] },
   { id: "lettre", pole: "celebrer", name: "Ma lettre au Père Noël", short: "Lettre", description: "La liste d'un enfant pour toute la famille, et une cagnotte.", href: "/jeux/lettre", live: true, ...tint("celebrer"), activity: ["lettre"] },
 ];
 
